@@ -12,7 +12,13 @@ import { onMounted, ref } from 'vue';
 import { message, Modal, Spin, Switch } from 'ant-design-vue';
 
 import {
+  mergeAgentStartHeaders,
+  type AgentStartHeaders,
+  useAgentStartConfig,
+} from '../../config';
+import {
   setProviderHubApiBase,
+  setProviderHubHeaders,
   useProviderHub,
 } from '../composables/useProviderHub';
 import type {
@@ -26,6 +32,8 @@ import ProviderHubShell from './ProviderHubShell.vue';
 interface Props {
   /** Backend base URL, default `/api`. */
   apiBase?: string;
+  /** Extra headers; a function is evaluated again before every request. */
+  headers?: AgentStartHeaders;
   /**
    * 是否显示进阶面板 (已装模型逐条操作: 设为默认 / 测试 / 删除 / 覆写凭证)。
    * 默认展示; 若不需要传 `:enable-advanced="false"` 隐藏。
@@ -33,12 +41,17 @@ interface Props {
   enableAdvanced?: boolean;
 }
 const props = withDefaults(defineProps<Props>(), {
-  apiBase: '/api',
   enableAdvanced: true,
 });
 
+const globalConfig = useAgentStartConfig();
+const resolvedApiBase = props.apiBase ?? globalConfig.apiBase ?? '/api';
+
 // Composable is module-scoped — flip the base URL before first fetch.
-setProviderHubApiBase(props.apiBase);
+setProviderHubApiBase(resolvedApiBase);
+setProviderHubHeaders(() =>
+  mergeAgentStartHeaders(globalConfig.headers, props.headers),
+);
 
 const { listProviders, listModels, deleteModel, setDefault } = useProviderHub();
 
@@ -100,12 +113,12 @@ function onEditCredentials(m: ModelEntity) {
 
 <template>
   <div class="agent-start-provider-app">
-    <div class="agent-start-provider-app__header">
+<!--    <div class="agent-start-provider-app__header">
       <div class="agent-start-provider-app__title">模型供应商</div>
       <div class="agent-start-provider-app__desc">
         填入 API Key 一次导入该供应商全部可用模型 —— 凭证 AES-GCM 加密存储。
       </div>
-    </div>
+    </div>-->
     <Spin :spinning="loading">
       <ProviderHubShell :models="models" @change="refresh" />
 

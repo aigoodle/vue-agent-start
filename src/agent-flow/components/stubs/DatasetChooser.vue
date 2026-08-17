@@ -12,7 +12,7 @@ import { computed, ref } from 'vue';
 import DatasetPickerModal from '../../../knowledge-hub/components/DatasetPickerModal.vue';
 import type { DatasetSummary } from '../../../knowledge-hub/types';
 
-interface DatasetLike {
+export interface DatasetLike {
   id: string;
   name: string;
   [key: string]: unknown;

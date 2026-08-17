@@ -150,7 +150,7 @@ function removeFile(i: number) {
 const step1Ready = computed(() => files.value.length > 0);
 
 // ------ step 2: chunking
-const chunkMode = ref<'general' | 'parent-child'>('general');
+const chunkMode = ref<'general' | 'parent-child' | 'structure-aware'>('structure-aware');
 const chunkSeparator = ref('\\n\\n');
 const chunkMaxTokens = ref(1024);
 const chunkOverlap = ref(50);
@@ -178,6 +178,9 @@ const retrievalConfig = ref<RetrievalConfig>({
   method: 'HYBRID',
   topK: 3,
   vectorWeight: 0.7,
+  fusionMethod: 'RECIPROCAL_RANK',
+  recallMultiplier: 6,
+  maxChunksPerDocument: 3,
   rerankEnabled: false,
 });
 
@@ -203,12 +206,14 @@ function buildProcessRule(): ProcessRule {
     };
   }
   return {
-    template: 'NAIVE',
+    template: chunkMode.value === 'structure-aware' ? 'STRUCTURE_AWARE' : 'NAIVE',
     chunkTokens: chunkMaxTokens.value,
     overlapTokens: chunkOverlap.value,
     separators: [unescapeSeparator(chunkSeparator.value)],
     removeExtraWhitespace: removeExtraWhitespace.value,
     removeUrlsEmails: removeUrlsEmails.value,
+    protectStructuredBlocks: true,
+    includeHeadingContext: true,
   };
 }
 
@@ -225,14 +230,17 @@ const previewLoaded = ref(false);
 const previewLoading = ref(false);
 const previewError = ref<string | null>(null);
 const previewTotal = ref(0);
-const previewChunks = ref<Array<{ index: number; text: string; tokens: number }>>(
-  [],
-);
+const previewChunks = ref<ChunkPreview['chunks']>([]);
+const previewParse = ref<Pick<ChunkPreview, 'parser' | 'mediaType' | 'pageCount' | 'blockCount' | 'warnings'>>({});
 
 /** Snapshot current step-2 form into a ProcessRule (shared with save path). */
 function currentRule(): ProcessRule {
   return {
-    template: chunkMode.value === 'parent-child' ? 'PARENT_CHILD' : 'NAIVE',
+    template: chunkMode.value === 'parent-child'
+      ? 'PARENT_CHILD'
+      : chunkMode.value === 'structure-aware'
+        ? 'STRUCTURE_AWARE'
+        : 'NAIVE',
     chunkTokens: chunkMaxTokens.value,
     overlapTokens: chunkOverlap.value,
     parentMode: parentMode.value,
@@ -252,6 +260,7 @@ async function loadPreview() {
       const res = await props.previewChunks(file, currentRule(), 10);
       previewTotal.value = res.totalChunks;
       previewChunks.value = res.chunks;
+      previewParse.value = res;
       previewLoaded.value = true;
     } catch (e: any) {
       previewError.value = e?.message ?? '预览失败';
@@ -442,6 +451,26 @@ function humanSize(bytes: number): string {
         <div v-if="step === 2" class="kh-body kh-body-split">
           <!-- LEFT -->
           <div class="kh-split-left">
+            <div
+              class="kh-panel"
+              :class="{ 'kh-panel-active': chunkMode === 'structure-aware' }"
+              @click="chunkMode = 'structure-aware'"
+            >
+              <div class="kh-panel-header">
+                <div class="kh-panel-title">
+                  <span class="kh-panel-radio" :class="{ 'kh-panel-radio-on': chunkMode === 'structure-aware' }" />
+                  <span>结构感知（推荐）</span>
+                </div>
+                <div class="kh-panel-hint">保留标题层级、表格与代码块</div>
+              </div>
+              <div v-if="chunkMode === 'structure-aware'" class="kh-panel-body">
+                <div class="kh-grid-2">
+                  <div class="kh-field"><label>目标分段 Tokens</label><input v-model.number="chunkMaxTokens" type="number" class="kh-input" /></div>
+                  <div class="kh-field"><label>重叠 Tokens</label><input v-model.number="chunkOverlap" type="number" class="kh-input" /></div>
+                </div>
+                <div class="kh-tip">适用于 Markdown、技术文档、手册以及包含表格或代码的文档。</div>
+              </div>
+            </div>
             <!-- 分段设置 -->
             <div
               class="kh-panel"
@@ -735,6 +764,11 @@ function humanSize(bytes: number): string {
               <div v-if="previewError" class="kh-preview-warning">
                 ⚠️ {{ previewError }}
               </div>
+              <div v-if="previewParse.parser" class="kh-preview-warning kh-preview-parser">
+                解析器：{{ previewParse.parser }} · {{ previewParse.blockCount ?? 0 }} 个结构块
+                <template v-if="previewParse.pageCount"> · {{ previewParse.pageCount }} 页</template>
+                <div v-for="warning in previewParse.warnings" :key="warning">⚠ {{ warning }}</div>
+              </div>
               <div
                 v-for="c in previewChunks"
                 :key="c.index"
@@ -810,13 +844,13 @@ function humanSize(bytes: number): string {
                 <span class="kh-fact-label">检索设置</span>
                 <span class="kh-fact-val" style="color: #4338ca">
                   {{
-                    retrievalMethod === 'VECTOR'
+                    retrievalConfig.method === 'VECTOR'
                       ? '◈ 向量检索'
-                      : retrievalMethod === 'FULL_TEXT'
+                      : retrievalConfig.method === 'FULL_TEXT'
                         ? '≡ 全文检索'
                         : '⚡ 混合检索'
                   }}
-                  · Top K {{ topK }}
+                  · Top K {{ retrievalConfig.topK }}
                 </span>
               </div>
             </div>

@@ -21,6 +21,11 @@ import { computed } from 'vue';
 
 import { message } from 'ant-design-vue';
 
+import {
+  mergeAgentStartHeaders,
+  type AgentStartHeaders,
+  useAgentStartConfig,
+} from '../../config';
 import { createSpringAgentStartAdapter } from '../adapters/springAgentStart';
 import type { KnowledgeHubApi } from '../types';
 import KnowledgeHubApp from './KnowledgeHubApp.vue';
@@ -28,14 +33,20 @@ import KnowledgeHubApp from './KnowledgeHubApp.vue';
 interface Props {
   apiBase?: string;
   api?: KnowledgeHubApi;
+  /** Extra headers; a function is evaluated again before every request. */
+  headers?: AgentStartHeaders;
   showEmbeddingSetupHint?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  apiBase: '/api',
   api: undefined,
   showEmbeddingSetupHint: true,
 });
+
+const globalConfig = useAgentStartConfig();
+const resolvedApiBase = computed(
+  () => props.apiBase ?? globalConfig.apiBase ?? '/api',
+);
 
 const emit = defineEmits<{
   (e: 'go-to-embedding-setup'): void;
@@ -44,11 +55,12 @@ const emit = defineEmits<{
 const resolvedApi = computed<KnowledgeHubApi>(() => {
   if (props.api) return props.api;
   return createSpringAgentStartAdapter({
-    baseUrl: props.apiBase,
+    baseUrl: resolvedApiBase.value,
+    headers: () => mergeAgentStartHeaders(globalConfig.headers, props.headers),
     onSuccess: (msg: string) => message.success(msg),
     onError: (msg: string) => message.error(msg),
     onCopyApi: (id: string) => {
-      const url = `${window.location.origin}${props.apiBase.replace(/\/+$/, '')}/datasets/${id}`;
+      const url = `${window.location.origin}${resolvedApiBase.value.replace(/\/+$/, '')}/datasets/${id}`;
       navigator.clipboard.writeText(url).then(
         () => message.success('已复制 API 地址'),
         () => message.error('复制失败'),

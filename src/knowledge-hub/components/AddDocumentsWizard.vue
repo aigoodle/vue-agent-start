@@ -155,8 +155,9 @@ function removeFile(i: number) {
 const step1Ready = computed(() => files.value.length > 0);
 
 // ------ step 2: chunking (seeded from the dataset's existing processRule)
-const chunkMode = ref<'general' | 'parent-child'>(
-  props.processRule?.template === 'PARENT_CHILD' ? 'parent-child' : 'general',
+const chunkMode = ref<'general' | 'parent-child' | 'structure-aware'>(
+  props.processRule?.template === 'PARENT_CHILD' ? 'parent-child'
+    : props.processRule?.template === 'STRUCTURE_AWARE' ? 'structure-aware' : 'general',
 );
 const chunkSeparator = ref('\\n\\n');
 const chunkMaxTokens = ref(props.processRule?.chunkTokens ?? 1024);
@@ -182,7 +183,8 @@ watch(
   ([rule]) => {
     if (props.open) return;
     chunkMode.value =
-      rule?.template === 'PARENT_CHILD' ? 'parent-child' : 'general';
+      rule?.template === 'PARENT_CHILD' ? 'parent-child'
+        : rule?.template === 'STRUCTURE_AWARE' ? 'structure-aware' : 'general';
     chunkMaxTokens.value = rule?.chunkTokens ?? 1024;
     chunkOverlap.value = rule?.overlapTokens ?? 50;
     removeExtraWhitespace.value = rule?.removeExtraWhitespace ?? true;
@@ -199,9 +201,8 @@ const previewLoaded = ref(false);
 const previewLoading = ref(false);
 const previewTotal = ref(0);
 const previewError = ref<string | null>(null);
-const previewChunksList = ref<
-  Array<{ index: number; text: string; tokens: number }>
->([]);
+const previewChunksList = ref<ChunkPreview['chunks']>([]);
+const previewParse = ref<Pick<ChunkPreview, 'parser' | 'mediaType' | 'pageCount' | 'blockCount' | 'warnings'>>({});
 
 /**
  * Snapshot the current step-2 form into a {@link ProcessRule} for a preview
@@ -210,7 +211,8 @@ const previewChunksList = ref<
  */
 function currentRule(): ProcessRule {
   return {
-    template: chunkMode.value === 'parent-child' ? 'PARENT_CHILD' : 'NAIVE',
+    template: chunkMode.value === 'parent-child' ? 'PARENT_CHILD'
+      : chunkMode.value === 'structure-aware' ? 'STRUCTURE_AWARE' : 'NAIVE',
     chunkTokens: chunkMaxTokens.value,
     overlapTokens: chunkOverlap.value,
     parentMode: parentMode.value,
@@ -230,6 +232,7 @@ async function loadPreview() {
       const res = await props.previewChunks(file, currentRule(), 10);
       previewTotal.value = res.totalChunks;
       previewChunksList.value = res.chunks;
+      previewParse.value = res;
       previewLoaded.value = true;
     } catch (e: any) {
       previewError.value = e?.message ?? '预览失败';
@@ -267,7 +270,8 @@ function goToStep2() {
 }
 function submit() {
   const processRule: ProcessRule = {
-    template: chunkMode.value === 'parent-child' ? 'PARENT_CHILD' : 'NAIVE',
+    template: chunkMode.value === 'parent-child' ? 'PARENT_CHILD'
+      : chunkMode.value === 'structure-aware' ? 'STRUCTURE_AWARE' : 'NAIVE',
     chunkTokens: chunkMaxTokens.value,
     overlapTokens: chunkOverlap.value,
     parentMode: parentMode.value,
@@ -403,6 +407,19 @@ const backLabel = computed(() => props.datasetName || '知识库');
           <div class="kh-split-left">
             <div class="kh-hint kh-hint-block">
               💡 新文件将沿用知识库当前的分段与检索配置。你可以在下方查看，如需修改整套配置请在"设置"标签中调整。
+            </div>
+
+            <div class="kh-panel" :class="{ 'kh-panel-active': chunkMode === 'structure-aware' }" @click="chunkMode = 'structure-aware'">
+              <div class="kh-panel-header">
+                <div class="kh-panel-title"><span class="kh-panel-radio" :class="{ 'kh-panel-radio-on': chunkMode === 'structure-aware' }" /><span>结构感知（推荐）</span></div>
+                <div class="kh-panel-hint">保留标题、页码、表格、列表与代码块</div>
+              </div>
+              <div v-if="chunkMode === 'structure-aware'" class="kh-panel-body">
+                <div class="kh-grid-2">
+                  <div class="kh-field"><label>目标分段 Tokens</label><input v-model.number="chunkMaxTokens" type="number" class="kh-input" /></div>
+                  <div class="kh-field"><label>重叠 Tokens</label><input v-model.number="chunkOverlap" type="number" class="kh-input" /></div>
+                </div>
+              </div>
             </div>
 
             <div
@@ -690,6 +707,11 @@ const backLabel = computed(() => props.datasetName || '知识库');
             <div v-else class="kh-preview-body">
               <div v-if="previewError" class="kh-preview-warning">
                 ⚠️ {{ previewError }}
+              </div>
+              <div v-if="previewParse.parser" class="kh-preview-warning kh-preview-parser">
+                解析器：{{ previewParse.parser }} · {{ previewParse.blockCount ?? 0 }} 个结构块
+                <template v-if="previewParse.pageCount"> · {{ previewParse.pageCount }} 页</template>
+                <div v-for="warning in previewParse.warnings" :key="warning">⚠ {{ warning }}</div>
               </div>
               <div
                 v-for="c in previewChunksList"

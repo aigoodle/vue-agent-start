@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-nocheck — legacy flow-designer code, pre-dates strict typing; cleanup tracked separately.
 import { onMounted, ref, watch } from 'vue';
 
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons-vue';

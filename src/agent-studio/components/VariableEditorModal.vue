@@ -94,10 +94,10 @@ function submit() {
   const payload: AgentVariable = {
     id: form.id ?? Date.now(),
     name: form.name.trim(),
-    label: form.label.trim() || form.name.trim(),
+    label: (form.label ?? '').trim() || form.name.trim(),
     type: form.type,
     required: form.required,
-    description: form.description.trim(),
+    description: (form.description ?? '').trim(),
     defaultValue: form.defaultValue,
   };
   emit('submit', payload);

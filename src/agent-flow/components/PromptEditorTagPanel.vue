@@ -41,6 +41,8 @@ const workflowStore = useWorkflowStore();
 
 /** ---------- 定位 ---------- */
 function updatePosition() {
+  // SSR guard: also invoked from an immediate watch during setup.
+  if (typeof window === 'undefined') return;
   if (!props.targetElement) {
     panelPos.value = {
       top: props.position?.top ?? '0px',

@@ -284,16 +284,52 @@ defineExpose({
       :open-create="openCreate"
     >
       <div class="kh-app-head">
-        <div>
-          <div class="kh-app-title">{{ displayTitle }}</div>
-          <div class="kh-app-desc">{{ displayDescription }}</div>
+        <div class="kh-app-head-main">
+          <div class="kh-app-logo" aria-hidden="true">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 7v14" />
+              <path
+                d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a2 2 0 0 1 2 2 2 2 0 0 1 2-2h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a1 1 0 0 0-1 1 1 1 0 0 0-1-1z"
+              />
+            </svg>
+          </div>
+          <div class="kh-app-head-text">
+            <div class="kh-app-title">{{ displayTitle }}</div>
+            <div class="kh-app-desc">{{ displayDescription }}</div>
+          </div>
         </div>
         <div class="kh-app-toolbar">
-          <input
-            v-model="keyword"
-            class="kh-app-search"
-            :placeholder="t('app.searchPlaceholder')"
-          />
+          <div class="kh-app-search">
+            <svg
+              class="kh-app-search-icon"
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              v-model="keyword"
+              class="kh-app-search-input"
+              :placeholder="t('app.searchPlaceholder')"
+            />
+          </div>
           <slot name="header-actions" :open-create="openCreate" />
         </div>
       </div>
@@ -306,7 +342,7 @@ defineExpose({
       route so the "去配置模型" button jumps there in-app. When the callback
       is omitted the card still renders (useful hint) but without the button.
     -->
-    <div
+<!--    <div
       v-if="!loading && embeddingModels.length === 0"
       class="kh-app-nudge"
     >
@@ -323,7 +359,7 @@ defineExpose({
           {{ t('app.nudgeEmbeddingCta') }}
         </button>
       </div>
-    </div>
+    </div>-->
 
     <!-- card grid — replace with #cards to render your own layout, or use #empty
          to override just the empty state. -->
@@ -414,23 +450,62 @@ defineExpose({
 .kh-app {
   display: flex;
   flex-direction: column;
-  gap: var(--kh-space-4);
+  gap: var(--kh-space-5);
+  /* Comfortable page margins — content never hugs the viewport edges. */
+  padding: var(--kh-space-5) var(--kh-space-6) var(--kh-space-6);
 }
+/* Page header — icon badge + title block on the left, search + actions on the
+   right. Styled as a bordered card (same bg/border/radius tokens as the
+   dataset cards) so it reads as its own surface above the grid. */
 .kh-app-head {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
+  gap: var(--kh-space-4);
+  flex-wrap: wrap;
+  padding: var(--kh-space-4) var(--kh-space-5);
+  background: var(--kh-card-bg);
+  border: 1px solid var(--kh-card-border);
+  border-radius: var(--kh-card-radius);
+  box-shadow: var(--kh-shadow-sm);
+}
+.kh-app-head-main {
+  display: flex;
+  align-items: center;
   gap: var(--kh-space-3);
+  min-width: 0;
+}
+.kh-app-logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--kh-radius-lg);
+  background: linear-gradient(
+    135deg,
+    var(--kh-color-primary),
+    var(--kh-color-primary-strong)
+  );
+  color: var(--kh-color-primary-contrast);
+  box-shadow: 0 4px 12px var(--kh-color-primary-outline);
+}
+.kh-app-head-text {
+  min-width: 0;
 }
 .kh-app-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.3;
   color: var(--kh-color-text-primary);
 }
 .kh-app-desc {
-  margin-top: 2px;
-  font-size: var(--kh-fs-md);
-  color: var(--kh-color-text-muted);
+  margin-top: 3px;
+  font-size: var(--kh-fs-lg);
+  color: var(--kh-color-text-tertiary);
+  line-height: 1.5;
 }
 /* First-time-use nudge — "先注册 Embedding 模型" empty-state card. */
 .kh-app-nudge {
@@ -476,21 +551,56 @@ defineExpose({
 }
 .kh-app-toolbar {
   display: flex;
-  gap: var(--kh-space-2);
+  align-items: center;
+  gap: var(--kh-space-3);
 }
 .kh-app-search {
-  padding: 6px var(--kh-space-3);
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.kh-app-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--kh-color-text-muted);
+  pointer-events: none;
+}
+.kh-app-search-input {
+  width: 260px;
+  max-width: 100%;
+  height: 36px;
+  padding: 0 var(--kh-space-3) 0 32px;
   border: 1px solid var(--kh-color-border);
   border-radius: var(--kh-input-radius);
   outline: none;
   font-size: var(--kh-fs-lg);
-  min-width: 240px;
   background: var(--kh-input-bg);
   color: var(--kh-color-text-primary);
+  transition:
+    border-color var(--kh-tx-fast),
+    box-shadow var(--kh-tx-fast);
 }
-.kh-app-search:focus {
+.kh-app-search-input::placeholder {
+  color: var(--kh-color-text-muted);
+}
+.kh-app-search-input:focus {
   border-color: var(--kh-color-primary);
   box-shadow: var(--kh-focus-ring);
+}
+/* Narrow screens: stack the header so the search stays usable. */
+@media (max-width: 640px) {
+  .kh-app {
+    padding: var(--kh-space-4);
+  }
+  .kh-app-toolbar {
+    width: 100%;
+  }
+  .kh-app-search {
+    flex: 1;
+  }
+  .kh-app-search-input {
+    width: 100%;
+  }
 }
 .kh-app-body {
   min-height: 200px;

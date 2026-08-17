@@ -167,7 +167,9 @@ onBeforeUnmount(() => window.removeEventListener('mousedown', onDocMousedown));
       <span v-if="current" class="gms-trigger-name" :title="current.label">
         {{ current.label }}
       </span>
-      <span v-else class="gms-trigger-placeholder">{{ placeholder }}</span>
+      <span v-else class="gms-trigger-placeholder" :title="placeholder">
+        {{ placeholder }}
+      </span>
       <span class="gms-trigger-caret">▾</span>
     </button>
 
@@ -296,9 +298,15 @@ onBeforeUnmount(() => window.removeEventListener('mousedown', onDocMousedown));
 }
 .gms-trigger-placeholder {
   flex: 1;
+  min-width: 0;
   font-size: 13px;
   color: #94a3b8;
   text-align: left;
+  /* Long copy (e.g. "暂无可用模型…") must never wrap the trigger to two
+   * lines — truncate and expose the full text via the title attribute. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .gms-trigger-caret {
   font-size: 10px;
@@ -309,6 +317,9 @@ onBeforeUnmount(() => window.removeEventListener('mousedown', onDocMousedown));
   top: calc(100% + 6px);
   left: 0;
   right: 0;
+  /* Narrow trigger cards (系统默认模型 grid) would squeeze the grouped
+   * list / empty-state text into wraps — keep the panel readable instead. */
+  min-width: min(260px, calc(100vw - 64px));
   z-index: 40;
   padding: 6px;
   background: #fff;

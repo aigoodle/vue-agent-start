@@ -31,6 +31,8 @@ const emit = defineEmits<{
   (e: 'open', doc: DocumentRow): void;
   (e: 'toggle-enabled', doc: DocumentRow, next: boolean): void;
   (e: 'delete', doc: DocumentRow): void;
+  (e: 'reparse', doc: DocumentRow): void;
+  (e: 'view-parsed', doc: DocumentRow): void;
   (e: 'edit-metadata'): void;
   (e: 'update:page', p: number): void;
   (e: 'update:pageSize', s: number): void;
@@ -171,6 +173,7 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
         </div>
         <div class="kh-col kh-col-mode">
           <span class="kh-mode-chip">{{ d.chunkMode ?? '通用' }}</span>
+          <small v-if="d.parserName" class="kh-parser-chip">{{ d.parserName }} · {{ d.blockCount ?? 0 }} blocks</small>
         </div>
         <div class="kh-col kh-col-num2">{{ fmtNum(d.wordCount) }}</div>
         <div class="kh-col kh-col-num2">{{ d.hitCount ?? 0 }}</div>
@@ -201,6 +204,12 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
           >
             <div class="kh-more-item" @click="emit('open', d); openMenuFor = null">
               查看片段
+            </div>
+            <div v-if="d.parserName" class="kh-more-item" @click="emit('reparse', d); openMenuFor = null">
+              重新解析原文件
+            </div>
+            <div v-if="d.parserName" class="kh-more-item" @click="emit('view-parsed', d); openMenuFor = null">
+              查看解析结构
             </div>
             <div class="kh-more-item kh-more-danger" @click="emit('delete', d); openMenuFor = null">
               删除
@@ -392,6 +401,7 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   border-radius: 4px;
   font-size: 11px;
 }
+.kh-parser-chip { display: block; margin-top: 3px; color: #64748b; font-size: 10px; }
 .kh-col-status {
   display: flex;
   align-items: center;

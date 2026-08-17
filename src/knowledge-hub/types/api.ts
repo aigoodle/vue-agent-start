@@ -6,7 +6,7 @@
  * `KnowledgeHubApi` is a type union of every sub-interface — code that
  * accepts one can accept any richer implementation.
  */
-import type { Chunk, DocMetadata, DocumentRow } from './document';
+import type { Chunk, DocMetadata, DocumentRow, ParsedDocument } from './document';
 import type {
   DatasetCardItem,
   DatasetSummary,
@@ -14,7 +14,7 @@ import type {
   ProcessRule,
   RetrievalConfig,
 } from './dataset';
-import type { RecallHit, RecentQuery } from './retrieval';
+import type { RecallHit, RecentQuery, RetrieveRequest } from './retrieval';
 
 // ------- datasets
 export interface DatasetsApi {
@@ -45,6 +45,8 @@ export interface DocumentsApi {
     docId: string,
     enabled: boolean,
   ): Promise<void>;
+  getParsedDocument?(datasetId: string, docId: string): Promise<ParsedDocument>;
+  reparseDocument?(datasetId: string, docId: string): Promise<DocumentRow>;
   /**
    * Preview how a file would be chunked under a given {@link ProcessRule}
    * without touching the DB or the vector store. Used by the wizard's
@@ -68,8 +70,13 @@ export interface DocumentsApi {
  * is the full chunker output; {@code chunks} is truncated to {@code limit}.
  */
 export interface ChunkPreview {
+  parser?: string;
+  mediaType?: string;
+  pageCount?: number;
+  blockCount?: number;
+  warnings?: string[];
   totalChunks: number;
-  chunks: Array<{ index: number; text: string; tokens: number }>;
+  chunks: Array<{ index: number; text: string; tokens: number; metadata?: Record<string, unknown> }>;
 }
 
 // ------- segments
@@ -111,7 +118,7 @@ export interface SegmentsApi {
 export interface RetrievalApi {
   retrieve(
     datasetId: string,
-    req: { query: string; method: string; topK?: number },
+    req: RetrieveRequest,
   ): Promise<RecallHit[]>;
   listRecallHistory(datasetId: string, limit?: number): Promise<RecentQuery[]>;
 }
@@ -198,6 +205,10 @@ export interface DatasetDetailHub extends SegmentsApi, RetrievalApi, ModelsApi {
     docId: string,
     enabled: boolean,
   ): Promise<void>;
+  /** Same shape as {@link DocumentsApi.getParsedDocument}. */
+  getParsedDocument?(datasetId: string, docId: string): Promise<ParsedDocument>;
+  /** Same shape as {@link DocumentsApi.reparseDocument}. */
+  reparseDocument?(datasetId: string, docId: string): Promise<DocumentRow>;
   /**
    * Preview how a file would be chunked, for the add-documents wizard's
    * step-2 pane. Same shape as {@link DocumentsApi.previewChunks}. Optional —

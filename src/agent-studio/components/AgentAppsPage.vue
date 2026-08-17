@@ -11,17 +11,25 @@
  *   - 组件只依赖 vue / vue-router / ant-design-vue / @ant-design/icons-vue，
  *     以及本模块内的 AppDesignDrawer / CreateAppModal，绝不依赖 Vben 生态
  *     （@vben/*）；
- *   - 所有后端调用都是通过 props.apiBase 拼出的 fetch，共用一个 {code, data}
- *     信封的解包器 —— 与 useAgentStudio / useKnowledge / useProviderHub 一致；
- *   - 导航（独立对话、去配置模型）通过 useRouter() 内部完成，捕获异常防止
- *     宿主没配对应路由时报错。
+ *   - 所有后端调用都走统一的 createAgentStartClient（props.apiBase 作为
+ *     baseUrl，/agent-start 命名空间由 client 内部拼）—— 组件自身不再
+ *     直接 fetch 或拼路径；
+ *   - 导航（独立对话）通过 useRouter() 内部完成，捕获异常防止宿主没配对应
+ *     路由时报错。
  */
-import { computed, onDeactivated, onMounted, reactive, ref } from 'vue';
+import {
+  computed,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  reactive,
+  ref,
+} from 'vue';
 import { useRouter } from 'vue-router';
 
+import { SearchOutlined } from '@ant-design/icons-vue';
 import {
   Button,
-  Card,
   Dropdown,
   Empty,
   Form,
@@ -40,12 +48,15 @@ import {
 
 import type { ChatIframeConfig } from '../../agent-flow/components/chat-iframe-types';
 
+import { createAgentStartClient, type AgentStartClient } from '../../client';
+import {
+  mergeAgentStartHeaders,
+  type AgentStartHeaders,
+  useAgentStartConfig,
+} from '../../config';
+import type { AppMode, WorkflowGraphLike } from '../adapters/types';
 import type { AppStudioApi } from '../api';
-import type {
-  AgentEntity,
-  AgentStrategy,
-  AppType,
-} from '../types';
+import type { AgentEntity, AgentStrategy, AppType } from '../types';
 
 import AppDesignDrawer from './AppDesignDrawer.vue';
 import CreateAppModal from './CreateAppModal.vue';
@@ -57,10 +68,6 @@ import CreateAppModal from './CreateAppModal.vue';
  * Header 值可以是静态对象，也可以是同步/异步函数 —— 每次请求前都会重新
  * 求值，方便宿主接入自家 access-token store（token 轮换时无须重挂组件）。
  */
-type HeadersLike =
-  | Record<string, string>
-  | (() => Promise<Record<string, string>> | Record<string, string>);
-
 interface Props {
   /**
    * 宿主的代理前缀。默认 `/api`：与宿主 vite `/api` 代理约定一致，代理
@@ -83,66 +90,45 @@ interface Props {
    * 传对象就是静态 header —— 适合固定 API-key：
    *   :headers="{ 'X-Api-Key': 'xxx' }"
    */
-  headers?: HeadersLike;
+  headers?: AgentStartHeaders;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  apiBase: '/api',
-  headers: () => ({}),
-});
+const props = defineProps<Props>();
+const globalConfig = useAgentStartConfig();
+const apiBase = computed(() => props.apiBase ?? globalConfig.apiBase ?? '/api');
 
 // ---------------------------------------------------------------------------
-// Backend client — small fetch wrapper that unwraps {code, message, data}.
-// Kept local (not exported to useAgentStudio) so this component stays a true
-// drop-in with zero shared state.
+// Backend client — every request goes through the unified
+// createAgentStartClient. The component no longer concatenates
+// `/agent-start` itself; the namespace lives in the client. The instance is
+// cached per apiBase and rebuilt when the prop changes, so this component
+// stays a true drop-in with zero shared state.
 // ---------------------------------------------------------------------------
-const AGENT_START_NAMESPACE = '/agent-start';
+let cachedClient: AgentStartClient | null = null;
+let cachedClientKey = '';
 
-interface Envelope<T> {
-  code: string;
-  message?: string;
-  data: T;
-}
-
-function apiUrl(path: string): string {
-  const base = props.apiBase.replace(/\/+$/, '');
-  return `${base}${AGENT_START_NAMESPACE}${path.startsWith('/') ? '' : '/'}${path}`;
-}
-
-async function resolveHeaders(): Promise<Record<string, string>> {
-  const h = props.headers;
-  const out = typeof h === 'function' ? await h() : h;
-  return out ?? {};
-}
-
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const injected = await resolveHeaders();
-  const res = await fetch(apiUrl(path), {
-    headers: {
-      'Content-Type': 'application/json',
-      ...injected,
-      ...(init.headers ?? {}),
-    },
-    ...init,
-  });
-  if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText}`);
+function client(): AgentStartClient {
+  if (!cachedClient || cachedClientKey !== apiBase.value) {
+    cachedClientKey = apiBase.value;
+    cachedClient = createAgentStartClient({
+      baseUrl: apiBase.value,
+      headers: () =>
+        mergeAgentStartHeaders(globalConfig.headers, props.headers),
+    });
   }
-  const env = (await res.json()) as Envelope<T>;
-  if (env.code !== 'ok') {
-    throw new Error(env.message ?? env.code);
-  }
-  return env.data;
+  return cachedClient;
 }
 
 // ---- CreateAgent / UpdateAgent request shape (mirrors #/api/agent) ----
 interface CreateAgentRequestFull {
   tenantId?: string;
+  appCode?: string;
+  visibility?: 'GLOBAL' | 'PRIVATE' | 'TENANT_LIST';
   name: string;
   description?: string;
   icon?: string;
   iconBackground?: string;
-  mode?: string;
+  mode?: AppMode;
   instructions?: string;
   openingStatement?: string;
   suggestedQuestions?: string[];
@@ -162,26 +148,16 @@ interface CreateAgentRequestFull {
 }
 
 // ---- Agent CRUD ----
-const listAgents = () => call<AgentEntity[]>('/agents');
+const listAgents = () => client().agents.list() as Promise<AgentEntity[]>;
 const createAgentReq = (req: CreateAgentRequestFull) =>
-  call<AgentEntity>('/agents', { method: 'POST', body: JSON.stringify(req) });
+  client().agents.create(req) as Promise<AgentEntity>;
 const updateAgentReq = (id: string, req: CreateAgentRequestFull) =>
-  call<AgentEntity>(`/agents/${id}`, { method: 'PUT', body: JSON.stringify(req) });
-const deleteAgentReq = (id: string) =>
-  call<void>(`/agents/${id}`, { method: 'DELETE' });
+  client().agents.update(id, req) as Promise<AgentEntity>;
+const deleteAgentReq = (id: string) => client().agents.remove(id);
 
 // ---- Chat stream (raw fetch — SSE) ----
-async function chatStreamReq(id: string, body: { query: string }) {
-  const injected = await resolveHeaders();
-  return fetch(apiUrl(`/agents/${id}/chat/stream`), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-      ...injected,
-    },
-    body: JSON.stringify(body),
-  });
+function chatStreamReq(id: string, body: { query: string }) {
+  return client().agents.chatStream(id, body);
 }
 
 // ---- Conversations + history (called by AppStudioApi bag) ----
@@ -198,15 +174,13 @@ interface HistoryMessage {
   content: string;
 }
 const listConversationsReq = (appId: string, limit = 100) =>
-  call<ConversationSummary[]>(`/chat/conversations/${appId}`, {
-    method: 'POST',
-    body: JSON.stringify({ limit }),
-  });
+  client().agents.listConversations(appId, limit) as Promise<
+    ConversationSummary[]
+  >;
 const fetchHistoryReq = (appId: string, conversationId: string, limit = 500) =>
-  call<HistoryMessage[]>(
-    `/chat/conversations/${appId}/${conversationId}/messages`,
-    { method: 'POST', body: JSON.stringify({ limit }) },
-  );
+  client().agents.listHistoryMessages(appId, conversationId, limit) as Promise<
+    HistoryMessage[]
+  >;
 
 // ---- Annotations ----
 interface AppAnnotation {
@@ -225,23 +199,24 @@ interface AppAnnotationRequest {
   enabled?: boolean;
 }
 const listAnnotationsReq = (appId: string) =>
-  call<AppAnnotation[]>(`/apps/${appId}/annotations`);
+  client().agents.listAnnotations(appId) as unknown as Promise<AppAnnotation[]>;
 const createAnnotationReq = (appId: string, req: AppAnnotationRequest) =>
-  call<AppAnnotation>(`/apps/${appId}/annotations`, {
-    method: 'POST',
-    body: JSON.stringify(req),
-  });
+  client().agents.createAnnotation(
+    appId,
+    req,
+  ) as unknown as Promise<AppAnnotation>;
 const updateAnnotationReq = (
   appId: string,
   id: string,
   req: AppAnnotationRequest,
 ) =>
-  call<AppAnnotation>(`/apps/${appId}/annotations/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(req),
-  });
+  client().agents.updateAnnotation(
+    appId,
+    id,
+    req,
+  ) as unknown as Promise<AppAnnotation>;
 const deleteAnnotationReq = (appId: string, id: string) =>
-  call<void>(`/apps/${appId}/annotations/${id}`, { method: 'DELETE' });
+  client().agents.deleteAnnotation(appId, id);
 
 // ---- API keys ----
 interface AppApiKey {
@@ -254,19 +229,17 @@ interface AppApiKey {
   lastUsedAt?: string;
 }
 const listApiKeysReq = (appId: string) =>
-  call<AppApiKey[]>(`/apps/${appId}/api-tokens`);
+  client().agents.listApiKeys(appId) as unknown as Promise<AppApiKey[]>;
 const createApiKeyReq = (appId: string, name?: string) =>
-  call<AppApiKey>(`/apps/${appId}/api-tokens`, {
-    method: 'POST',
-    body: JSON.stringify({ name }),
-  });
+  client().agents.createApiKey(appId, name) as unknown as Promise<AppApiKey>;
 const renameApiKeyReq = (appId: string, id: string, name: string) =>
-  call<AppApiKey>(`/apps/${appId}/api-tokens/${id}/rename`, {
-    method: 'POST',
-    body: JSON.stringify({ name }),
-  });
+  client().agents.renameApiKey(
+    appId,
+    id,
+    name,
+  ) as unknown as Promise<AppApiKey>;
 const deleteApiKeyReq = (appId: string, id: string) =>
-  call<void>(`/apps/${appId}/api-tokens/${id}`, { method: 'DELETE' });
+  client().agents.deleteApiKey(appId, id);
 
 // ---- Metrics / LLM Ops ----
 interface AppMetrics {
@@ -302,10 +275,13 @@ interface LlmCallRecord {
   createdAt?: string;
 }
 const fetchAppMetricsReq = (appId: string) =>
-  call<AppMetrics>(`/apps/${appId}/metrics`);
-const fetchTotalReq = () => call<LlmUsageStats>('/llmops/total');
+  client().agents.fetchAppMetrics(appId) as unknown as Promise<AppMetrics>;
+const fetchTotalReq = () =>
+  client().agents.fetchLlmUsage() as unknown as Promise<LlmUsageStats>;
 const fetchRecentReq = (limit = 50) =>
-  call<LlmCallRecord[]>(`/llmops/recent?limit=${limit}`);
+  client().agents.fetchRecentLlmCalls(limit) as unknown as Promise<
+    LlmCallRecord[]
+  >;
 
 // ---- Models / Tools / Datasets ----
 interface ModelEntity {
@@ -328,9 +304,11 @@ interface DatasetEntity {
   description?: string;
 }
 const listModelsReq = (type?: string) =>
-  call<ModelEntity[]>(`/models${type ? `?type=${encodeURIComponent(type)}` : ''}`);
-const listToolsReq = () => call<ToolView[]>('/tools');
-const listDatasetsReq = () => call<DatasetEntity[]>('/datasets');
+  client().models.list({ type }) as unknown as Promise<ModelEntity[]>;
+const listToolsReq = () =>
+  client().agents.listToolsLite() as unknown as Promise<ToolView[]>;
+const listDatasetsReq = () =>
+  client().agents.listDatasetsLite() as unknown as Promise<DatasetEntity[]>;
 
 // ---- Workflow draft ----
 interface WorkflowEntity {
@@ -341,17 +319,14 @@ interface WorkflowEntity {
   published?: boolean;
 }
 const getWorkflowDraftReq = (appId: string) =>
-  call<WorkflowEntity>(`/apps/${appId}/workflow/draft`);
+  client().workflows.getDraft(appId) as unknown as Promise<WorkflowEntity>;
 const saveWorkflowDraftReq = (appId: string, graph: unknown) =>
-  call<WorkflowEntity>(`/apps/${appId}/workflow/draft`, {
-    method: 'PUT',
-    body: JSON.stringify({ graph }),
-  });
+  client().workflows.saveDraft(
+    appId,
+    graph as WorkflowGraphLike,
+  ) as unknown as Promise<WorkflowEntity>;
 const publishWorkflowDraftReq = (appId: string) =>
-  call<WorkflowEntity>(`/apps/${appId}/workflow/publish`, {
-    method: 'POST',
-    body: JSON.stringify({}),
-  });
+  client().workflows.publishDraft(appId) as unknown as Promise<WorkflowEntity>;
 
 // ---------------------------------------------------------------------------
 // AppStudioApi callback bag — the drawer's built-in panels call these.
@@ -385,13 +360,6 @@ const studioApi: AppStudioApi = {
 // ---------------------------------------------------------------------------
 const router = useRouter();
 
-function goToModel() {
-  try {
-    router?.push({ name: 'ModelList' });
-  } catch {
-    // Host doesn't have a ModelList route — silently no-op.
-  }
-}
 function openChat(a: AgentEntity) {
   try {
     router?.push({ name: 'AgentChat', params: { id: a.id } });
@@ -410,31 +378,21 @@ interface AgentLike {
   name?: string;
   mode?: string;
   workflowId?: string;
-  difyApiKey?: string;
 }
 
 function resolveIframeBase(): string {
-  const raw = (import.meta.env.VITE_CHAT_IFRAME_BASE as string | undefined)?.trim();
+  const raw = (
+    import.meta.env.VITE_CHAT_IFRAME_BASE as string | undefined
+  )?.trim();
   const base = raw && raw.length > 0 ? raw : '/chat/';
   return base.endsWith('/') ? base : `${base}/`;
 }
 
-function resolveApiKey(agent?: AgentLike | null): string | undefined {
-  const fromAgent = agent?.difyApiKey?.trim();
-  if (fromAgent) return fromAgent;
-  const fromEnv = (
-    import.meta.env.VITE_DIFY_APP_KEY as string | undefined
-  )?.trim();
-  if (fromEnv) return fromEnv;
-  return agent?.id?.trim() || undefined;
-}
-
 function buildChatIframeConfig(
   agent: AgentLike | null,
-  options: { debug?: boolean } = {},
+  options: { debug?: boolean; timeoutMs?: number } = {},
 ): ChatIframeConfig {
   const src = resolveIframeBase();
-  const difyApiKey = resolveApiKey(agent);
   const label = agent?.name || agent?.id || 'spring-agent';
   const workflowId = agent?.workflowId;
   return {
@@ -442,12 +400,16 @@ function buildChatIframeConfig(
     title: agent?.name ? `调试：${agent.name}` : '调试与预览',
     sessionKey: `${agent?.mode ?? 'agent'}-${agent?.id ?? 'draft'}`,
     params: {
+      // `mode` belongs to the chat UI and must remain Copilot.
+      // Backend routing uses a separate parameter to avoid changing iframe UI mode.
       mode: 'Copilot',
-      difyApiKey,
+      accessMode: options.debug ? 'debug' : 'internal',
       label,
       appId: agent?.id,
-      workflowId,
-      debug: options.debug ? 'true' : undefined,
+      // Debug defaults to the mutable draft (backend invariant: draft id == appId).
+      // A concrete workflow version is only supplied by an explicit version picker.
+      workflowId: options.debug ? undefined : workflowId,
+      timeoutMs: options.timeoutMs ?? (options.debug ? 120_000 : undefined),
     },
     context: {
       appId: agent?.id,
@@ -493,6 +455,8 @@ const form = reactive({
   description: '',
   icon: '',
   iconBackground: '',
+  appCode: '',
+  visibility: 'PRIVATE' as 'GLOBAL' | 'PRIVATE' | 'TENANT_LIST',
 });
 
 // Dify's app-card mode icons — colored square with an emoji
@@ -572,10 +536,7 @@ function modelLabel(a: AgentEntity): string {
 const filtered = computed(() => {
   const q = keyword.value.trim().toLowerCase();
   return agents.value.filter((a) => {
-    if (
-      filterStrategy.value !== 'ALL' &&
-      a.strategy !== filterStrategy.value
-    ) {
+    if (filterStrategy.value !== 'ALL' && a.strategy !== filterStrategy.value) {
       return false;
     }
     if (filterPublished.value === 'published' && a.published === false)
@@ -661,7 +622,7 @@ async function onCreateApp(payload: {
   const defaultModel =
     llmModels.value.find((m) => m.isDefault) ?? llmModels.value[0];
 
-  const modeByType: Record<string, string> = {
+  const modeByType: Record<string, AppMode> = {
     agent: 'agent',
     chatbot: 'chat',
     chatflow: 'chatflow',
@@ -765,7 +726,7 @@ function parseRetrievalConfig(
 
 async function onDrawerSave(payload: {
   appId: string;
-  mode: string;
+  mode: AppMode;
   graphJson?: string;
   name?: string;
   instructions?: string;
@@ -902,6 +863,8 @@ function openEdit(a: AgentEntity) {
   form.description = a.description ?? '';
   form.icon = a.icon ?? '';
   form.iconBackground = a.iconBackground ?? '';
+  form.appCode = a.appCode ?? '';
+  form.visibility = a.visibility ?? 'PRIVATE';
   showCreate.value = true;
 }
 
@@ -928,6 +891,8 @@ async function submitCreate() {
       description: form.description || undefined,
       icon: form.icon || undefined,
       iconBackground: form.iconBackground || undefined,
+      appCode: form.appCode || undefined,
+      visibility: form.visibility,
       mode: existing.mode,
       instructions: existing.instructions,
       openingStatement: existing.openingStatement,
@@ -989,7 +954,9 @@ function openShare(a: AgentEntity) {
 }
 
 const shareUrl = computed(() => {
-  if (!shareAgent.value) return '';
+  // SSR guard: only rendered inside the (closed-by-default) share modal, but
+  // don't rely on antd Modal's lazy mount to keep `window` alive.
+  if (!shareAgent.value || typeof window === 'undefined') return '';
   return `${window.location.origin}/embed/agent/${shareAgent.value.id}`;
 });
 
@@ -1015,54 +982,61 @@ onMounted(() => {
   loadDeps().catch(() => {});
 });
 
-// 路由切走时(<KeepAlive> 挂起本组件),强制把抽屉状态关掉。抽屉用
-// <Teleport to="body"> 挂全屏白色遮罩,若切走时 drawerOpen 还是 true,
-// 遮罩会漏在 body 上盖住后续路由,表现为「切页面就空白,只能 F5 」。
-// 配合 AppDesignDrawer 里的 :disabled="!open" 是双保险。
-onDeactivated(() => {
+// 无论宿主是停用 KeepAlive 缓存还是直接卸载页面，都先关闭所有 Teleport
+// 弹层。只关闭 drawerOpen 不够：创建、分享和类型选择弹窗同样会挂到 body，
+// 任意一个残留都会用全屏遮罩盖住下一条路由。
+function closeTransientUi() {
   drawerOpen.value = false;
-});
+  showCreate.value = false;
+  showShare.value = false;
+  showTypePicker.value = false;
+}
+
+onDeactivated(closeTransientUi);
+onBeforeUnmount(closeTransientUi);
 </script>
 
 <template>
   <div class="agent-apps-page">
-    <div class="agent-apps-header">
-      <div class="agent-apps-title">应用</div>
-      <div class="agent-apps-subtitle">
-        应用列表：对话 · 智能体 · 工作流 · 文本生成
-      </div>
-    </div>
-
-    <!-- Soft nudge only — creating an app never requires a model configured
-         upfront. Real gating happens when the user tries to *run* the app. -->
-    <Card
-      v-if="llmLoaded && llmModels.length === 0"
-      class="mb-4"
-      :body-style="{ padding: '12px 16px' }"
-    >
-      <div class="flex items-center gap-3">
-        <div class="text-xl">💡</div>
-        <div class="flex-1 text-sm text-gray-600">
-          还没有配置 LLM 模型。你可以先创建应用占位，等到想跑起来的时候再去
-          <a class="text-indigo-600 cursor-pointer" @click="goToModel">
-            配置模型
-          </a>
-          即可。
+    <!-- 卡片式工具栏：左侧图标徽章 + 标题 + 副标题，右侧搜索 / 过滤控件 -->
+    <div class="agent-apps-toolbar">
+      <div class="agent-apps-header">
+        <div class="agent-apps-logo" aria-hidden="true">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+        </div>
+        <div class="agent-apps-header-text">
+          <div class="agent-apps-title">应用</div>
+          <div class="agent-apps-subtitle">
+            应用列表：对话 · 智能体 · 工作流 · 文本生成
+          </div>
         </div>
       </div>
-    </Card>
 
-    <!-- 顶部搜索 + 过滤 -->
-    <div
-      class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-3 shadow-sm dark:bg-neutral-900"
-    >
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="agent-apps-controls">
         <Input
           v-model:value="keyword"
           placeholder="搜索智能体..."
           allow-clear
-          style="width: 240px"
-        />
+          style="width: 220px"
+        >
+          <template #prefix>
+            <SearchOutlined style="color: #9ca3af" />
+          </template>
+        </Input>
         <Select
           v-model:value="filterStrategy"
           :options="[
@@ -1097,9 +1071,9 @@ onDeactivated(() => {
             草稿 <span class="dify-pub-count">{{ draftCount }}</span>
           </button>
         </div>
-      </div>
-      <div class="text-xs text-gray-500">
-        共 {{ filtered.length }} / {{ agents.length }} 个
+        <span class="agent-apps-count">
+          共 {{ filtered.length }} / {{ agents.length }} 个
+        </span>
       </div>
     </div>
 
@@ -1150,7 +1124,10 @@ onDeactivated(() => {
                 <Tag :color="modeColor(a.mode)" style="margin-right: 4px">
                   {{ modeLabel(a.mode) }}
                 </Tag>
-                <Tag :color="strategyColor(a.strategy)" style="margin-right: 4px">
+                <Tag
+                  :color="strategyColor(a.strategy)"
+                  style="margin-right: 4px"
+                >
                   {{ strategyLabel(a.strategy) }}
                 </Tag>
                 <span>· {{ fromNow(a.updatedAt) || '刚刚' }}</span>
@@ -1158,10 +1135,7 @@ onDeactivated(() => {
             </div>
           </div>
 
-          <div
-            class="dify-desc"
-            :title="a.description || a.instructions || ''"
-          >
+          <div class="dify-desc" :title="a.description || a.instructions || ''">
             {{ a.description || a.instructions || '暂无描述' }}
           </div>
 
@@ -1267,6 +1241,22 @@ onDeactivated(() => {
             placeholder="一句话说明这个智能体在做什么 —— 显示在卡片上"
           />
         </FormItem>
+        <FormItem label="内部应用编码">
+          <Input
+            v-model:value="form.appCode"
+            placeholder="例如 campus-admin-assistant"
+          />
+        </FormItem>
+        <FormItem label="租户可见范围">
+          <Select
+            v-model:value="form.visibility"
+            :options="[
+              { label: '仅当前租户', value: 'PRIVATE' },
+              { label: '所有租户（根租户共享）', value: 'GLOBAL' },
+              { label: '指定租户（预留）', value: 'TENANT_LIST' },
+            ]"
+          />
+        </FormItem>
       </Form>
     </Modal>
 
@@ -1277,7 +1267,8 @@ onDeactivated(() => {
       :footer="null"
     >
       <div class="mb-2 text-xs text-gray-500">
-        无登录嵌入。iframe 到你的站点即可用，会话会自动保存到浏览器 localStorage。
+        无登录嵌入。iframe 到你的站点即可用，会话会自动保存到浏览器
+        localStorage。
       </div>
       <div class="mb-1 text-xs font-medium">直链</div>
       <div class="mb-3 flex gap-2">
@@ -1342,20 +1333,85 @@ onDeactivated(() => {
 
 <style scoped>
 .agent-apps-page {
-  padding: 16px;
+  box-sizing: border-box;
+  padding: 20px 24px;
+}
+@media (max-width: 640px) {
+  .agent-apps-page {
+    padding: 12px 16px;
+  }
+}
+/* Card-style header — icon badge + title on the left, search/filter controls
+   on the right. Same bg/border/radius language as the app cards below so it
+   reads as its own surface. Wraps on narrow viewports. */
+.agent-apps-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+:global(.dark) .agent-apps-toolbar {
+  background: #1f1f1f;
+  border-color: #2d2d2d;
 }
 .agent-apps-header {
-  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.agent-apps-logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+:global(.dark) .agent-apps-logo {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+}
+.agent-apps-header-text {
+  min-width: 0;
+}
+.agent-apps-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.agent-apps-count {
+  margin-left: 4px;
+  font-size: 12px;
+  color: #6b7280;
+  white-space: nowrap;
+}
+:global(.dark) .agent-apps-count {
+  color: #9ca3af;
 }
 .agent-apps-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.3;
   color: #111827;
 }
 .agent-apps-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
+  margin-top: 3px;
+  font-size: 13px;
   color: #6b7280;
+  line-height: 1.5;
 }
 :global(.dark) .agent-apps-title {
   color: #f3f4f6;

@@ -13,9 +13,11 @@
  * so partial implementations are easy).
  */
 
-// --- Style tokens (defaults). Consumers can also import '@agent-start/knowledge-hub/style.css'
-// separately if they want to control when the CSS is injected.
-import './styles/index.css';
+// NOTE: no CSS side-effect here on purpose — the root `vue-agent-start` entry
+// imports `./styles/index.css` eagerly and the build emits it once as
+// `vue-agent-start/style.css`. Subpath consumers (`vue-agent-start/knowledge-hub`)
+// should import that stylesheet explicitly so the CSS is never duplicated when
+// both entries land in the same bundle.
 
 // --- Drop-in top-level
 export { default as KnowledgeHubApp } from './components/KnowledgeHubApp.vue';

@@ -26,6 +26,7 @@ import type {
   DocumentRow,
   EmbeddingModelOption,
   ProcessRule,
+  ParsedDocument,
   RecallHit,
   RecentQuery,
 } from '../types';
@@ -47,6 +48,9 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const parsedDocument = ref<ParsedDocument | null>(null);
+const parsedDocumentLoading = ref(false);
 
 const emit = defineEmits<{
   (e: 'update:open', v: boolean): void;
@@ -322,6 +326,20 @@ async function onDeleteDoc(d: DocumentRow) {
   await loadDocuments();
   emit('refresh-list');
 }
+async function onReparseDoc(d: DocumentRow) {
+  if (!props.datasetId || !props.hub.reparseDocument) return;
+  await props.hub.reparseDocument(props.datasetId, d.id);
+  await loadDocuments();
+}
+async function onViewParsedDoc(d: DocumentRow) {
+  if (!props.datasetId || !props.hub.getParsedDocument) return;
+  parsedDocumentLoading.value = true;
+  try {
+    parsedDocument.value = await props.hub.getParsedDocument(props.datasetId, d.id);
+  } finally {
+    parsedDocumentLoading.value = false;
+  }
+}
 async function onToggleDocEnabled(d: DocumentRow, next: boolean) {
   if (!props.datasetId || !props.hub.setDocumentEnabled) return;
   await props.hub.setDocumentEnabled(props.datasetId, d.id, next);
@@ -475,7 +493,9 @@ const settingsForm = computed(() => {
         ? ('parent-child' as const)
         : processRule.template === 'QA'
           ? ('qa' as const)
-          : ('general' as const),
+          : processRule.template === 'STRUCTURE_AWARE'
+            ? ('structure-aware' as const)
+            : ('general' as const),
     // Expose chunk params so the panel's per-mode inputs pre-fill instead of
     // showing wizard defaults every time.
     chunkTokens: processRule.chunkTokens,
@@ -493,6 +513,7 @@ const settingsForm = computed(() => {
       | 'HYBRID'
       | 'VECTOR',
     rerankEnabled: !!retrievalConfig.rerankEnabled,
+    retrievalConfig,
   };
 });
 
@@ -506,6 +527,8 @@ async function onSaveSettings(payload: any) {
       ? 'PARENT_CHILD'
       : payload.chunkMode === 'qa'
         ? 'QA'
+        : payload.chunkMode === 'structure-aware'
+          ? 'STRUCTURE_AWARE'
         : 'NAIVE';
   const processRule: ProcessRule = {
     template,
@@ -515,6 +538,8 @@ async function onSaveSettings(payload: any) {
     parentChunkTokens: payload.parentChunkTokens,
     removeExtraWhitespace: payload.removeExtraWhitespace,
     removeUrlsEmails: payload.removeUrlsEmails,
+    protectStructuredBlocks: payload.chunkMode === 'structure-aware',
+    includeHeadingContext: payload.chunkMode === 'structure-aware',
   };
   await props.hub.updateDataset(props.datasetId, {
     name: payload.name,
@@ -522,7 +547,7 @@ async function onSaveSettings(payload: any) {
     embeddingModelId: payload.embeddingModelId,
     indexingTechnique: payload.indexingTechnique,
     processRule,
-    retrievalConfig: {
+    retrievalConfig: payload.retrievalConfig ?? {
       method: payload.retrievalMethod,
       topK: 10,
       rerankEnabled: !!payload.rerankEnabled,
@@ -591,7 +616,7 @@ const sidebarData = computed(() => ({
                 :page="chunkPage"
                 :page-size="chunkPageSize"
                 :total="metadata.totalChunks ?? 0"
-                @toggle-doc-enabled="(v: boolean) => onToggleDocEnabled(currentDoc, v)"
+                @toggle-doc-enabled="(v: boolean) => onToggleDocEnabled(currentDoc!, v)"
                 @edit-chunk="onEditChunk"
                 @toggle-chunk="onToggleChunk"
                 @delete-chunk="onDeleteChunk"
@@ -609,6 +634,8 @@ const sidebarData = computed(() => ({
                 @open="onOpenDoc"
                 @toggle-enabled="onToggleDocEnabled"
                 @delete="onDeleteDoc"
+                @reparse="onReparseDoc"
+                @view-parsed="onViewParsedDoc"
               />
               <RecallTestingPanelV2
                 v-else-if="tab === 'recall'"
@@ -683,6 +710,24 @@ const sidebarData = computed(() => ({
             </div>
           </div>
         </div>
+      </div>
+      <div v-if="parsedDocument || parsedDocumentLoading" class="kh-parsed-mask" @click.self="parsedDocument = null">
+        <section class="kh-parsed-panel">
+          <header>
+            <div>
+              <strong>{{ parsedDocument?.filename ?? '解析结构' }}</strong>
+              <small v-if="parsedDocument">{{ parsedDocument.parser }} · {{ parsedDocument.pageCount }} 页 · {{ parsedDocument.blocks.length }} 块</small>
+            </div>
+            <button class="kh-drawer-close" @click="parsedDocument = null">×</button>
+          </header>
+          <p v-if="parsedDocumentLoading">正在加载解析结果…</p>
+          <div v-else class="kh-parsed-blocks">
+            <article v-for="block in parsedDocument?.blocks ?? []" :key="block.index">
+              <span>{{ block.type }} · P{{ block.page ?? '-' }}<template v-if="block.headingPath"> · {{ block.headingPath }}</template></span>
+              <pre>{{ block.text }}</pre>
+            </article>
+          </div>
+        </section>
       </div>
     </div>
   </Teleport>
@@ -885,4 +930,12 @@ const sidebarData = computed(() => ({
 .kh-btn-secondary:hover {
   background: #e2e8f0;
 }
+.kh-parsed-mask { position: fixed; inset: 0; z-index: 10020; display: flex; justify-content: flex-end; background: rgba(15,23,42,.35); }
+.kh-parsed-panel { width: min(720px, 88vw); height: 100%; padding: 20px; overflow: hidden; background: #fff; box-shadow: -10px 0 30px rgba(15,23,42,.15); }
+.kh-parsed-panel header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0; }
+.kh-parsed-panel header div { display: flex; flex-direction: column; gap: 4px; }
+.kh-parsed-panel small, .kh-parsed-blocks article > span { color: #64748b; font-size: 12px; }
+.kh-parsed-blocks { height: calc(100% - 62px); overflow: auto; padding-top: 12px; }
+.kh-parsed-blocks article { padding: 10px 12px; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 8px; }
+.kh-parsed-blocks pre { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font: inherit; color: #1e293b; }
 </style>

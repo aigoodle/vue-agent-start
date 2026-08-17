@@ -3,10 +3,10 @@
  * by the spring-agent-start REST endpoints. External consumers of the backend
  * don't have to hand-write the 20-ish methods of the interface.
  *
- *   import { KnowledgeHubApp, createSpringAgentStartAdapter } from '@agent-start/knowledge-hub'
+ *   import { KnowledgeHubApp, createSpringAgentStartAdapter } from 'vue-agent-start'
  *
  *   const api = createSpringAgentStartAdapter({
- *     baseUrl: '/api',            // 宿主自己的代理前缀；/agent-start 命名空间由适配器内部拼
+ *     baseUrl: '/api',            // 宿主自己的代理前缀；/agent-start 命名空间内部拼
  *     fetch: window.fetch,        // or your host's fetch wrapper
  *     headers: () => ({ Authorization: `Bearer ${getToken()}` }),
  *     onError: (msg) => antdMessage.error(msg),
@@ -16,18 +16,27 @@
  *   <KnowledgeHubApp :api="api" />
  *
  * Hosts with a different backend implement KnowledgeHubApi directly.
+ *
+ * Implementation note: since 0.2 this adapter is a thin mapping layer over the
+ * unified {@link createAgentStartClient} (`client.knowledge` / `client.models`)
+ * — envelope handling, headers, timeouts and the `/agent-start` namespace all
+ * live in the client now. Prefer `createAgentStartClient` in new code.
  */
+import { createAgentStartClient, type AgentStartClient } from '../../client';
 import type {
   Chunk,
+  ChunkPreview,
   DatasetCardItem,
   DatasetSummary,
   DocMetadata,
   DocumentRow,
   IndexingTechnique,
   KnowledgeHubApi,
+  ParsedDocument,
   RecallHit,
   RecentQuery,
 } from '../types';
+import type { DocumentWire, SegmentWire } from '../../client';
 
 type FetchLike = typeof fetch;
 type HeadersProvider = () => Record<string, string> | Promise<Record<string, string>>;
@@ -69,207 +78,77 @@ export interface SpringAgentStartAdapterOptions {
   uploadTimeoutMs?: number;
 }
 
-interface Envelope<T> {
-  code: string;
-  message?: string;
-  data: T;
+// -- wire → view mapping helpers (unchanged from the pre-client adapter) ----
+
+function parseJsonArray(value: unknown): string[] {
+  if (!value) return [];
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
 }
 
-const AGENT_START_NAMESPACE = '/agent-start';
+function normalizeDoc(d: DocumentWire): DocumentRow {
+  return {
+    id: d.id,
+    name: d.name,
+    chunkMode: d.sourceType === 'text' ? '自定义' : (d.sourceType ?? ''),
+    wordCount: d.wordCount ?? 0,
+    hitCount: 0,
+    uploadedAt: d.createdAt,
+    status:
+      d.status === 'COMPLETED'
+        ? 'AVAILABLE'
+        : d.status === 'FAILED'
+          ? 'FAILED'
+          : 'PROCESSING',
+    enabled: !!d.enabled,
+    parserName: d.parserName,
+    mediaType: d.mediaType,
+    pageCount: d.pageCount,
+    blockCount: d.blockCount,
+    parseWarnings: parseJsonArray(d.parseWarningsJson),
+    fileSize: d.fileSize,
+  };
+}
+
+function normalizeChunk(s: SegmentWire): Chunk {
+  return {
+    id: s.id,
+    position: s.position ?? 0,
+    content: s.content ?? '',
+    tokenCount: s.tokenCount ?? 0,
+    charCount: s.content?.length ?? 0,
+    hitCount: 0,
+    enabled: !!s.enabled,
+    keywords: s.keywords
+      ? String(s.keywords)
+          .split(/\s+/)
+          .filter((k) => k.length > 0)
+      : [],
+  };
+}
 
 export function createSpringAgentStartAdapter(
   opts: SpringAgentStartAdapterOptions = {},
 ): KnowledgeHubApi {
-  // Compose {proxy}{namespace}. Namespace is fixed; only proxy is host-configurable.
-  const baseUrl = `${(opts.baseUrl ?? '/api').replace(/\/+$/, '')}${AGENT_START_NAMESPACE}`;
-  const doFetch: FetchLike = opts.fetch ?? ((...args) => fetch(...args));
-  const timeoutMs = opts.timeoutMs ?? 60_000;
-  const uploadTimeoutMs = opts.uploadTimeoutMs ?? 300_000;
-
-  async function extraHeaders(): Promise<Record<string, string>> {
-    return opts.headers ? await opts.headers() : {};
-  }
-
-  async function call<T>(
-    path: string,
-    init: RequestInit = {},
-    timeout = timeoutMs,
-  ): Promise<T> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-    try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(await extraHeaders()),
-        ...(init.headers ?? {}),
-      };
-      const res = await doFetch(`${baseUrl}${path}`, {
-        ...init,
-        headers,
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        // Uniform-envelope error body if the backend emitted one
-        let msg = `${res.status} ${res.statusText}`;
-        try {
-          const body = (await res.json()) as { message?: string };
-          if (body?.message) msg = body.message;
-        } catch {
-          // ignore parse errors
-        }
-        const err = new Error(msg);
-        opts.onError?.(msg);
-        throw err;
-      }
-      const env = (await res.json()) as Envelope<T>;
-      if (env.code !== 'ok') {
-        const msg = env.message ?? env.code;
-        opts.onError?.(msg);
-        throw new Error(msg);
-      }
-      return env.data;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  async function upload(datasetId: string, file: File): Promise<void> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), uploadTimeoutMs);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      const extra = await extraHeaders();
-      // Don't set Content-Type on multipart — the browser fills it with the boundary.
-      const res = await doFetch(
-        `${baseUrl}/datasets/${datasetId}/documents/upload`,
-        {
-          body: form,
-          headers: extra,
-          method: 'POST',
-          signal: controller.signal,
-        },
-      );
-      if (!res.ok) {
-        let msg = `${res.status} ${res.statusText}`;
-        try {
-          const body = (await res.json()) as { message?: string };
-          if (body?.message) msg = body.message;
-        } catch {
-          // ignore
-        }
-        opts.onError?.(msg);
-        throw new Error(msg);
-      }
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  /**
-   * POST /datasets/preview-chunks — multipart body: file + rule (JSON string).
-   * Backend runs extract → clean → chunk on the file with the caller's rule
-   * and returns the first {@code limit} chunks plus the full count. Nothing
-   * persists. Same reader / cleaner / chunker as real ingestion, so the
-   * preview is authoritative.
-   */
-  async function previewChunks(
-    file: File,
-    rule: unknown,
-    limit = 10,
-  ): Promise<{
-    totalChunks: number;
-    chunks: Array<{ index: number; text: string; tokens: number }>;
-  }> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), uploadTimeoutMs);
-    try {
-      const form = new FormData();
-      form.append('file', file);
-      form.append(
-        'rule',
-        new Blob([JSON.stringify(rule ?? {})], { type: 'application/json' }),
-      );
-      const extra = await extraHeaders();
-      const res = await doFetch(
-        `${baseUrl}/datasets/preview-chunks?limit=${limit}`,
-        {
-          body: form,
-          headers: extra,
-          method: 'POST',
-          signal: controller.signal,
-        },
-      );
-      if (!res.ok) {
-        let msg = `${res.status} ${res.statusText}`;
-        try {
-          const body = (await res.json()) as { message?: string };
-          if (body?.message) msg = body.message;
-        } catch {
-          // ignore
-        }
-        opts.onError?.(msg);
-        throw new Error(msg);
-      }
-      const env = (await res.json()) as {
-        code: string;
-        message?: string;
-        data: {
-          totalChunks: number;
-          chunks: Array<{ index: number; text: string; tokens: number }>;
-        };
-      };
-      if (env.code !== 'ok') {
-        opts.onError?.(env.message ?? env.code);
-        throw new Error(env.message ?? env.code);
-      }
-      return env.data;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-
-  // -- adapters that need to shape the backend response into the hub types
-  function normalizeDoc(d: any): DocumentRow {
-    return {
-      id: d.id,
-      name: d.name,
-      chunkMode: d.sourceType === 'text' ? '自定义' : d.sourceType,
-      wordCount: d.wordCount ?? 0,
-      hitCount: 0,
-      uploadedAt: d.createdAt,
-      status:
-        d.status === 'COMPLETED'
-          ? 'AVAILABLE'
-          : d.status === 'FAILED'
-            ? 'FAILED'
-            : 'PROCESSING',
-      enabled: !!d.enabled,
-    };
-  }
-
-  function normalizeChunk(s: any): Chunk {
-    return {
-      id: s.id,
-      position: s.position,
-      content: s.content,
-      tokenCount: s.tokenCount,
-      charCount: s.content?.length ?? 0,
-      hitCount: 0,
-      enabled: !!s.enabled,
-      keywords: s.keywords
-        ? String(s.keywords)
-            .split(/\s+/)
-            .filter((k: string) => k.length > 0)
-        : [],
-    };
-  }
+  const client: AgentStartClient = createAgentStartClient({
+    baseUrl: opts.baseUrl,
+    fetch: opts.fetch,
+    headers: opts.headers,
+    onError: opts.onError,
+    onSuccess: opts.onSuccess,
+    timeoutMs: opts.timeoutMs,
+    uploadTimeoutMs: opts.uploadTimeoutMs,
+  });
 
   const api: KnowledgeHubApi = {
     // ---- datasets
     listDatasets: () =>
-      call<DatasetCardItem[]>('/datasets').then((rows) =>
-        rows.map((r: any) => ({
+      client.knowledge.listDatasets().then((rows) =>
+        rows.map((r) => ({
           id: r.id,
           name: r.name,
           description: r.description,
@@ -279,69 +158,59 @@ export function createSpringAgentStartAdapter(
           updatedAt: r.updatedAt,
         })),
       ),
-    getDataset: (id) => call<DatasetSummary>(`/datasets/${id}`),
+    getDataset: (id) =>
+      client.knowledge.getDataset(id).then((r) => r as unknown as DatasetSummary),
     createDataset: (req) =>
-      call<DatasetCardItem>('/datasets', {
-        body: JSON.stringify(req),
-        method: 'POST',
-      }),
+      client.knowledge
+        .createDataset(req)
+        .then((r) => r as unknown as DatasetCardItem),
     updateDataset: (id, patch) =>
-      call<DatasetSummary>(`/datasets/${id}`, {
-        body: JSON.stringify(patch),
-        method: 'PUT',
-      }),
-    deleteDataset: (id) =>
-      call<void>(`/datasets/${id}`, { method: 'DELETE' }),
+      client.knowledge
+        .updateDataset(id, patch)
+        .then((r) => r as unknown as DatasetSummary),
+    deleteDataset: (id) => client.knowledge.deleteDataset(id),
 
     // ---- documents
-    listDocuments: async (datasetId) => {
-      const rows = await call<any[]>(`/datasets/${datasetId}/documents`);
-      return rows.map(normalizeDoc);
-    },
-    uploadDocument: (datasetId, file) => upload(datasetId, file),
+    listDocuments: (datasetId) =>
+      client.knowledge.listDocuments(datasetId).then((rows) => rows.map(normalizeDoc)),
+    uploadDocument: (datasetId, file) => client.knowledge.uploadDocument(datasetId, file),
     deleteDocument: (datasetId, docId) =>
-      call<void>(`/datasets/${datasetId}/documents/${docId}`, {
-        method: 'DELETE',
-      }),
-    previewChunks: (file, rule, limit) => previewChunks(file, rule, limit),
+      client.knowledge.deleteDocument(datasetId, docId),
+    getParsedDocument: (datasetId, docId) =>
+      client.knowledge.getParsedDocument(datasetId, docId) as Promise<ParsedDocument>,
+    reparseDocument: (datasetId, docId) =>
+      client.knowledge.reparseDocument(datasetId, docId).then(normalizeDoc),
+    previewChunks: (file, rule, limit) =>
+      client.knowledge.previewChunks(file, rule, limit).then((r) => r as ChunkPreview),
 
     // ---- segments
-    listSegments: async (datasetId, docId, page = 1, pageSize = 20) => {
-      const rows = await call<any[]>(
-        `/datasets/${datasetId}/documents/${docId}/segments?page=${page}&pageSize=${pageSize}`,
-      );
-      return rows.map(normalizeChunk);
-    },
+    listSegments: (datasetId, docId, page = 1, pageSize = 20) =>
+      client.knowledge
+        .listSegments(datasetId, docId, page, pageSize)
+        .then((rows) => rows.map(normalizeChunk)),
     loadDocumentMetadata: async (datasetId, docId) => {
       const [doc, ds, segRows] = await Promise.all([
-        call<any>(`/datasets/${datasetId}/documents/${docId}`),
-        call<any>(`/datasets/${datasetId}`),
-        call<any[]>(
-          `/datasets/${datasetId}/documents/${docId}/segments?pageSize=200`,
-        ),
+        client.knowledge.getDocument(datasetId, docId),
+        client.knowledge.getDataset(datasetId),
+        client.knowledge.listSegments(datasetId, docId, 1, 200),
       ]);
-      let processRule: any = {};
+      let processRule: { template?: string; chunkTokens?: number } = {};
       try {
-        if (ds?.processRuleJson) processRule = JSON.parse(ds.processRuleJson);
+        if (ds?.processRuleJson) {
+          processRule = JSON.parse(String(ds.processRuleJson));
+        }
       } catch {
         processRule = {};
       }
-      const totalChars = segRows.reduce(
-        (n, c) => n + (c.content?.length ?? 0),
-        0,
-      );
-      const totalTokens = segRows.reduce(
-        (n, c) => n + (c.tokenCount ?? 0),
-        0,
-      );
+      const totalChars = segRows.reduce((n, c) => n + (c.content?.length ?? 0), 0);
+      const totalTokens = segRows.reduce((n, c) => n + (c.tokenCount ?? 0), 0);
       const meta: DocMetadata = {
         fileName: doc?.name,
         kind: doc?.sourceType,
         uploadedAt: doc?.createdAt,
         parsedAt: doc?.updatedAt,
         embeddedAt: doc?.updatedAt,
-        chunkMode:
-          processRule.template === 'PARENT_CHILD' ? '父子分段' : '自定义',
+        chunkMode: processRule.template === 'PARENT_CHILD' ? '父子分段' : '自定义',
         chunkMaxSize: processRule.chunkTokens ?? 1024,
         totalChars,
         totalChunks: segRows.length,
@@ -349,80 +218,56 @@ export function createSpringAgentStartAdapter(
           segRows.length > 0 ? Math.round(totalChars / segRows.length) : 0,
         avgEmbedMs: 2.5,
         totalTokens,
+        parserName: doc?.parserName,
+        mediaType: doc?.mediaType,
+        pageCount: doc?.pageCount,
+        blockCount: doc?.blockCount,
+        parseWarnings: parseJsonArray(doc?.parseWarningsJson),
       };
       return meta;
     },
     updateSegment: (datasetId, docId, segId, content) =>
-      call<any>(
-        `/datasets/${datasetId}/documents/${docId}/segments/${segId}`,
-        {
-          body: JSON.stringify({ content }),
-          method: 'PUT',
-        },
-      ).then(normalizeChunk),
+      client.knowledge.updateSegment(datasetId, docId, segId, content).then(normalizeChunk),
     deleteSegment: (datasetId, docId, segId) =>
-      call<void>(
-        `/datasets/${datasetId}/documents/${docId}/segments/${segId}`,
-        { method: 'DELETE' },
-      ),
+      client.knowledge.deleteSegment(datasetId, docId, segId),
     setSegmentEnabled: (datasetId, docId, segId, enabled) =>
-      call<any>(
-        `/datasets/${datasetId}/documents/${docId}/segments/${segId}/enabled`,
-        {
-          body: JSON.stringify({ enabled }),
-          method: 'PUT',
-        },
-      ).then(normalizeChunk),
+      client.knowledge
+        .setSegmentEnabled(datasetId, docId, segId, enabled)
+        .then(normalizeChunk),
     appendSegment: (datasetId, docId, content) =>
-      call<any>(
-        `/datasets/${datasetId}/documents/${docId}/segments`,
-        {
-          body: JSON.stringify({ content }),
-          method: 'POST',
-        },
-      ).then(normalizeChunk),
+      client.knowledge.appendSegment(datasetId, docId, content).then(normalizeChunk),
 
     // ---- retrieval
-    retrieve: async (datasetId, req) => {
-      const rows = await call<any[]>(`/datasets/${datasetId}/retrieve`, {
-        body: JSON.stringify({
-          method: req.method,
-          query: req.query,
-          topK: req.topK ?? 10,
-        }),
-        method: 'POST',
-      });
-      return rows.map<RecallHit>((r) => ({
-        segmentId: r.segmentId,
-        content: r.content,
-        position: r.position,
-        score: r.score,
-      }));
-    },
-    listRecallHistory: async (datasetId, limit) => {
-      const rows = await call<any[]>(
-        `/datasets/${datasetId}/hit-testing/history?limit=${limit ?? 20}`,
-      );
-      return rows.map<RecentQuery>((r) => ({
-        id: r.id,
-        query: r.query,
-        method: r.method ?? 'HYBRID',
-        hitCount: r.hitCount ?? 0,
-        at: r.createdAt ?? '',
-      }));
-    },
+    retrieve: (datasetId, req) =>
+      client.knowledge.retrieve(datasetId, req).then((rows) =>
+        rows.map<RecallHit>((r) => ({
+          segmentId: r.segmentId,
+          content: r.content,
+          position: r.position,
+          score: r.score ?? 0,
+        })),
+      ),
+    listRecallHistory: (datasetId, limit) =>
+      client.knowledge.listRecallHistory(datasetId, limit).then((rows) =>
+        rows.map<RecentQuery>((r) => ({
+          id: r.id,
+          query: r.query,
+          method: r.method ?? 'HYBRID',
+          hitCount: r.hitCount ?? 0,
+          at: r.createdAt ?? '',
+        })),
+      ),
 
     // ---- models
     listEmbeddingModels: async () => {
-      const rows = await call<any[]>('/models?type=TEXT_EMBEDDING');
+      const rows = await client.models.list({ type: 'TEXT_EMBEDDING' });
       // /models/defaults returns { TEXT_EMBEDDING: ModelEntity | null } — fetch
       // in parallel with the list so we can flag the default row inline.
       // Failing softly means non-default UX still works on backends that don't
       // publish defaults.
       let defaultId: null | string = null;
       try {
-        const defaults = await call<Record<string, any>>('/models/defaults');
-        defaultId = defaults?.TEXT_EMBEDDING?.id ?? null;
+        defaultId = await client.models.defaultId('TEXT_EMBEDDING');
       } catch {
         // ignore — panel just won't preselect anything
       }
@@ -436,8 +281,7 @@ export function createSpringAgentStartAdapter(
     },
     getDefaultEmbeddingModelId: async () => {
       try {
-        const defaults = await call<Record<string, any>>('/models/defaults');
-        return defaults?.TEXT_EMBEDDING?.id ?? null;
+        return await client.models.defaultId('TEXT_EMBEDDING');
       } catch {
         return null;
       }
@@ -446,7 +290,7 @@ export function createSpringAgentStartAdapter(
       // Rerank model registry is optional — treat any 404/error as "none registered"
       // rather than a fatal so the wizard still opens on fresh installs.
       try {
-        const rows = await call<any[]>('/models?type=RERANK');
+        const rows = await client.models.list({ type: 'RERANK' });
         return rows.map((m) => ({
           id: m.id,
           label: `${m.providerName} · ${m.modelName}`,
@@ -462,7 +306,8 @@ export function createSpringAgentStartAdapter(
     onCopyApi:
       opts.onCopyApi ??
       ((id) => {
-        const url = `${window.location.origin}${baseUrl}/datasets/${id}`;
+        if (typeof window === 'undefined' || !navigator?.clipboard) return;
+        const url = `${window.location.origin}${client.rootUrl}/datasets/${id}`;
         void navigator.clipboard.writeText(url);
       }),
     onGoToEmbeddingSetup: opts.onGoToEmbeddingSetup,

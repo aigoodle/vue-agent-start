@@ -18,6 +18,53 @@
 // -----------------------------------------------------------------------------
 import './knowledge-hub/styles/index.css';
 
+export {
+  AgentStartPlugin,
+  mergeAgentStartHeaders,
+  useAgentStartConfig,
+} from './config';
+export type { AgentStartHeaders, AgentStartPluginOptions } from './config';
+
+// -----------------------------------------------------------------------------
+// client — the unified SDK every component talks to the backend through.
+// Prefer createAgentStartClient in new code; the per-module factories below
+// (createSpringAgentStartAdapter, useProviderHub, …) are back-compat wrappers.
+// -----------------------------------------------------------------------------
+export {
+  AgentStartError,
+  createAgentStartClient,
+  qs,
+} from './client';
+export type {
+  AgentRunEvent,
+  AgentRunResponse,
+  AgentRunSnapshot,
+  AgentRunStatus,
+  AgentRunWatchOptions,
+  AgentStartClient,
+  AgentStartClientOptions,
+  AgentsNamespace,
+  DatasetWire,
+  DocumentWire,
+  FetchLike,
+  HeadersProvider,
+  HttpCore,
+  KnowledgeNamespace,
+  MaybePromise,
+  ModelsNamespace,
+  ProvidersNamespace,
+  RunsNamespace,
+  SegmentWire,
+  UnauthorizedInfo,
+  WorkflowsNamespace,
+} from './client';
+export {
+  AgentStartClientKey,
+  installAgentStartClient,
+  provideAgentStartClient,
+  useAgentStartClient,
+} from './client/vue';
+
 // -----------------------------------------------------------------------------
 // provider-hub — model provider mgmt + shared model picker
 // -----------------------------------------------------------------------------
@@ -34,6 +81,11 @@ export { default as ProviderIcon } from './provider-hub/components/ProviderIcon.
 
 export * from './provider-hub/composables/useProviderHub';
 export * from './provider-hub/types';
+
+// All three composables (useProviderHub / useKnowledge / useAgentStudio)
+// export a structurally identical `HeadersLike`. Re-export it explicitly once
+// so the `export *` trio below doesn't trip TS2308 (ambiguous star export).
+export type { HeadersLike } from './provider-hub/composables/useProviderHub';
 
 // -----------------------------------------------------------------------------
 // knowledge-hub — dataset UI kit
@@ -76,6 +128,7 @@ export { default as AgentApiDocs } from './agent-studio/components/AgentApiDocs.
 export { default as AgentDebugPanel } from './agent-studio/components/AgentDebugPanel.vue';
 export { default as AgentLogsPanel } from './agent-studio/components/AgentLogsPanel.vue';
 export { default as AgentMonitorPanel } from './agent-studio/components/AgentMonitorPanel.vue';
+export { default as AgentRunTimeline } from './agent-studio/components/AgentRunTimeline.vue';
 export { default as AgentOrchestrate } from './agent-studio/components/AgentOrchestrate.vue';
 export { default as AgentPromptEditor } from './agent-studio/components/AgentPromptEditor.vue';
 export { default as AgentStudioShell } from './agent-studio/components/AgentStudioShell.vue';
@@ -85,6 +138,7 @@ export { default as SparkChart } from './agent-studio/components/SparkChart.vue'
 
 export * from './agent-studio/composables/useAgentStudio';
 export * from './agent-studio/types';
+export * from './agent-studio/agent-run';
 
 // AgentStudioApi adapter used by AgentChatPage —— 只导 factory + 接口,
 // 避免 adapter 里重复定义的 AgentEntity/AgentStrategy/... 与 types.ts 冲突。

@@ -49,6 +49,14 @@ const scoreThresholdEnabled = ref<boolean>(
   props.modelValue.scoreThreshold !== undefined,
 );
 const vectorWeight = ref<number>(props.modelValue.vectorWeight ?? 0.7);
+const fusionMethod = ref<'WEIGHTED_SCORE' | 'RECIPROCAL_RANK'>(
+  props.modelValue.fusionMethod ?? 'RECIPROCAL_RANK',
+);
+const recallMultiplier = ref<number>(props.modelValue.recallMultiplier ?? 6);
+const maxChunksPerDocument = ref<number>(props.modelValue.maxChunksPerDocument ?? 3);
+const neighborWindow = ref<number>(props.modelValue.neighborWindow ?? 0);
+const queryExpansionEnabled = ref<boolean>(props.modelValue.queryExpansionEnabled ?? true);
+const maxQueryVariants = ref<number>(props.modelValue.maxQueryVariants ?? 3);
 const rerankEnabled = ref<boolean>(!!props.modelValue.rerankEnabled);
 const rerankModelId = ref<string>(props.modelValue.rerankModelId ?? '');
 // The hybrid card has two sub-tabs — the user picks either weight-based
@@ -65,6 +73,12 @@ function emitConfig() {
     topK: topK.value,
     scoreThreshold: scoreThresholdEnabled.value ? scoreThreshold.value : undefined,
     vectorWeight: method.value === 'HYBRID' ? vectorWeight.value : undefined,
+    fusionMethod: method.value === 'HYBRID' ? fusionMethod.value : undefined,
+    recallMultiplier: recallMultiplier.value,
+    maxChunksPerDocument: maxChunksPerDocument.value,
+    neighborWindow: neighborWindow.value,
+    queryExpansionEnabled: queryExpansionEnabled.value,
+    maxQueryVariants: maxQueryVariants.value,
     rerankEnabled: rerankEnabled.value,
     rerankModelId: rerankEnabled.value ? rerankModelId.value : undefined,
     // rerankerName mirrors dify's flag: 'model' when a real reranker is used,
@@ -87,6 +101,12 @@ watch(
     scoreThreshold,
     scoreThresholdEnabled,
     vectorWeight,
+    fusionMethod,
+    recallMultiplier,
+    maxChunksPerDocument,
+    neighborWindow,
+    queryExpansionEnabled,
+    maxQueryVariants,
     rerankEnabled,
     rerankModelId,
     hybridSubMode,
@@ -104,6 +124,12 @@ watch(
     scoreThreshold.value = v.scoreThreshold ?? 0.5;
     scoreThresholdEnabled.value = v.scoreThreshold !== undefined;
     vectorWeight.value = v.vectorWeight ?? 0.7;
+    fusionMethod.value = v.fusionMethod ?? 'RECIPROCAL_RANK';
+    recallMultiplier.value = v.recallMultiplier ?? 6;
+    maxChunksPerDocument.value = v.maxChunksPerDocument ?? 3;
+    neighborWindow.value = v.neighborWindow ?? 0;
+    queryExpansionEnabled.value = v.queryExpansionEnabled ?? true;
+    maxQueryVariants.value = v.maxQueryVariants ?? 3;
     rerankEnabled.value = !!v.rerankEnabled;
     rerankModelId.value = v.rerankModelId ?? '';
     hybridSubMode.value = v.rerankEnabled ? 'rerank' : 'weight';
@@ -298,6 +324,13 @@ function pickMethod(m: RetrievalMethod) {
         </div>
         <div v-if="hybridSubMode === 'weight'" class="rmp-slider-row">
           <div class="rmp-slider-label">
+            <span>召回融合</span>
+            <select v-model="fusionMethod" class="rmp-select rmp-select-inline">
+              <option value="RECIPROCAL_RANK">RRF 排名融合（推荐）</option>
+              <option value="WEIGHTED_SCORE">加权分数融合</option>
+            </select>
+          </div>
+          <div class="rmp-slider-label">
             <span>
               语义 {{ vectorWeight.toFixed(1) }} · 关键词
               {{ (1 - vectorWeight).toFixed(1) }}
@@ -342,6 +375,28 @@ function pickMethod(m: RetrievalMethod) {
             class="rmp-range"
           />
         </div>
+        <div class="rmp-advanced-grid">
+          <label>
+            <span>候选池倍数</span>
+            <input v-model.number="recallMultiplier" type="number" min="1" max="20" class="rmp-select" />
+          </label>
+          <label>
+            <span>单文档最多命中</span>
+            <input v-model.number="maxChunksPerDocument" type="number" min="0" max="20" class="rmp-select" />
+          </label>
+          <label>
+            <span>相邻上下文窗口</span>
+            <input v-model.number="neighborWindow" type="number" min="0" max="5" class="rmp-select" />
+          </label>
+          <label>
+            <span>查询变体上限</span>
+            <input v-model.number="maxQueryVariants" type="number" min="1" max="8" class="rmp-select" :disabled="!queryExpansionEnabled" />
+          </label>
+        </div>
+        <label class="rmp-check">
+          <input v-model="queryExpansionEnabled" type="checkbox" />
+          <span>启用查询清洗与多路召回</span>
+        </label>
         <div class="rmp-slider-row">
           <div class="rmp-slider-label">
             <label class="rmp-check rmp-check-inline">
@@ -487,6 +542,9 @@ function pickMethod(m: RetrievalMethod) {
   border-color: #6366f1;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
+.rmp-select-inline { width: auto; padding: 3px 8px; }
+.rmp-advanced-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rmp-advanced-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: #64748b; }
 
 .rmp-slider-row {
   display: flex;

@@ -1,14 +1,12 @@
 /**
- * Small fetch-based client — mirrors the pattern in knowledge-hub / provider-hub.
+ * useAgentStudio — legacy agent CRUD composable kept for back-compat.
+ * Now a thin wrapper over the unified {@link createAgentStartClient};
+ * `setAgentStudioApiBase` / `setAgentStudioHeaders` keep working and
+ * recreate the shared client on change. New code should prefer
+ * `createAgentStartClient().agents`.
  */
+import { createAgentStartClient, type AgentStartClient } from '../../client';
 import type { AgentEntity, AppTypeDescriptor, CreateAgentRequest } from '../types';
-
-// `/agent-start` 是 spring-agent-web 给每个控制器加的固定命名空间前缀，属于
-// 组件与后端约定的实现细节，宿主不用关心 —— 组件内部自己拼上就行。宿主
-// 只需要告诉我们它转发到后端的代理前缀（默认 `/api`）。若代理不叫 /api,
-// 传自定义 apiBase 或调 setAgentStudioApiBase() 覆盖。
-const AGENT_START_NAMESPACE = '/agent-start';
-let apiBase = '/api';
 
 /**
  * 追加到每个请求的 header。传函数会在每次请求前重新求值，方便宿主接入
@@ -18,10 +16,23 @@ export type HeadersLike =
   | Record<string, string>
   | (() => Promise<Record<string, string>> | Record<string, string>);
 
+let apiBase = '/api';
 let headersProvider: () => Promise<Record<string, string>> | Record<string, string> = () => ({});
+let shared: AgentStartClient | null = null;
+
+function client(): AgentStartClient {
+  if (!shared) {
+    shared = createAgentStartClient({
+      baseUrl: apiBase,
+      headers: () => headersProvider(),
+    });
+  }
+  return shared;
+}
 
 export function setAgentStudioApiBase(base: string) {
   apiBase = base.replace(/\/+$/, '');
+  shared = null;
 }
 
 /**
@@ -33,61 +44,19 @@ export function setAgentStudioApiBase(base: string) {
  */
 export function setAgentStudioHeaders(headers: HeadersLike) {
   headersProvider = typeof headers === 'function' ? headers : () => headers;
-}
-
-function buildUrl(path: string): string {
-  return `${apiBase}${AGENT_START_NAMESPACE}${path.startsWith('/') ? '' : '/'}${path}`;
-}
-
-async function resolveHeaders(): Promise<Record<string, string>> {
-  return (await headersProvider()) ?? {};
-}
-
-interface Envelope<T> {
-  code: string;
-  message?: string;
-  data: T;
-}
-
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const injected = await resolveHeaders();
-  const res = await fetch(buildUrl(path), {
-    headers: {
-      'Content-Type': 'application/json',
-      ...injected,
-      ...(init.headers ?? {}),
-    },
-    ...init,
-  });
-  if (!res.ok) {
-    throw new Error(`${res.status} ${res.statusText}`);
-  }
-  const env = (await res.json()) as Envelope<T>;
-  if (env.code !== 'ok') {
-    throw new Error(env.message ?? env.code);
-  }
-  return env.data;
+  shared = null;
 }
 
 export function useAgentStudio() {
   return {
-    listAgents: (tenantId?: string) =>
-      call<AgentEntity[]>(
-        `/agents${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
-      ),
-    getAgent: (id: string) => call<AgentEntity>(`/agents/${id}`),
+    listAgents: () => client().agents.list() as unknown as Promise<AgentEntity[]>,
+    getAgent: (id: string) =>
+      client().agents.get(id) as unknown as Promise<AgentEntity>,
     createAgent: (req: CreateAgentRequest) =>
-      call<AgentEntity>('/agents', {
-        method: 'POST',
-        body: JSON.stringify(req),
-      }),
+      client().agents.create(req as never) as unknown as Promise<AgentEntity>,
     updateAgent: (id: string, req: CreateAgentRequest) =>
-      call<AgentEntity>(`/agents/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(req),
-      }),
-    deleteAgent: (id: string) =>
-      call<void>(`/agents/${id}`, { method: 'DELETE' }),
+      client().agents.update(id, req as never) as unknown as Promise<AgentEntity>,
+    deleteAgent: (id: string) => client().agents.remove(id),
   };
 }
 

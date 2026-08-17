@@ -155,7 +155,14 @@ export interface ProviderView {
   credentialConfigured: boolean;
   credentialId?: string;
   credentialMasked?: Record<string, unknown>;
+  /** Custom (agent_model) rows, excluding materialized copies of predefined models. */
   installedModelCount: number;
+  /**
+   * Models whose switch is currently ON (predefined rows gated by the settings
+   * table + enabled custom rows). Same gate as the default-model dropdown, so
+   * the card counter matches what the popover / dropdown will offer.
+   */
+  enabledModelCount?: number;
 }
 
 export interface ProviderCredentialInfo {

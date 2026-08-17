@@ -172,7 +172,7 @@ const dataSource = computed(() => props.keys ?? []);
               ok-text="删除"
               cancel-text="取消"
               placement="topRight"
-              @confirm="onDelete(record)"
+              @confirm="onDelete(record as StudioApiKey)"
             >
               <Button type="link" danger size="small">
                 <DeleteOutlined />
@@ -213,9 +213,6 @@ const dataSource = computed(() => props.keys ?? []);
 .akm-tip-smile {
   color: #d97706;
   font-weight: 600;
-}
-.akm-table {
-  --table-header-bg: #f8fafc;
 }
 .akm-token-cell {
   display: inline-flex;

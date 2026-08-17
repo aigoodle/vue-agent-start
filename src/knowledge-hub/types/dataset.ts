@@ -52,6 +52,7 @@ export type ChunkingTemplate =
   | 'PARENT_CHILD'
   | 'QA'
   | 'MARKDOWN'
+  | 'STRUCTURE_AWARE'
   | 'ONE';
 
 export type ParentMode = 'PARAGRAPH' | 'FULL_DOC';
@@ -64,6 +65,8 @@ export interface ProcessRule {
   template?: ChunkingTemplate;
   chunkTokens?: number;
   overlapTokens?: number;
+  protectStructuredBlocks?: boolean;
+  includeHeadingContext?: boolean;
   parentChunkTokens?: number;
   parentMode?: ParentMode;
   separators?: string[];
@@ -82,7 +85,15 @@ export interface RetrievalConfig {
   topK?: number;
   scoreThreshold?: number;
   vectorWeight?: number;
+  fusionMethod?: 'WEIGHTED_SCORE' | 'RECIPROCAL_RANK';
+  rrfK?: number;
+  recallMultiplier?: number;
+  maxChunksPerDocument?: number;
+  neighborWindow?: number;
+  queryExpansionEnabled?: boolean;
+  maxQueryVariants?: number;
   rerankEnabled?: boolean;
   rerankModelId?: string;
   rerankerName?: string;
+  rerankPoolSize?: number;
 }

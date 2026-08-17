@@ -23,7 +23,7 @@ interface DatasetForm {
   icon?: string;
   iconBg?: string;
   permission?: 'ONLY_ME' | 'ORG_MEMBERS';
-  chunkMode?: 'general' | 'parent-child' | 'qa';
+  chunkMode?: 'general' | 'parent-child' | 'qa' | 'structure-aware';
   // Per-chunk-mode parameters — pre-seeded from the dataset's persisted
   // processRule so the panel opens showing the actual current setup. Empty
   // values fall back to the same wizard defaults (1024 / 50 / PARAGRAPH / …).
@@ -150,6 +150,12 @@ watch(
 
 const CHUNK_MODES = [
   {
+    id: 'structure-aware' as const,
+    icon: '§',
+    title: 'Structure-aware',
+    desc: '保留标题路径、列表、表格和代码块边界，适合结构化文档。',
+  },
+  {
     id: 'general' as const,
     icon: '≡',
     title: 'General',
@@ -176,7 +182,7 @@ const CHUNK_MODES = [
  * 知识库" instead.
  */
 const chunkModeLocked = computed(() => (props.documentCount ?? 0) > 0);
-function selectChunkMode(id: 'general' | 'parent-child' | 'qa') {
+function selectChunkMode(id: 'general' | 'parent-child' | 'qa' | 'structure-aware') {
   if (chunkModeLocked.value) return;
   form.value.chunkMode = id;
 }

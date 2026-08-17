@@ -23,6 +23,11 @@ import {
 } from 'ant-design-vue';
 
 import {
+  mergeAgentStartHeaders,
+  type AgentStartHeaders,
+  useAgentStartConfig,
+} from '../../config';
+import {
   type AgentEntity,
   type AgentStudioApi,
   type AgentToolView,
@@ -34,25 +39,34 @@ interface Props {
   agentId: string;
   /** 后端 base URL, 默认 `/api`, 忽略 `api` 覆写. */
   apiBase?: string;
+  /** Extra headers; a function is evaluated again before every request. */
+  headers?: AgentStartHeaders;
   /** 完整 AgentStudioApi 覆写内建 adapter。 */
   api?: AgentStudioApi;
 }
 const props = withDefaults(defineProps<Props>(), {
-  apiBase: '/api',
   api: undefined,
 });
 
+const globalConfig = useAgentStartConfig();
+const resolvedApiBase = computed(
+  () => props.apiBase ?? globalConfig.apiBase ?? '/api',
+);
+
 const backend = computed<AgentStudioApi>(() =>
-  props.api ?? createAgentStudioSpringBackend({ baseUrl: props.apiBase }),
+  props.api ?? createAgentStudioSpringBackend({
+    baseUrl: resolvedApiBase.value,
+    headers: () => mergeAgentStartHeaders(globalConfig.headers, props.headers),
+  }),
 );
 // Shim for the copy-curl button — still hard-codes localhost:18090 in the
 // original view; keep the same behaviour but expose apiBase for override.
 const curlBaseUrl = computed(() => {
   try {
-    const u = new URL(props.apiBase, window.location.origin);
+    const u = new URL(resolvedApiBase.value, window.location.origin);
     return u.origin + u.pathname.replace(/\/+$/, '');
   } catch {
-    return `http://localhost:18090${props.apiBase}`;
+    return `http://localhost:18090${resolvedApiBase.value}`;
   }
 });
 
@@ -80,7 +94,7 @@ async function loadKnownConversations() {
     if (server.length > 0) {
       conversations.value = server.map((c) => ({
         id: c.conversationId,
-        preview: c.firstMessage,
+        preview: c.firstMessage ?? '',
       }));
       return;
     }

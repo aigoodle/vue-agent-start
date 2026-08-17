@@ -64,6 +64,7 @@ import type {
   StudioTool,
 } from '../types';
 import type { AppStudioApi } from '../api';
+import type { AppMode } from '../adapters/types';
 import DrawerFlowDesigner from '../panels/DrawerFlowDesigner.vue';
 import LogAnnotationPanel from '../panels/LogAnnotationPanel.vue';
 import MonitorPanel from '../panels/MonitorPanel.vue';
@@ -132,7 +133,7 @@ const emit = defineEmits<{
     e: 'save',
     payload: {
       appId: string;
-      mode: string;
+      mode: AppMode;
       graphJson?: string;
       name?: string;
       instructions?: string;
@@ -558,9 +559,14 @@ function closeBrandMenu() {
   brandMenuOpen.value = false;
 }
 
+/** SSR-safe origin — empty string on the server. */
+function safeOrigin(): string {
+  return typeof window !== 'undefined' ? window.location.origin : '';
+}
+
 /** Public Web-App URL under the drawer's own origin — Dify parity. */
 const webAppUrl = computed(() => {
-  if (!props.app?.id) return '';
+  if (!props.app?.id || typeof window === 'undefined') return '';
   return `${window.location.origin}/embed/agent/${props.app.id}`;
 });
 /**
@@ -568,46 +574,29 @@ const webAppUrl = computed(() => {
  * in dev (apiBase 默认 `/api`，最终成 `${origin}/api/agent-start`）。
  */
 const apiBaseUrl = computed(() => {
-  if (!props.app?.id) return '';
+  if (!props.app?.id || typeof window === 'undefined') return '';
   const base = props.apiBase.replace(/\/+$/, '');
   return `${window.location.origin}${base}/agent-start`;
 });
 
 /**
  * Endpoint samples for the 访问 API tab. Focused on the two entry points a
- * customer integrates against — the OpenAI-compatible chat endpoint (POSTing
- * with a Bearer api-key resolves to the app) and the Dify /chat-messages
- * shim. Rendered by {@link AgentApiDocs}; anchors on the right auto-populate.
+ * customer integrates against. Browser iframe calls use the business JWT;
+ * external server-to-server calls use a per-app API key.
  */
 const apiEndpoints = computed<ApiEndpoint[]>(() => {
-  const base = apiBaseUrl.value || `${window.location.origin || 'http://localhost:18090'}/api/agent-start`;
+  // SSR guard: apiBaseUrl is '' on the server, and reading window.location
+  // would throw before the hardcoded fallback could apply.
+  const base = apiBaseUrl.value || `${safeOrigin() || 'http://localhost:18090'}/api/agent-start`;
   return [
-    {
-      id: 'chat-messages',
-      title: '发起对话（Dify 兼容）',
-      method: 'POST',
-      path: '/chat-messages',
-      description:
-        '推荐入口。传 Authorization: Bearer <api-key>；后端根据 key 反查所属应用，无需再传 app_id。',
-      code: `curl -X POST '${base}/chat-messages' \\
-  -H 'Authorization: Bearer {API_KEY}' \\
-  -H 'Content-Type: application/json' \\
-  --data-raw '{
-    "query": "你好",
-    "inputs": {},
-    "response_mode": "streaming",
-    "user": "end-user-1",
-    "conversation_id": ""
-  }'`,
-    },
     {
       id: 'chat-completions',
       title: '发起对话（OpenAI 兼容）',
       method: 'POST',
-      path: '/chat/completions/{app_id}',
+      path: '/v1/chat/completions',
       description:
-        'OpenAI SDK 直连风格。Authorization: Bearer <api-key> 必填；path 里的 app_id 会与 key 归属做一致性校验。',
-      code: `curl -X POST '${base}/chat/completions/${props.app?.id ?? '{app_id}'}' \\
+        '外部服务端调用入口。Authorization: Bearer <api-key> 必填，后端根据 key 解析所属应用；不要把长期 key 放进浏览器。',
+      code: `curl -X POST '${base}/v1/chat/completions' \\
   -H 'Authorization: Bearer {API_KEY}' \\
   -H 'Content-Type: application/json' \\
   --data-raw '{

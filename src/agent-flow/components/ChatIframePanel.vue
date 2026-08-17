@@ -11,7 +11,7 @@
  * 组件不写死任何 URL / apiKey，全部由宿主注入，方便工作流、Agent、独立
  * playground 各自复用。
  */
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import type { ChatDebugVariable } from './chat-iframe-types';
 
@@ -75,7 +75,10 @@ const chatReady = ref(false);
 // ---------------------------------------------------------------------------
 const iframeSrc = computed(() => {
   try {
-    const url = new URL(props.src, window.location.href);
+    // SSR guard: no window on the server, resolve against `undefined` so a
+    // relative `src` simply falls through to the string-concat fallback.
+    const base = typeof window !== 'undefined' ? window.location.href : undefined;
+    const url = new URL(props.src, base);
     for (const [k, v] of Object.entries(props.params ?? {})) {
       if (v === undefined || v === null || v === '') continue;
       url.searchParams.set(k, String(v));
@@ -97,7 +100,8 @@ const iframeSrc = computed(() => {
 
 const targetOrigin = computed(() => {
   try {
-    return new URL(props.src, window.location.href).origin;
+    const base = typeof window !== 'undefined' ? window.location.href : undefined;
+    return new URL(props.src, base).origin;
   } catch {
     return '*';
   }
@@ -264,9 +268,14 @@ function reload() {
   }
 }
 
-// 组件挂载：绑定监听 + 用初始 variables 建仓
-window.addEventListener('message', onMessage);
-initFromVariables(props.variables ?? []);
+// 组件挂载：绑定监听 + 用初始 variables 建仓。
+// 必须放在 onMounted 里 —— setup() 在 SSR 时也会执行，顶层直接
+// window.addEventListener 会在服务端渲染时抛 ReferenceError；
+// initFromVariables 会写 localStorage，同样只在浏览器里有意义。
+onMounted(() => {
+  window.addEventListener('message', onMessage);
+  initFromVariables(props.variables ?? []);
+});
 
 onBeforeUnmount(() => {
   window.removeEventListener('message', onMessage);

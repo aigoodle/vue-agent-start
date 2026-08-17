@@ -58,3 +58,20 @@ export { default as DrawerFlowDesigner } from './panels/DrawerFlowDesigner.vue';
 export { default as LogAnnotationPanel } from './panels/LogAnnotationPanel.vue';
 export { default as MonitorPanel } from './panels/MonitorPanel.vue';
 export * from './api';
+
+// Top-level pages (app list + standalone chat) + run timeline
+export { default as AgentAppsPage } from './components/AgentAppsPage.vue';
+export { default as AgentChatPage } from './components/AgentChatPage.vue';
+export { default as AgentRunTimeline } from './components/AgentRunTimeline.vue';
+
+// Durable /agent-runs client factory (back-compat wrapper over client.runs)
+export * from './agent-run';
+
+// AgentStudioApi adapter used by AgentAppsPage / AgentChatPage —— 只导
+// factory + 接口, 避免 adapter 里重复定义的 AgentEntity/AgentStrategy/...
+// 与 types.ts 经 `export *` 产生歧义冲突。
+export { createAgentStudioSpringBackend } from './adapters/springAgentStart';
+export type {
+  AgentStudioAdapterOptions,
+  AgentStudioApi,
+} from './adapters/springAgentStart';

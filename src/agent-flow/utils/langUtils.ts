@@ -5,6 +5,22 @@ import { message, Modal } from 'ant-design-vue';
 
 const config = { hostname: '' };
 
+/**
+ * Base used to resolve stored-file references into `<img>` src URLs.
+ * Centralised here (instead of scattering `/api/agent-start/storage/file/…`
+ * across components) so hosts with a different proxy/namespace override it
+ * once via {@link setStorageFileBase}. SSR-safe: pure string, no DOM.
+ */
+let storageFileBase = '/api/agent-start/storage/file';
+
+export function setStorageFileBase(base: string) {
+  storageFileBase = base.replace(/\/+$/, '');
+}
+
+export function getStorageFileBase(): string {
+  return storageFileBase;
+}
+
 export default {
   getId(str: never | string = ''): string {
     if (!str) {
@@ -28,11 +44,13 @@ export default {
       if (str.startsWith('http://') || str.startsWith('https://')) {
         return str;
       }
-      return `/api/agent-start/storage/file/${str}`;
+      return `${getStorageFileBase()}/${str}`;
     }
     return '';
   },
   getQueryString(name: string) {
+    // SSR guard: no location on the server.
+    if (typeof window === 'undefined') return null;
     const reg = new RegExp(`(^|&)${name}=([^&]*)(&|$)`, 'i');
     const r = window.location.search.slice(1).match(reg);
     if (r) {
@@ -151,7 +169,7 @@ export default {
     const cloneData = JSON.parse(jsonstr);
     const newData = cloneData.filter((father: any) => {
       const branchArr = cloneData.filter(
-        (child) => father.id === child.parentId,
+        (child: any) => father.id === child.parentId,
       );
       if (branchArr.length > 0) {
         father.children = branchArr;

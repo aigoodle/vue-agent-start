@@ -25,7 +25,7 @@ function mountDialog(props: Record<string, unknown> = {}) {
   const Root = defineComponent({
     setup() {
       provideKhI18n(() => 'zh-CN');
-      return () => h(KhDialog, props);
+      return () => h(KhDialog, props as any);
     },
   });
   currentWrapper = mount(Root, { attachTo: document.body });

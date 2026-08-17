@@ -127,9 +127,9 @@ function catalogRows(providerName: string): CatalogRow[] {
 function enabledCount(p: ProviderView): number {
   const rows = catalogRows(p.name);
   if (rows.length > 0) return rows.filter((r) => r.enabled).length;
-  // Fallback before the catalog was fetched: predefined default to enabled
-  // (Dify semantics) + all custom rows we know about.
-  return knownModelCount(p);
+  // Fallback before the catalog was fetched: the backend pre-joins the same
+  // switch state the popover uses (opt-in: missing setting row = disabled).
+  return p.enabledModelCount ?? 0;
 }
 
 const configured = computed(() =>
@@ -655,13 +655,61 @@ function capabilityTags(
 
 <template>
   <div class="phs-root">
+    <!-- 卡片式标题栏：图标徽章 + 标题 + 副标题，右侧搜索框 -->
     <div class="phs-toolbar">
-      <div class="phs-toolbar-title">模型供应商</div>
-      <input
-        v-model="search"
-        class="phs-search"
-        placeholder="搜索"
-      />
+      <div class="phs-toolbar-head">
+        <div class="phs-toolbar-logo" aria-hidden="true">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+            <rect x="9" y="9" width="6" height="6" />
+            <path d="M9 2v2" />
+            <path d="M15 2v2" />
+            <path d="M9 20v2" />
+            <path d="M15 20v2" />
+            <path d="M2 9h2" />
+            <path d="M2 15h2" />
+            <path d="M20 9h2" />
+            <path d="M20 15h2" />
+          </svg>
+        </div>
+        <div class="phs-toolbar-text">
+          <div class="phs-toolbar-title">模型供应商</div>
+          <div class="phs-toolbar-subtitle">
+            接入与管理模型供应商 · 凭证 · 模型目录 · 默认模型
+          </div>
+        </div>
+      </div>
+      <div class="phs-search-wrap">
+        <svg
+          class="phs-search-icon"
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <input
+          v-model="search"
+          class="phs-search"
+          placeholder="搜索供应商"
+        />
+      </div>
     </div>
 
     <!-- Section 0 · 系统默认模型 -->
@@ -1113,28 +1161,109 @@ function capabilityTags(
   display: flex;
   flex-direction: column;
   gap: 20px;
+  /* Full-page surface: light top / left / right margins only — the content
+   * still spans the full host width. */
+  box-sizing: border-box;
+  padding: 20px 24px;
 }
+@media (max-width: 640px) {
+  .phs-root {
+    padding: 12px 16px;
+  }
+}
+/* Card-style header — icon badge + title block on the left, search on the
+   right. Same bg/border/radius language as the provider cards below. */
 .phs-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+:global(.dark) .phs-toolbar {
+  background: #1f1f1f;
+  border-color: #2d2d2d;
+}
+.phs-toolbar-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.phs-toolbar-logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+:global(.dark) .phs-toolbar-logo {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+}
+.phs-toolbar-text {
+  min-width: 0;
 }
 .phs-toolbar-title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.3;
   color: #111827;
 }
 :global(.dark) .phs-toolbar-title {
   color: #f3f4f6;
 }
+.phs-toolbar-subtitle {
+  margin-top: 3px;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+:global(.dark) .phs-toolbar-subtitle {
+  color: #9ca3af;
+}
+.phs-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.phs-search-icon {
+  position: absolute;
+  left: 10px;
+  color: #9ca3af;
+  pointer-events: none;
+}
 .phs-search {
-  padding: 6px 12px;
+  width: 240px;
+  max-width: 100%;
+  height: 36px;
+  padding: 0 12px 0 32px;
   font-size: 13px;
   border: 1px solid #d1d5db;
-  border-radius: 6px;
-  width: 220px;
+  border-radius: 8px;
   background: #fff;
+  color: #111827;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.phs-search::placeholder {
+  color: #9ca3af;
+}
+.phs-search:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 :global(.dark) .phs-search {
   background: #2d2d2d;
@@ -1583,20 +1712,24 @@ function capabilityTags(
 .phs-popover-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 /* Antdv Popover container — override defaults so our content fits nicely */
 :global(.phs-model-popover-overlay .ant-popover-inner) {
   padding: 0;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  box-shadow:
+    0 18px 48px rgba(15, 23, 42, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.06);
 }
 :global(.phs-model-popover-overlay .ant-popover-inner-content) {
   padding: 0;
 }
 .phs-popover-inner {
-  width: 480px;
+  width: 520px;
   max-width: 90vw;
   max-height: 78vh;
   display: flex;
@@ -1610,7 +1743,7 @@ function capabilityTags(
 .phs-popover-inner .phs-popover-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px;
+  padding: 8px 10px 10px;
 }
 .phs-popover-inner .phs-popover-actions {
   padding: 8px 16px;
@@ -1631,20 +1764,26 @@ function capabilityTags(
 .phs-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 7px;
+  min-height: 38px;
+  padding: 4px 8px;
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   overflow: hidden;
 }
 .phs-row:hover {
-  background: #fafafa;
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 .phs-row--on {
-  background: #eef2ff;
-  border-color: #a5b4fc;
+  background: #f5f7ff;
+  border-color: #dfe3ff;
+  box-shadow: inset 2px 0 0 #6366f1;
 }
 :global(.dark) .phs-row {
   background: #1f1f1f;
@@ -1658,12 +1797,12 @@ function capabilityTags(
   border-color: #6366f1;
 }
 .phs-row-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   background: #eef2ff;
   color: #4338ca;
-  font-size: 16px;
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1684,8 +1823,8 @@ function capabilityTags(
 .phs-row-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 550;
   color: #111827;
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
@@ -1698,13 +1837,13 @@ function capabilityTags(
 }
 .phs-row-cap {
   flex-shrink: 0;
-  padding: 1px 6px;
-  font-size: 10px;
+  padding: 1px 5px;
+  font-size: 9.5px;
   font-weight: 500;
-  border-radius: 3px;
+  border-radius: 4px;
   background: #eef2ff;
   color: #4338ca;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.1px;
   white-space: nowrap;
 }
 .phs-row-cap[data-color='green'] {
@@ -1746,8 +1885,10 @@ function capabilityTags(
   border: none;
   color: #9ca3af;
   cursor: pointer;
-  font-size: 14px;
-  padding: 0 6px;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  padding: 0;
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -1844,7 +1985,7 @@ function capabilityTags(
 .phs-switch {
   position: relative;
   display: inline-block;
-  width: 30px;
+  width: 28px;
   height: 16px;
   flex-shrink: 0;
 }
@@ -1876,7 +2017,17 @@ function capabilityTags(
   background: #6366f1;
 }
 .phs-switch input:checked + .phs-switch-slider:before {
-  transform: translateX(14px);
+  transform: translateX(12px);
+}
+
+@media (max-width: 560px) {
+  .phs-popover-inner {
+    width: min(520px, calc(100vw - 24px));
+  }
+  .phs-row-cap--ctx,
+  .phs-row-cap[data-color='blue'] {
+    display: none;
+  }
 }
 .phs-switch input:disabled + .phs-switch-slider {
   opacity: 0.5;

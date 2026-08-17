@@ -27,6 +27,10 @@ export type AppType =
 export interface AgentEntity {
   id: string;
   tenantId: string;
+  /** Stable code used by internal SaaS chat integrations. */
+  appCode?: string;
+  /** PRIVATE / TENANT_LIST / GLOBAL. */
+  visibility?: 'GLOBAL' | 'PRIVATE' | 'TENANT_LIST';
   name: string;
   /** Card summary text (Dify parity). */
   description?: string;

@@ -13,6 +13,12 @@ export interface DocumentRow {
   uploadedAt?: string;
   status: 'AVAILABLE' | 'FAILED' | 'PROCESSING';
   enabled: boolean;
+  parserName?: string;
+  mediaType?: string;
+  pageCount?: number;
+  blockCount?: number;
+  parseWarnings?: string[];
+  fileSize?: number;
 }
 
 /** One chunk shown in DocumentChunksView. */
@@ -42,4 +48,13 @@ export interface DocMetadata {
   avgChunkChars?: number;
   avgEmbedMs?: number;
   totalTokens?: number;
+  parserName?: string;
+  mediaType?: string;
+  pageCount?: number;
+  blockCount?: number;
+  parseWarnings?: string[];
 }
+
+export type ParsedBlockType = 'TITLE' | 'HEADING' | 'PARAGRAPH' | 'LIST_ITEM' | 'TABLE' | 'CODE' | 'IMAGE' | 'PAGE_BREAK';
+export interface ParsedDocumentBlock { index: number; type: ParsedBlockType; text: string; page?: number; headingLevel?: number; headingPath?: string; metadata?: Record<string, unknown>; }
+export interface ParsedDocument { filename?: string; parser?: string; mediaType?: string; title?: string; pageCount?: number; blocks: ParsedDocumentBlock[]; metadata?: Record<string, unknown>; warnings?: string[]; }

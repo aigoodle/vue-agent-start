@@ -2,7 +2,6 @@ import { useWorkflowStore } from '@/stores/workflow';
 import langUtils from '@/utils/langUtils';
 import nodeCardForm from '@/workflow/utils/node_card_form';
 
-const workflowStore = useWorkflowStore();
 export default {
   conditionOperators: [
     { value: 'CONTAINS', label: '包含' },
@@ -100,6 +99,10 @@ export default {
     if (!variableSelector || variableSelector.length === 0) {
       return '';
     }
+    // Resolve Pinia only when a component invokes this method. Resolving the
+    // store at module evaluation time runs before a host can call
+    // `app.use(pinia)` and makes importing the component library fail.
+    const workflowStore = useWorkflowStore();
     const list = variableSelector;
     const node = workflowStore.getNodeById(list[0]);
     const labels = [];

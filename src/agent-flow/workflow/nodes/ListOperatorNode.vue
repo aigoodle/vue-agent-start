@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// @ts-nocheck — legacy flow-designer code, pre-dates strict typing; cleanup tracked separately.
 import { computed, ref } from 'vue';
 
 import workflow_utils from '@/workflow/utils/workflow_utils';

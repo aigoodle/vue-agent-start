@@ -149,9 +149,7 @@ const rows = computed(() =>
   <section class="dmp-root">
     <div class="dmp-title">
       <span>系统默认模型</span>
-      <span class="dmp-title-hint">
-        · 智能体 / 知识库 / 工作流 在未指定模型时使用
-      </span>
+      <span class="dmp-title-hint">· 未指定模型时，智能体 / 知识库 / 工作流将使用</span>
     </div>
 
     <div class="dmp-grid">
@@ -168,11 +166,7 @@ const rows = computed(() =>
           :model-value="r.value ?? null"
           :options="r.options"
           :disabled="savingType === r.modelType"
-          :placeholder="
-            r.providers.length === 0
-              ? '暂无可用模型 — 请先启用该类型的模型'
-              : '请选择模型'
-          "
+          :placeholder="r.providers.length === 0 ? '暂无可用模型' : '请选择模型'"
           :empty-text="`暂无可用的${modelTypeLabel(r.modelType)}模型`"
           empty-hint="请先在「模型供应商」里配置并启用"
           @update:model-value="(v) => onChange(r.modelType, v ?? undefined)"
@@ -195,6 +189,9 @@ const rows = computed(() =>
   display: flex;
   align-items: baseline;
   gap: 4px;
+  /* On narrow viewports the hint drops to its own line instead of forcing
+   * the title row to overflow. */
+  flex-wrap: wrap;
 }
 :global(.dark) .dmp-title {
   color: #d1d5db;

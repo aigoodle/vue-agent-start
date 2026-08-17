@@ -119,29 +119,29 @@ const TreeNode: any = defineComponent({
     return () => {
       const { node, readonly, depth } = props;
       const isBranch = node.type === 'object' || node.type === 'array';
-      const typeClass = `output-type-${node.type || 'string'}`;
+      const typeClass = `wf-out-type-${node.type || 'string'}`;
 
       const rowChildren: any[] = [
-        h('span', { class: 'output-row-caret' }, isBranch ? '▾' : '·'),
-        h('span', { class: 'output-row-name' }, node.name || '未命名'),
+        h('span', { class: 'wf-out-row-caret' }, isBranch ? '▾' : '·'),
+        h('span', { class: 'wf-out-row-name' }, node.name || '未命名'),
         h(
           'span',
-          { class: ['output-type-pill', typeClass] },
+          { class: ['wf-out-type-pill', typeClass] },
           node.type === 'array' ? 'array' : node.type || 'string',
         ),
         node.description
-          ? h('span', { class: 'output-row-desc' }, node.description)
+          ? h('span', { class: 'wf-out-row-desc' }, node.description)
           : null,
       ];
 
       if (!readonly) {
         rowChildren.push(
-          h('div', { class: 'output-row-actions' }, [
+          h('div', { class: 'wf-out-row-actions' }, [
             isBranch
               ? h(
                   'a',
                   {
-                    class: 'output-row-action output-row-action-add',
+                    class: 'wf-out-row-action wf-out-row-action-add',
                     title: '添加子字段',
                     onClick: (e: Event) => {
                       e.stopPropagation();
@@ -154,7 +154,7 @@ const TreeNode: any = defineComponent({
             h(
               'a',
               {
-                class: 'output-row-action output-row-action-edit',
+                class: 'wf-out-row-action wf-out-row-action-edit',
                 title: '编辑',
                 onClick: (e: Event) => {
                   e.stopPropagation();
@@ -166,7 +166,7 @@ const TreeNode: any = defineComponent({
             h(
               'a',
               {
-                class: 'output-row-action output-row-action-danger',
+                class: 'wf-out-row-action wf-out-row-action-danger',
                 title: '删除',
                 onClick: (e: Event) => {
                   e.stopPropagation();
@@ -182,7 +182,7 @@ const TreeNode: any = defineComponent({
       const row = h(
         'div',
         {
-          class: 'output-row',
+          class: 'wf-out-row',
           style: { paddingLeft: `${depth * 14}px` },
           onClick: () => !readonly && emit('edit', node),
         },
@@ -204,7 +204,7 @@ const TreeNode: any = defineComponent({
             )
           : [];
 
-      return h('div', { class: 'output-tree-node' }, [row, ...children]);
+      return h('div', { class: 'wf-out-node' }, [row, ...children]);
     };
   },
 });
@@ -235,7 +235,7 @@ const TreeNode: any = defineComponent({
             <div class="output-tree-root">
               <div class="output-tree-root-title">
                 <span class="output-tree-root-name">{{ root.name }}</span>
-                <span class="output-type-pill output-type-object">
+                <span class="wf-out-type-pill wf-out-type-object">
                   {{ typeLabel(root.type) }}
                 </span>
                 <span v-if="root.description" class="output-tree-root-desc">
@@ -330,7 +330,7 @@ const TreeNode: any = defineComponent({
           class="output-plain-row"
         >
           <div class="output-plain-name">{{ item.name }}</div>
-          <span class="output-type-pill" :class="`output-type-${item.type}`">
+          <span class="wf-out-type-pill" :class="`wf-out-type-${item.type}`">
             {{ typeLabel(item.type) }}
           </span>
           <div class="output-plain-label">{{ item.label }}</div>
@@ -503,15 +503,16 @@ const TreeNode: any = defineComponent({
 <!--
   以下样式作用于由 TreeNode（inline defineComponent + h()）渲染的元素。
   <style scoped> 编译出的属性选择器无法命中 h() 产物，因此必须写在非
-  scoped 块里；类名全部为本文件专用，不存在污染其他组件的风险。
+  scoped 块里。类名统一加 wf-out- 前缀（库级命名空间），避免与宿主页面的
+  .output-row 之类的通用类名冲突。
 -->
 <style>
-.output-tree-node {
+.wf-out-node {
   display: flex;
   flex-direction: column;
 }
 
-.output-row {
+.wf-out-row {
   position: relative;
   display: flex;
   align-items: center;
@@ -523,12 +524,12 @@ const TreeNode: any = defineComponent({
   transition: background 0.12s, box-shadow 0.12s;
 }
 
-.output-row:hover {
+.wf-out-row:hover {
   background: #ffffff;
   box-shadow: inset 0 0 0 1px #e5e7eb;
 }
 
-.output-row-caret {
+.wf-out-row-caret {
   flex: none;
   width: 10px;
   font-size: 10px;
@@ -536,13 +537,13 @@ const TreeNode: any = defineComponent({
   text-align: center;
 }
 
-.output-row-name {
+.wf-out-row-name {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   color: #1f2937;
   font-weight: 500;
 }
 
-.output-row-desc {
+.wf-out-row-desc {
   flex: 1;
   min-width: 0;
   color: #9ca3af;
@@ -552,7 +553,7 @@ const TreeNode: any = defineComponent({
   font-size: 11px;
 }
 
-.output-row-actions {
+.wf-out-row-actions {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -562,11 +563,11 @@ const TreeNode: any = defineComponent({
   transition: opacity 0.15s;
 }
 
-.output-row:hover .output-row-actions {
+.wf-out-row:hover .wf-out-row-actions {
   opacity: 1;
 }
 
-.output-row-action {
+.wf-out-row-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -580,45 +581,46 @@ const TreeNode: any = defineComponent({
   transition: background 0.12s, color 0.12s, transform 0.12s;
 }
 
-.output-row-action .anticon {
+.wf-out-row-action .anticon {
   font-size: 13px;
 }
 
-.output-row-action:hover {
+.wf-out-row-action:hover {
   transform: translateY(-1px);
 }
 
-/* 编辑：跟随 vben --primary 主题色（design-tokens/default.css 中 --primary: 212 100% 45%） */
-.output-row-action-edit {
-  color: hsl(var(--primary));
+/* 编辑：跟随 vben --primary 主题色（design-tokens/default.css 中 --primary: 212 100% 45%）；
+ * 宿主未定义该 token 时退回默认蓝，避免 hsl() 收到空值导致声明失效。 */
+.wf-out-row-action-edit {
+  color: hsl(var(--primary, 212 100% 45%));
 }
 
-.output-row-action-edit:hover {
-  color: hsl(var(--primary));
-  background: hsl(var(--primary) / 14%);
+.wf-out-row-action-edit:hover {
+  color: hsl(var(--primary, 212 100% 45%));
+  background: hsl(var(--primary, 212 100% 45%) / 14%);
 }
 
 /* 新增：走当前节点主题色（--wf-accent 由 NodeConfigCard 注入） */
-.output-row-action-add {
+.wf-out-row-action-add {
   color: var(--wf-accent, #6366f1);
 }
 
-.output-row-action-add:hover {
+.wf-out-row-action-add:hover {
   background: color-mix(in srgb, var(--wf-accent, #6366f1) 14%, transparent);
 }
 
 /* 删除：红色，常态即可辨识 */
-.output-row-action-danger {
+.wf-out-row-action-danger {
   color: #ef4444;
 }
 
-.output-row-action-danger:hover {
+.wf-out-row-action-danger:hover {
   color: #dc2626;
   background: #fef2f2;
 }
 
 /* 类型徽章（在 h() 渲染的行内也会用到，因此和 action 一起放非 scoped） */
-.output-type-pill {
+.wf-out-type-pill {
   flex: none;
   padding: 1px 6px;
   font-size: 10px;
@@ -630,37 +632,37 @@ const TreeNode: any = defineComponent({
   border: 1px solid transparent;
 }
 
-.output-type-string {
+.wf-out-type-string {
   color: #047857;
   background: #d1fae5;
   border-color: #6ee7b7;
 }
 
-.output-type-number {
+.wf-out-type-number {
   color: #b45309;
   background: #fef3c7;
   border-color: #fcd34d;
 }
 
-.output-type-boolean {
+.wf-out-type-boolean {
   color: #7c3aed;
   background: #ede9fe;
   border-color: #c4b5fd;
 }
 
-.output-type-object {
+.wf-out-type-object {
   color: #1d4ed8;
   background: #dbeafe;
   border-color: #93c5fd;
 }
 
-.output-type-array {
+.wf-out-type-array {
   color: #be185d;
   background: #fce7f3;
   border-color: #f9a8d4;
 }
 
-.output-type-file {
+.wf-out-type-file {
   color: #475569;
   background: #f1f5f9;
   border-color: #cbd5e1;

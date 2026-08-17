@@ -67,6 +67,11 @@ watch(
       snapshot.value = { ...props.modelValue };
       draft.value = { ...props.modelValue };
       nextTick(positionPopover);
+    }
+    // SSR guard: this watch is immediate, so it also fires during setup on
+    // the server — where `document` does not exist (even the closed branch).
+    if (typeof document === 'undefined') return;
+    if (v) {
       document.addEventListener('mousedown', onDocMouseDown, true);
       document.addEventListener('keydown', onKeydown);
     } else {
@@ -87,7 +92,8 @@ const popoverRef = ref<HTMLElement | null>(null);
 const pos = ref<{ top: number; left: number }>({ top: 0, left: 0 });
 
 function positionPopover() {
-  if (!props.triggerEl) return;
+  // SSR guard: positioned via a nextTick from an immediate watch.
+  if (typeof window === 'undefined' || !props.triggerEl) return;
   const r = props.triggerEl.getBoundingClientRect();
   const w = props.width;
   const gap = 6;

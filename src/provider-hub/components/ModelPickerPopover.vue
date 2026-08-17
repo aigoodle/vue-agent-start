@@ -53,8 +53,14 @@ import {
 } from '@ant-design/icons-vue';
 
 import {
+  mergeAgentStartHeaders,
+  useAgentStartConfig,
+} from '../../config';
+import {
   modelTypeColor,
   modelTypeLabel,
+  setProviderHubApiBase,
+  setProviderHubHeaders,
   useProviderHub,
 } from '../composables/useProviderHub';
 import type {
@@ -125,6 +131,14 @@ const emit = defineEmits<{
   /** 二级下拉底部「模型供应商设置」入口，方便直接跳到 provider hub 设置页。 */
   (e: 'openProviderSettings'): void;
 }>();
+
+// The picker is also rendered directly inside workflow node cards, without a
+// surrounding ProviderApp. Initialise the shared provider client here so the
+// first grouped-by-type/defaults request receives the host's Authorization
+// header and API base instead of using the unauthenticated defaults.
+const globalConfig = useAgentStartConfig();
+setProviderHubApiBase(globalConfig.apiBase ?? '/api');
+setProviderHubHeaders(() => mergeAgentStartHeaders(globalConfig.headers));
 
 const { listDefaults, listModelsGroupedByType } = useProviderHub();
 
@@ -514,6 +528,15 @@ function closePanel() {
   open.value = false;
 }
 
+/**
+ * antd Popover mount point. Kept as a script function (not an inline template
+ * lambda) so the bare `document` global isn't looked up on the component
+ * instance under strict template type-checking.
+ */
+function popupContainer(trigger: HTMLElement): HTMLElement {
+  return trigger.parentElement ?? document.body;
+}
+
 defineExpose({
   open: () => {
     open.value = true;
@@ -529,7 +552,7 @@ defineExpose({
     :placement="placement"
     trigger="click"
     overlay-class-name="ph-model-picker-popover"
-    :get-popup-container="(t) => t.parentElement || document.body"
+    :get-popup-container="popupContainer"
   >
     <template #content>
       <div
@@ -558,7 +581,7 @@ defineExpose({
             trigger="click"
             placement="bottomLeft"
             overlay-class-name="ph-model-picker-popover"
-            :get-popup-container="(t) => t.parentElement || document.body"
+            :get-popup-container="popupContainer"
           >
             <template #content>
               <div
@@ -1124,6 +1147,40 @@ defineExpose({
 }
 .ph-mp-dropdown-footer:hover {
   background: #eef2ff;
+}
+
+/* The dropdown is teleported into the host app. In Vben's dark theme the
+ * Ant Popover surface is dark, so the light-theme slate text above becomes
+ * effectively invisible even though the model rows are present. */
+.dark .ph-mp-search {
+  background: #18181b;
+  border-bottom-color: #3f3f46;
+}
+.dark .ph-mp-search-input,
+.dark .ph-mp-group-name,
+.dark .ph-mp-item-name {
+  color: #f4f4f5;
+}
+.dark .ph-mp-group + .ph-mp-group {
+  border-top-color: #3f3f46;
+}
+.dark .ph-mp-group-header:hover,
+.dark .ph-mp-item:hover {
+  background: #27272a;
+}
+.dark .ph-mp-item.is-active {
+  background: #312e81;
+}
+.dark .ph-mp-item.is-active .ph-mp-item-name {
+  color: #e0e7ff;
+}
+.dark .ph-mp-dropdown-footer {
+  border-top-color: #3f3f46;
+  background: #18181b;
+  color: #a5b4fc;
+}
+.dark .ph-mp-dropdown-footer:hover {
+  background: #27272a;
 }
 
 /* 参数区 */
