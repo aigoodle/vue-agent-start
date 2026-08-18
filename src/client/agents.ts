@@ -28,6 +28,8 @@ import { qs, type HttpCore } from './core';
 export interface AgentsNamespace {
   // ---- agent CRUD
   list(): Promise<AgentEntity[]>;
+  /** GET /apps/selectors/workflows — published workflow apps for target selectors. */
+  listPublishedWorkflowOptions(): Promise<WorkflowAppOption[]>;
   get(id: string): Promise<AgentEntity>;
   create(req: CreateAgentRequest): Promise<AgentEntity>;
   update(id: string, req: CreateAgentRequest): Promise<AgentEntity>;
@@ -88,6 +90,15 @@ export interface AgentsNamespace {
   deleteApiKey(appId: string, id: string): Promise<void>;
 }
 
+export interface WorkflowAppOption {
+  appId: string;
+  workflowId: string;
+  name: string;
+  icon?: string;
+  iconBackground?: string;
+  inputVariables?: Array<Record<string, unknown>>;
+}
+
 export function createAgentsNamespace(core: HttpCore): AgentsNamespace {
   function annotations(appId: string): string {
     return `/apps/${encodeURIComponent(appId)}/annotations`;
@@ -98,6 +109,8 @@ export function createAgentsNamespace(core: HttpCore): AgentsNamespace {
 
   return {
     list: () => core.request<AgentEntity[]>('/agents'),
+    listPublishedWorkflowOptions: () =>
+      core.request<WorkflowAppOption[]>('/apps/selectors/workflows'),
     get: (id) => core.request<AgentEntity>(`/agents/${encodeURIComponent(id)}`),
     create: (req) =>
       core.request<AgentEntity>('/agents', {

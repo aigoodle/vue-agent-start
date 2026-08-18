@@ -118,7 +118,7 @@ const dataSource = computed(() => props.keys ?? []);
     :footer="null"
     :width="720"
     :destroy-on-close="true"
-    :mask-closable="true"
+    :mask-closable="false"
     @update:open="(v: boolean) => emit('update:open', v)"
     @cancel="close"
   >

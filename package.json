@@ -53,13 +53,19 @@
       "import": "./dist/agent-flow/index.js",
       "require": "./dist/agent-flow/index.cjs"
     },
+    "./connector-hub": {
+      "types": "./dist/connector-hub/index.d.ts",
+      "import": "./dist/connector-hub/index.js",
+      "require": "./dist/connector-hub/index.cjs"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "CONNECTOR-HUB.md"
   ],
   "sideEffects": [
     "**/*.css"

@@ -45,6 +45,7 @@ import {
 } from '@ant-design/icons-vue';
 
 import ChatIframePanel from '../../agent-flow/components/ChatIframePanel.vue';
+import WorkflowDebugPanel from '../../agent-flow/components/WorkflowDebugPanel.vue';
 import type {
   ChatDebugVariable,
   ChatIframeConfig,
@@ -82,6 +83,13 @@ interface Props {
    * into the `#designer` slot.
    */
   initialGraphJson?: string;
+  workflowHistory?: Array<{
+    id: string;
+    version?: string;
+    markedName?: string;
+    markedComment?: string;
+    createdAt?: string;
+  }>;
   /**
    * @deprecated Legacy dropdown data source — left in for backward compat, but
    * the top-right picker now uses {@link ModelPickerPopover}, which pulls the
@@ -123,6 +131,7 @@ const props = withDefaults(defineProps<Props>(), {
   models: () => [],
   tools: () => [],
   knowledgeBases: () => [],
+  workflowHistory: () => [],
   api: () => ({}),
   apiBase: '/api',
 });
@@ -170,8 +179,8 @@ const emit = defineEmits<{
     e: 'publish',
     payload: { appId: string },
   ): void;
-  /** Restore the most recently published snapshot into the draft. */
-  (e: 'restore', payload: { appId: string }): void;
+  /** Restore one selected immutable snapshot into the mutable draft. */
+  (e: 'restore', payload: { appId: string; snapshotId: string }): void;
   /** Open the app's runtime page in a new tab (Dify parity: "运行"). */
   (e: 'run', payload: { appId: string }): void;
   /** Show the embed-snippet dialog. */
@@ -201,6 +210,7 @@ const collapsed = ref(false);
 const isFlowMode = computed(
   () => props.app?.mode === 'workflow' || props.app?.mode === 'chatflow',
 );
+const isWorkflowMode = computed(() => props.app?.mode === 'workflow');
 const modeLabel = computed(() => {
   const m = props.app?.mode ?? 'agent';
   if (m === 'chat') return 'CHAT';
@@ -638,11 +648,13 @@ function onBrandExport() {
   closeBrandMenu();
 }
 
-const publishedAgo = computed(() => relativeTime(props.app?.updatedAt));
+const latestPublished = computed(() => props.workflowHistory[0] ?? null);
+const publishedAgo = computed(() => relativeTime(latestPublished.value?.createdAt));
+const historyOpen = ref(false);
 
 function relativeTime(ts?: string | number | null): string {
   if (!ts) return '刚刚';
-  const d = new Date(ts);
+  const d = new Date(normalizeDateTime(ts));
   const t = d.getTime();
   if (Number.isNaN(t)) return String(ts);
   const diff = Date.now() - t;
@@ -658,14 +670,34 @@ function relativeTime(ts?: string | number | null): string {
   return `${Math.floor(months / 12)} 年前`;
 }
 
+/** Java LocalDateTime may contain nanoseconds, while browsers accept milliseconds reliably. */
+function normalizeDateTime(ts: string | number): string | number {
+  return typeof ts === 'string'
+    ? ts.replace(/(\.\d{3})\d+$/, '$1')
+    : ts;
+}
+
+function formatDateTime(ts?: string | number | null): string {
+  if (!ts) return '--';
+  const date = new Date(normalizeDateTime(ts));
+  if (Number.isNaN(date.getTime())) return String(ts).replace('T', ' ').split('.')[0];
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 async function onPublishUpdate() {
   closePublishMenu();
   await submitPublish();
 }
 function onRestore() {
   if (!props.app) return;
-  emit('restore', { appId: props.app.id });
+  historyOpen.value = true;
   closePublishMenu();
+}
+function restoreSnapshot(snapshotId: string) {
+  if (!props.app) return;
+  emit('restore', { appId: props.app.id, snapshotId });
+  historyOpen.value = false;
 }
 function onRun() {
   if (!props.app) return;
@@ -844,8 +876,12 @@ const flowDebugVariables = computed<ChatDebugVariable[]>(() => {
     }));
 });
 
+const workflowDebugGraph = computed<Record<string, unknown>>(() =>
+  (designerRef.value?.getFlowInfo?.() ?? {}) as Record<string, unknown>,
+);
+
 function openDebug() {
-  if (!props.chatConfig?.src) return;
+  if (!isWorkflowMode.value && !props.chatConfig?.src) return;
   debugSessionSuffix.value = Date.now();
   debugPanelOpen.value = true;
 }
@@ -858,7 +894,13 @@ function closeDebug() {
 // 位置写入 localStorage，多次打开维持上次位置；resize 视口时夹回可视区。
 // ---------------------------------------------------------------------------
 const DEBUG_POS_KEY = 'agent-start-debug-panel-pos';
-const DEBUG_PANEL_W = 460;
+/**
+ * 面板实际宽度随视口变化（与 CSS `width: min(920px, 92vw)` 一致）。
+ * 拖动夹取必须用同一个值计算，否则会按旧宽度把面板推出屏幕。
+ */
+function debugPanelW(): number {
+  return Math.min(920, Math.round(window.innerWidth * 0.92));
+}
 const DEBUG_PANEL_H_RATIO = 0.86; // 相对抽屉高度的比例
 const DRAG_HANDLE_HEIGHT = 46; // 与 ChatIframePanel .cip-head 保持一致
 const DRAG_MARGIN = 8;
@@ -873,7 +915,7 @@ function clampDebugPos(pos: { left: number; top: number }): {
   left: number;
   top: number;
 } {
-  const w = DEBUG_PANEL_W;
+  const w = debugPanelW();
   const h = Math.max(320, Math.round(window.innerHeight * DEBUG_PANEL_H_RATIO));
   const maxLeft = Math.max(DRAG_MARGIN, window.innerWidth - w - DRAG_MARGIN);
   const maxTop = Math.max(DRAG_MARGIN, window.innerHeight - h - DRAG_MARGIN);
@@ -912,7 +954,7 @@ function saveDebugPos(pos: { left: number; top: number }) {
 /** 默认落在抽屉右上角（右缘留 24px、header 下 80px） */
 function defaultDebugPos(): { left: number; top: number } {
   return clampDebugPos({
-    left: window.innerWidth - DEBUG_PANEL_W - 24,
+    left: window.innerWidth - debugPanelW() - 24,
     top: 80,
   });
 }
@@ -1055,8 +1097,8 @@ function variableTypeLabel(type: AgentVariable['type']): string {
               v-if="isFlowMode"
               class="dr-btn dr-btn-secondary"
               :class="{ 'dr-btn-active': debugPanelOpen }"
-              :disabled="!chatConfig?.src"
-              :title="chatConfig?.src ? '打开聊天调试' : '未配置调试 iframe：宿主传入 :chat-config 即可启用'"
+              :disabled="!isWorkflowMode && !chatConfig?.src"
+              :title="isWorkflowMode ? '打开工作流调试' : (chatConfig?.src ? '打开聊天调试' : '未配置调试 iframe：宿主传入 :chat-config 即可启用')"
               @click="openDebug"
             >
               <BugOutlined class="dr-btn-icon dr-btn-icon-debug" />
@@ -1087,9 +1129,9 @@ function variableTypeLabel(type: AgentVariable['type']): string {
                   <div class="dr-publish-head-title">最新发布</div>
                   <div class="dr-publish-head-row">
                     <span class="dr-publish-head-time">
-                      发布于 {{ publishedAgo }}
+                      {{ latestPublished ? `发布于 ${publishedAgo}` : '尚未发布' }}
                     </span>
-                    <button class="dr-publish-restore" @click="onRestore">
+                    <button class="dr-publish-restore" :disabled="!latestPublished" @click="onRestore">
                       恢复
                     </button>
                   </div>
@@ -1141,6 +1183,25 @@ function variableTypeLabel(type: AgentVariable['type']): string {
                   <span class="dr-publish-item-label">发布到市场</span>
                   <span class="dr-publish-item-arrow">↗</span>
                 </button>
+              </div>
+              <div v-if="historyOpen" class="dr-history-mask" @click.self="historyOpen = false">
+                <section class="dr-history-panel">
+                  <header class="dr-history-header">
+                    <strong>发布历史</strong>
+                    <button class="dr-history-close" @click="historyOpen = false">×</button>
+                  </header>
+                  <div v-if="workflowHistory.length === 0" class="dr-history-empty">暂无发布记录</div>
+                  <div v-else class="dr-history-list">
+                    <article v-for="item in workflowHistory" :key="item.id" class="dr-history-item">
+                      <div class="dr-history-info">
+                        <strong>{{ item.markedName || item.version || '发布版本' }}</strong>
+                        <span>{{ formatDateTime(item.createdAt) }}（{{ relativeTime(item.createdAt) }}）</span>
+                        <p v-if="item.markedComment">{{ item.markedComment }}</p>
+                      </div>
+                      <button class="dr-publish-restore" @click="restoreSnapshot(item.id)">恢复此版本</button>
+                    </article>
+                  </div>
+                </section>
               </div>
             </div>
             <button class="dr-btn dr-btn-ghost" title="关闭" @click="close">
@@ -1370,6 +1431,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
                     :initial-graph-json="form.graphJson"
                     :app-id="app?.id"
                     :app-mode="app?.mode"
+                    :workflow-options-loader="api.listPublishedWorkflowOptions"
                     :register-designer="
                       (inst: any) => (designerRef = inst)
                     "
@@ -1714,7 +1776,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
              variables 列表（当前不会走这个分支，保留兼容）。 -->
         <transition name="dr-debug-pop">
           <div
-            v-if="debugPanelOpen && chatConfig?.src"
+            v-if="debugPanelOpen && (isWorkflowMode || chatConfig?.src)"
             class="dr-debug-panel"
             :class="{ 'dr-debug-panel-dragging': debugDragging }"
             :style="
@@ -1727,14 +1789,25 @@ function variableTypeLabel(type: AgentVariable['type']): string {
             @pointerup="onDebugPanelPointerUp"
             @pointercancel="onDebugPanelPointerUp"
           >
-            <ChatIframePanel
+            <WorkflowDebugPanel
+              v-if="isWorkflowMode"
               :key="debugSessionSuffix"
-              :src="chatConfig.src"
-              :params="chatConfig.params"
-              :context="chatConfig.context"
-              :title="chatConfig.title || `调试：${app?.name || ''}`"
+              :graph="workflowDebugGraph"
+              :variables="flowDebugVariables"
+              :execute-workflow="api.runWorkflowGraph"
+              :execute-workflow-stream="api.runWorkflowGraphStream"
+              :title="`调试：${app?.name || '工作流'}`"
+              @close="closeDebug"
+            />
+            <ChatIframePanel
+              v-else
+              :key="debugSessionSuffix"
+              :src="chatConfig?.src || ''"
+              :params="chatConfig?.params"
+              :context="chatConfig?.context"
+              :title="chatConfig?.title || `调试：${app?.name || ''}`"
               :session-key="
-                chatConfig.sessionKey ||
+                chatConfig?.sessionKey ||
                 `${app?.mode || 'app'}-${app?.id || 'draft'}-${debugSessionSuffix}`
               "
               :variables="isFlowMode ? flowDebugVariables : chatDebugVariables"
@@ -2263,8 +2336,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
   top: 80px;
   right: 24px;
   z-index: 60;
-  width: 460px;
-  max-width: 92vw;
+  width: min(920px, 92vw); /* 左右分栏调试面板需要更宽；与 debugPanelW() 保持一致 */
   height: 86vh;
   max-height: calc(100vh - 96px);
   box-shadow:
@@ -3377,4 +3449,15 @@ function variableTypeLabel(type: AgentVariable['type']): string {
   color: #4338ca;
   font-size: 11px;
 }
+.dr-history-mask { position: fixed; inset: 0; z-index: 1200; display: flex; justify-content: flex-end; background: rgba(15, 23, 42, 0.35); }
+.dr-history-panel { width: min(460px, 92vw); height: 100%; padding: 20px; overflow-y: auto; background: #fff; box-shadow: -8px 0 24px rgba(15, 23, 42, 0.15); }
+.dr-history-header, .dr-history-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.dr-history-header { margin-bottom: 16px; font-size: 16px; }
+.dr-history-close { border: 0; background: transparent; color: #64748b; font-size: 24px; cursor: pointer; }
+.dr-history-list { display: grid; gap: 10px; }
+.dr-history-item { padding: 14px; border: 1px solid #e2e8f0; border-radius: 10px; }
+.dr-history-info { display: grid; min-width: 0; gap: 4px; }
+.dr-history-info span, .dr-history-info p, .dr-history-empty { margin: 0; color: #64748b; font-size: 12px; }
+.dr-history-info p { overflow-wrap: anywhere; }
+.dr-history-empty { padding: 40px 0; text-align: center; }
 </style>

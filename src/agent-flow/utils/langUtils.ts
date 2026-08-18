@@ -85,6 +85,7 @@ export default {
   confirm(prop: any, ok?: any, cancel?: any) {
     prop = prop || {};
     Modal.confirm({
+      maskClosable: false,
       title: prop.title || '确定要继续操作吗?',
       icon: createVNode(ExclamationCircleOutlined),
       content: createVNode(

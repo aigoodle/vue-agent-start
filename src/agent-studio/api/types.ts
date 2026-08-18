@@ -114,6 +114,14 @@ export interface StudioApiKey {
   lastUsedAt?: string;
 }
 
+export interface StudioWorkflowAppOption {
+  appId: string;
+  workflowId: string;
+  name: string;
+  icon?: string;
+  iconBackground?: string;
+}
+
 // ---------------------------------------------------------------------------
 // The callback bag itself.
 // ---------------------------------------------------------------------------
@@ -123,6 +131,19 @@ export interface StudioApiKey {
  * panel whose API method is missing renders as read-only / empty.
  */
 export interface AppStudioApi {
+  /** Execute the current unsaved workflow graph for the workflow debug panel. */
+  runWorkflowGraph?: (payload: Record<string, unknown>) => Promise<unknown>;
+  /**
+   * SSE 流式试运行工作流（`POST /workflows/run-graph/stream`）。返回原始
+   * `Response`，调试面板用 `readSseEvents` 逐节点消费；`opts.signal` 用于
+   * 中途取消。未实现时面板自动回退到 `runWorkflowGraph` 一次性执行。
+   */
+  runWorkflowGraphStream?: (
+    payload: Record<string, unknown>,
+    opts?: { signal?: AbortSignal },
+  ) => Promise<Response | null>;
+  /** Published workflow applications visible to the current tenant. */
+  listPublishedWorkflowOptions?: () => Promise<StudioWorkflowAppOption[]>;
   // ── Conversation history / logs tab ────────────────────────────────────
   listConversations?: (appId: string, limit?: number) => Promise<StudioConversationSummary[]>;
   fetchHistory?: (

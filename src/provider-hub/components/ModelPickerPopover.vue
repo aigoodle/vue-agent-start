@@ -1235,6 +1235,7 @@ defineExpose({
 .ph-mp-param-num {
   flex: none;
   width: 88px;
+  margin-left: auto;
 }
 .ph-mp-param-seg {
   margin-left: auto;

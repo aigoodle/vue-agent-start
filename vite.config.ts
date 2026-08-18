@@ -81,6 +81,7 @@ export default defineConfig({
         'knowledge-hub/index': fileURLToPath(new URL('./src/knowledge-hub/index.ts', import.meta.url)),
         'agent-studio/index': fileURLToPath(new URL('./src/agent-studio/index.ts', import.meta.url)),
         'agent-flow/index': fileURLToPath(new URL('./src/agent-flow/index.ts', import.meta.url)),
+        'connector-hub/index': fileURLToPath(new URL('./src/connector-hub/index.ts', import.meta.url)),
       },
       formats: ['es', 'cjs'],
       // Emit a single collected stylesheet as dist/style.css (matches the

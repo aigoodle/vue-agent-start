@@ -76,6 +76,14 @@ export interface AgentToolView {
   name: string;
   description: string;
   inputSchema?: string;
+  label?: string;
+  category?: string;
+  icon?: string;
+  provider?: string;
+  connectorId?: string;
+  actionId?: string;
+  riskLevel?: string;
+  configured?: boolean;
 }
 
 export interface AgentHistoryMessage {
@@ -118,6 +126,14 @@ export interface ModelLite {
 export interface ToolLite {
   name: string;
   description: string;
+  label?: string;
+  category?: string;
+  icon?: string;
+  provider?: string;
+  connectorId?: string;
+  actionId?: string;
+  riskLevel?: string;
+  configured?: boolean;
 }
 
 export interface WorkflowGraphLike {

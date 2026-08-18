@@ -374,6 +374,7 @@ const disabled = computed(() => !props.app?.id);
     <!-- Add / edit annotation modal -->
     <Modal
       v-model:open="annModalOpen"
+      :mask-closable="false"
       :title="annModalTitle"
       :confirm-loading="annSaving"
       ok-text="保存"

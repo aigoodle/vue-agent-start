@@ -76,6 +76,7 @@ defineExpose({ showModal, hideModal });
 <template>
   <a-modal
     v-model:open="open"
+    :mask-closable="false"
     :title="form.id ? '编辑输入变量' : '新增输入变量'"
     width="480px"
     :ok-text="form.id ? '保存' : '添加'"

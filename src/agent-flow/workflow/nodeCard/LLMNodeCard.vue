@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
-import { getCurrentModel } from '@/adapter/backend';
 import MemoryWindow from '@/components/MemoryWindow.vue';
 import PromptEditor from '@/components/PromptEditor.vue';
 import PromptEditorTagPanel from '@/components/PromptEditorTagPanel.vue';
@@ -27,17 +26,6 @@ const formState: any = defineModel();
 const targetElement = ref<HTMLElement | null>(null);
 const showAttr = ref<boolean>(false);
 const attrTargetKey = ref<'apiKey' | null>(null);
-
-const loadDefaultModel = async () => {
-  const res: any = await getCurrentModel('LLM');
-  const data = res?.data ?? {};
-  if (!formState.value.model) formState.value.model = {};
-  formState.value.model.modelName = data.modelName;
-  formState.value.model.provider = data.provider ?? data.providerName;
-  formState.value.model.providerName = data.provider ?? data.providerName;
-  formState.value.model.modelProvider = data.provider ?? data.providerName;
-  formState.value.model.modelType = data.modelType ?? 'LLM';
-};
 
 const checkApiKey = (event: any) => {
   targetElement.value = event.currentTarget;
@@ -85,11 +73,6 @@ const RESPONSE_FORMATS = [
 
   <div class="wf-config-section">
     <WfField title="模型" required>
-      <template #operations>
-        <a-button type="link" size="small" @click="loadDefaultModel">
-          使用默认
-        </a-button>
-      </template>
       <ModelPickerPopover
         v-model="formState.model"
         model-type="LLM"

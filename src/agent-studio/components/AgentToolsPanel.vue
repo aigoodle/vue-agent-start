@@ -28,7 +28,9 @@ const showPicker = ref(false);
 const search = ref('');
 const activeCategory = ref('全部');
 
-const CATEGORY_TABS = ['全部', '插件', '自定义', '工作流', 'MCP'];
+const CATEGORY_TABS = ['全部', 'Connector', '插件', '自定义', '工作流', 'MCP'];
+
+const displayName = (tool: StudioTool) => tool.label || tool.name;
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
@@ -41,7 +43,7 @@ const filtered = computed(() => {
     }
     if (!q) return true;
     return (
-      t.name.toLowerCase().includes(q) ||
+      displayName(t).toLowerCase().includes(q) || t.name.toLowerCase().includes(q) ||
       (t.description ?? '').toLowerCase().includes(q)
     );
   });
@@ -151,7 +153,7 @@ function remove(name: string) {
             @click="toggle(t.name)"
           >
             <span class="tool-pop-item-icon">{{ t.icon ?? '🔧' }}</span>
-            <span class="tool-pop-item-name">{{ t.name }}</span>
+            <span class="tool-pop-item-name">{{ displayName(t) }}</span>
             <span v-if="t.installs" class="tool-pop-item-installs">
               {{ (t.installs / 1000).toFixed(0) }}k 次安装
             </span>
@@ -170,8 +172,10 @@ function remove(name: string) {
             @click="toggle(t.name)"
           >
             <span class="tool-pop-item-icon">{{ t.icon ?? '🔧' }}</span>
-            <span class="tool-pop-item-name">{{ t.name }}</span>
+            <span class="tool-pop-item-name">{{ displayName(t) }}</span>
             <span class="tool-pop-item-desc">{{ t.description }}</span>
+            <span v-if="t.riskLevel" class="tool-risk">{{ t.riskLevel }}</span>
+            <span v-if="t.configured === false" class="tool-unconfigured">未配置</span>
           </button>
           <div v-if="filtered.length === 0" class="tool-pop-empty">
             没有匹配的工具

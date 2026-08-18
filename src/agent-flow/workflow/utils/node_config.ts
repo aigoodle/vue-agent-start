@@ -51,6 +51,8 @@ const nodeItems: NodeCatalogItem[] = [
   // 工具
   { type: 'HTTP_REQUEST', name: 'HTTP 请求', icon: 'http', category: '工具' },
   { type: 'SERVICE_API', name: '服务接口', icon: 'service', category: '工具' },
+  { type: 'CONNECTOR', name: '连接器', icon: 'connector', category: '工具', description: '调用已安装的外部连接器' },
+  { type: 'SCHEDULE_TRIGGER', name: '定时任务', icon: 'schedule', category: '工具' },
   { type: 'CODE', name: '代码执行', icon: 'code', category: '工具' },
   { type: 'TEMPLATE_TRANSFORM', name: '模板转换', icon: 'template', category: '工具' },
   { type: 'DOCUMENT_EXTRACTOR', name: '文档提取', icon: 'file', category: '工具' },

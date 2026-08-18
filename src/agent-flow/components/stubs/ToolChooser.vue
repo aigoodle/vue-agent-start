@@ -28,6 +28,7 @@ defineExpose({ showModal, hideModal });
 <template>
   <a-modal
     v-model:open="open"
+    :mask-closable="false"
     title="添加工具"
     width="480px"
     ok-text="添加"

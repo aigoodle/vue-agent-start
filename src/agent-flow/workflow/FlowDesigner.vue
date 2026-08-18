@@ -31,6 +31,8 @@ import LLMNode from './nodes/LLMNode.vue';
 import LoopNode from './nodes/LoopNode.vue';
 import ParameterExtractorNode from './nodes/ParameterExtractorNode.vue';
 import ServiceApiNode from './nodes/ServiceApiNode.vue';
+import ConnectorNode from './nodes/ConnectorNode.vue';
+import ScheduleTriggerNode from './nodes/ScheduleTriggerNode.vue';
 import StartNode from './nodes/StartNode.vue';
 import TemplateNode from './nodes/TemplateNode.vue';
 import UserInputNode from './nodes/UserInputNode.vue';
@@ -259,6 +261,18 @@ const nodeCategories = ref([
         description: '调用内部服务接口（免鉴权）',
       },
       {
+        type: 'CONNECTOR',
+        label: '连接器',
+        icon: 'connector',
+        description: '调用已安装的外部连接器',
+      },
+      {
+        type: 'SCHEDULE_TRIGGER',
+        label: '定时任务',
+        icon: 'schedule',
+        description: '按指定时间触发目标工作流',
+      },
+      {
         type: 'CODE',
         label: '代码执行',
         icon: 'code',
@@ -482,14 +496,14 @@ function reloadGraph(graph: any) {
     // Persisted graphs from before viewport was tracked won't carry one —
     // fall back to a full {x,y,zoom} shape so vue-flow's setViewport doesn't
     // dereference `undefined.x`.
-    setViewport(graph.viewport ?? { x: 0, y: 0, zoom: 0.8 });
+    const persistedViewport = graph.viewport;
     workflowStore.setGraph(graph);
-    // vue-flow's fit-view-on-init only runs on the very first mount; a
-    // subsequent reloadGraph() needs an explicit fitView so the newly-loaded
-    // nodes land in view.
+    // Restore the exact saved pan + zoom after VueFlow has rendered the nodes.
+    // Only legacy graphs without viewport metadata should be auto-fitted.
     setTimeout(() => {
       try {
-        fitView({ padding: 0.2 });
+        if (persistedViewport) setViewport(persistedViewport);
+        else fitView({ padding: 0.2 });
       } catch {
         // vue-flow may not be fully mounted yet — no-op is fine.
       }
@@ -567,6 +581,8 @@ function getDefaultLabel(type) {
     HUMAN_INPUT: '人工介入',
     HTTP_REQUEST: 'HTTP 请求',
     SERVICE_API: '服务接口',
+    CONNECTOR: '连接器',
+    SCHEDULE_TRIGGER: '定时任务',
     CODE: '代码执行',
     TEMPLATE_TRANSFORM: '模板转换',
     ANSWER: '直接回复',
@@ -595,6 +611,8 @@ function getDefaultDescription(type) {
     HUMAN_INPUT: '暂停工作流等待人工审批或补充信息',
     HTTP_REQUEST: 'HTTP 请求节点',
     SERVICE_API: '调用内部服务接口（免鉴权）',
+    CONNECTOR: '调用 OpenClaw 或自有 Connector',
+    SCHEDULE_TRIGGER: '按指定时间创建任务并触发目标工作流',
     CODE: '代码执行节点',
     TEMPLATE_TRANSFORM: '模板转换节点',
     ANSWER: '直接回复节点',
@@ -1699,6 +1717,22 @@ defineExpose({
               @delete="deleteNodeById"
             />
           </template>
+          <template #node-CONNECTOR="props">
+            <ConnectorNode
+              v-bind="props"
+              @connection-plus-click="onConnectionPlusClick"
+              @duplicate="duplicateNodeById"
+              @delete="deleteNodeById"
+            />
+          </template>
+          <template #node-SCHEDULE_TRIGGER="props">
+            <ScheduleTriggerNode
+              v-bind="props"
+              @connection-plus-click="onConnectionPlusClick"
+              @duplicate="duplicateNodeById"
+              @delete="deleteNodeById"
+            />
+          </template>
           <template #node-CODE="props">
             <CodeNode
               v-bind="props"
@@ -2647,6 +2681,10 @@ defineExpose({
 .icon-SERVICE_API {
   background: #ccfbf1;
   color: #0d9488;
+}
+.icon-SCHEDULE_TRIGGER {
+  background: #fef3c7;
+  color: #d97706;
 }
 .icon-CODE {
   background: #f0fdf4;

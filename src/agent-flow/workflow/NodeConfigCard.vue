@@ -28,6 +28,8 @@ import ListOperatorCard from './nodeCard/ListOperatorCard.vue';
 import LLMNodeCard from './nodeCard/LLMNodeCard.vue';
 import ParameterExtractorCard from './nodeCard/ParameterExtractorCard.vue';
 import ServiceApiNodeCard from './nodeCard/ServiceApiNodeCard.vue';
+import ConnectorNodeCard from './nodeCard/ConnectorNodeCard.vue';
+import ScheduleTriggerNodeCard from './nodeCard/ScheduleTriggerNodeCard.vue';
 import StartNodeCard from './nodeCard/StartNodeCard.vue';
 import VariableAssignerCard from './nodeCard/VariableAssignerCard.vue';
 import VariableNodeCard from './nodeCard/VariableNodeCard.vue';
@@ -38,6 +40,7 @@ const props = defineProps({
   selectNode: { type: Object, default: () => ({}) },
   parentHierarchy: { type: Array, default: () => [] },
   mainData: { type: Object, default: () => ({}) },
+  workflowOptionsLoader: { type: Function, default: undefined },
 });
 const emit = defineEmits([
   'onClose',
@@ -77,7 +80,7 @@ function menuAction(action: 'run' | 'change' | 'copy' | 'duplicate' | 'delete') 
 /** 是否允许删除：START 节点不能删 */
 const canDelete = computed(() => props.selectNode?.type !== 'START');
 const canRun = computed(() =>
-  ['LLM', 'AGENT', 'CODE', 'HTTP_REQUEST', 'SERVICE_API', 'KNOWLEDGE_RETRIEVAL', 'QUESTION_CLASSIFIER'].includes(
+  ['LLM', 'AGENT', 'CODE', 'HTTP_REQUEST', 'SERVICE_API', 'CONNECTOR', 'SCHEDULE_TRIGGER', 'KNOWLEDGE_RETRIEVAL', 'QUESTION_CLASSIFIER'].includes(
     props.selectNode?.type,
   ),
 );
@@ -99,6 +102,8 @@ const nodeTypeTheme: Record<string, { icon: string; accent: string }> = {
   ANSWER: { icon: 'answer', accent: '#f97316' },
   HTTP_REQUEST: { icon: 'http', accent: '#06b6d4' },
   SERVICE_API: { icon: 'service', accent: '#0d9488' },
+  CONNECTOR: { icon: 'connector', accent: '#ec4899' },
+  SCHEDULE_TRIGGER: { icon: 'schedule', accent: '#f59e0b' },
   VARIABLE_AGGREGATOR: { icon: 'variable', accent: '#0ea5e9' },
   LOOP: { icon: 'loop', accent: '#dc2626' },
   TEMPLATE_TRANSFORM: { icon: 'template', accent: '#a855f7' },
@@ -369,6 +374,18 @@ watch(() => props.selectNode, panelInit);
         v-else-if="selectNode.type === 'SERVICE_API'"
         v-model="formData"
         :node-id="selectNode.id"
+      />
+      <ConnectorNodeCard
+        v-else-if="selectNode.type === 'CONNECTOR'"
+        v-model="formData"
+        :node-id="selectNode.id"
+      />
+      <ScheduleTriggerNodeCard
+        v-else-if="selectNode.type === 'SCHEDULE_TRIGGER'"
+        v-model="formData"
+        :node-id="selectNode.id"
+        :current-app-id="mainData.appId || mainData.id"
+        :workflow-options-loader="workflowOptionsLoader"
       />
       <EndNodeCard
         v-else-if="selectNode.type === 'END'"

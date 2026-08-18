@@ -3,7 +3,6 @@ import { h } from 'vue';
 
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue';
 
-import { getCurrentModel } from '@/adapter/backend';
 import PromptEditor from '@/components/PromptEditor.vue';
 import ModelPickerPopover from '../../../provider-hub/components/ModelPickerPopover.vue';
 import WfField from '@/workflow/WfField.vue';
@@ -11,17 +10,6 @@ import WfField from '@/workflow/WfField.vue';
 defineProps<{ nodeId?: string }>();
 
 const formState: any = defineModel();
-
-const loadDefaultModel = async () => {
-  const res: any = await getCurrentModel('LLM');
-  const data = res?.data ?? {};
-  if (!formState.value.model) formState.value.model = {};
-  formState.value.model.modelName = data.modelName;
-  formState.value.model.provider = data.provider ?? data.providerName;
-  formState.value.model.providerName = data.provider ?? data.providerName;
-  formState.value.model.modelProvider = data.provider ?? data.providerName;
-  formState.value.model.modelType = data.modelType ?? 'LLM';
-};
 
 const addClass = () => {
   if (!Array.isArray(formState.value.classes)) formState.value.classes = [];
@@ -39,11 +27,6 @@ const removeClass = (index: number) => {
 <template>
   <div class="wf-config-section">
     <WfField title="模型" required>
-      <template #operations>
-        <a-button type="link" size="small" @click="loadDefaultModel">
-          使用默认
-        </a-button>
-      </template>
       <ModelPickerPopover
         v-model="formState.model"
         model-type="LLM"

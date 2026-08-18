@@ -276,6 +276,7 @@ const TreeNode: any = defineComponent({
 
         <a-modal
           v-model:open="visible"
+          :mask-closable="false"
           title="结构化字段定义"
           :ok-text="editItem ? '更新' : '添加'"
           cancel-text="取消"

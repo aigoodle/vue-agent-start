@@ -24,7 +24,11 @@
  * (SpringAgentWebAutoConfiguration#addPathPrefix), so requests go to
  * `${baseUrl}/agent-start/...` like all the other adapters.
  */
-import { createAgentStartClient, type AgentStartClient } from '../../client';
+import {
+  createAgentStartClient,
+  type AgentStartClient,
+  type RunGraphRequest,
+} from '../../client';
 import type { AppStudioApi } from '../api';
 import type {
   AgentEntity,
@@ -139,6 +143,8 @@ export function createAgentStudioSpringBackend(
 
     // ---- agent CRUD --------------------------------------------------------
     listAgents: () => client.agents.list(),
+    listPublishedWorkflowOptions: () =>
+      client.agents.listPublishedWorkflowOptions(),
     getAgent: (id) => client.agents.get(id),
     createAgent: (req) => client.agents.create(req),
     updateAgent: (id, req) => client.agents.update(id, req),
@@ -161,6 +167,14 @@ export function createAgentStudioSpringBackend(
     getWorkflowDraft: (appId) => client.workflows.getDraft(appId),
     saveWorkflowDraft: (appId, graph) => client.workflows.saveDraft(appId, graph),
     publishWorkflowDraft: (appId) => client.workflows.publishDraft(appId),
+
+    // ---- workflow execution (debug panel) ---------------------------------
+    // 一次性试运行：此前缺失，宿主用本工厂时调试面板执行是 no-op。
+    runWorkflowGraph: (payload) =>
+      client.workflows.runGraph(payload as RunGraphRequest),
+    // SSE 流式试运行：返回原始 Response，面板逐节点消费。
+    runWorkflowGraphStream: (payload, opts) =>
+      client.workflows.runGraphStream(payload as RunGraphRequest, opts),
 
     // ---- AppStudioApi bag (drawer panels) ---------------------------------
     listConversations: (appId, limit = 100) =>

@@ -22,6 +22,16 @@ export interface BackendAdapter {
   /** 可选：试运行工作流（未 provide 时按钮走 no-op） */
   runWorkflow?: (payload: Record<string, any>) => Promise<{ data: any }>;
 
+  /**
+   * 可选：SSE 流式试运行（`POST /workflows/run-graph/stream`）。返回原始
+   * `Response`，由调用方（调试面板）用 `readSseEvents` 消费；`opts.signal`
+   * 用于中途取消。未 provide 时调试面板回退到 `runWorkflow` 一次性执行。
+   */
+  runWorkflowStream?: (
+    payload: Record<string, any>,
+    opts?: { signal?: AbortSignal },
+  ) => Promise<Response | null>;
+
   /** 可选：模型下拉数据源（Pinia store 风格，返回带 fetch 方法的对象） */
   useModelState?: () => any;
 
@@ -91,6 +101,15 @@ export const runWorkflow: BackendAdapter['runWorkflow'] = async (p) => {
   const b = useBackend();
   if (!b.runWorkflow) return { data: {} };
   return b.runWorkflow(p);
+};
+
+/** 流式试运行薄壳：宿主未实现时返回 `null`，调用方据此回退一次性执行。 */
+export const runWorkflowStream: Required<
+  Pick<BackendAdapter, 'runWorkflowStream'>
+>['runWorkflowStream'] = async (p, opts) => {
+  const b = useBackend();
+  if (!b.runWorkflowStream) return null;
+  return b.runWorkflowStream(p, opts);
 };
 
 export const useModelState = () => {

@@ -100,6 +100,11 @@ defineProps(['name'])
   <svg v-else-if="name === 'service'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon">
     <path fill="currentColor" d="M4 5h16v3H4V5zm0 5.5h16v3H4v-3zM4 16h16v3H4v-3zM7 6.5a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1zm2.5 0a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1zM7 12a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1zm2.5 0a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1zM7 17.5a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1zm2.5 0a.5.5 0 1 0 0-1a.5.5 0 0 0 0 1z"/>
   </svg>
+  <svg v-else-if="name === 'connector'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon"><path fill="currentColor" d="M7 2h2v5h6V2h2v5h1a2 2 0 0 1 2 2v2a7 7 0 0 1-6 6.93V22h-4v-4.07A7 7 0 0 1 4 11V9a2 2 0 0 1 2-2h1V2Zm-1 7v2a5 5 0 0 0 10 0V9H6Z"/></svg>
+
+  <svg v-else-if="name === 'schedule'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon">
+    <path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.01 10.01 0 0 0 12 2zm0 18a8 8 0 1 1 8-8a8 8 0 0 1-8 8zm1-13h-2v6l5.25 3.15l1-1.64L13 12z"/>
+  </svg>
 
   <svg v-else-if="name === 'code'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="icon">
     <path fill="currentColor" d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6l6 6l1.4-1.4zm5.2 0L19.2 12l-4.6-4.6L16 6l6 6l-6 6l-1.4-1.4z"/>

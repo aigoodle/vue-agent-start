@@ -107,6 +107,7 @@ function removeParam(index: number) {
 <template>
   <a-modal
     v-model:open="modalOpen"
+    :mask-closable="false"
     :title="editingIndex >= 0 ? '编辑抽取参数' : '新增抽取参数'"
     width="480px"
     :ok-text="editingIndex >= 0 ? '保存' : '添加'"

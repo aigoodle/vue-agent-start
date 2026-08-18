@@ -88,6 +88,7 @@ async function onTestModel(_m: ModelEntity, r: ModelTestResult) {
 
 function onDelete(m: ModelEntity) {
   Modal.confirm({
+    maskClosable: false,
     title: '删除模型',
     content: `确认删除「${m.providerName} / ${m.modelName}」？依赖它的知识库/智能体运行时会失败。`,
     okText: '删除',
@@ -102,6 +103,7 @@ function onDelete(m: ModelEntity) {
 
 function onEditCredentials(m: ModelEntity) {
   Modal.info({
+    maskClosable: false,
     title: '编辑模型级凭证',
     content:
       `此模型继承供应商级 API Key。如需覆写单条模型的 endpoint/dimensions，` +

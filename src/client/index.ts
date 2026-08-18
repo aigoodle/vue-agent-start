@@ -47,6 +47,9 @@ import { createModelsNamespace, type ModelsNamespace } from './models';
 import { createProvidersNamespace, type ProvidersNamespace } from './providers';
 import { createRunsNamespace, type RunsNamespace } from './runs';
 import { createWorkflowsNamespace, type WorkflowsNamespace } from './workflows';
+import { createTriggersNamespace, type TriggersNamespace } from './triggers';
+import { createConnectorsNamespace, type ConnectorsNamespace } from './connectors';
+import { readSseEvents, type SseEvent } from './sse';
 
 export interface AgentStartClient {
   /** Resolved proxy prefix (trailing slashes stripped). */
@@ -73,6 +76,8 @@ export interface AgentStartClient {
   readonly agents: AgentsNamespace;
   readonly workflows: WorkflowsNamespace;
   readonly runs: RunsNamespace;
+  readonly triggers: TriggersNamespace;
+  readonly connectors: ConnectorsNamespace;
 }
 
 export function createAgentStartClient(
@@ -94,13 +99,15 @@ export function createAgentStartClient(
     agents: createAgentsNamespace(core),
     workflows: createWorkflowsNamespace(core),
     runs: createRunsNamespace(core),
+    triggers: createTriggersNamespace(core),
+    connectors: createConnectorsNamespace(core),
   };
 }
 
 // ---------------------------------------------------------------------------
 // Re-exports — the client module is the public home of the SDK types.
 // ---------------------------------------------------------------------------
-export { AgentStartError, qs };
+export { AgentStartError, qs, readSseEvents };
 export type {
   AgentStartClientOptions,
   ExtraRequestOptions,
@@ -108,8 +115,11 @@ export type {
   HeadersProvider,
   HttpCore,
   MaybePromise,
+  SseEvent,
   UnauthorizedInfo,
 };
+export type { ConnectorsNamespace } from './connectors';
+export * from '../connector-hub/types';
 export type { ModelsNamespace, ListModelsOptions } from './models';
 export type { ProvidersNamespace, PredefinedModelPayload } from './providers';
 export type {
@@ -138,3 +148,11 @@ export type {
   AgentRunResponse,
   AgentRunWatchOptions,
 } from './runs';
+export type {
+  TriggersNamespace,
+  TriggerType,
+  TriggerScheduleConfig,
+  CreateTriggerRequest as CreateScheduledTriggerRequest,
+  TriggerWire,
+  TriggerInvocationWire,
+} from './triggers';

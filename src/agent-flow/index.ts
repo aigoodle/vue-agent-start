@@ -7,6 +7,7 @@ import CustomEdge from './workflow/CustomEdge.vue';
 import NodeHandle from './workflow/NodeHandle.vue';
 import Icon from './workflow/Icon.vue';
 import ChatIframePanel from './components/ChatIframePanel.vue';
+import WorkflowDebugPanel from './components/WorkflowDebugPanel.vue';
 
 import { useWorkflowStore } from './stores/workflow';
 import { provideBackend, type BackendAdapter } from './adapter/backend';
@@ -23,6 +24,7 @@ export {
   NodeHandle,
   Icon,
   ChatIframePanel,
+  WorkflowDebugPanel,
   useWorkflowStore,
   provideBackend,
   nodeCatalog,

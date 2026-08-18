@@ -22,6 +22,7 @@ import {
   Tag,
 } from 'ant-design-vue';
 
+import { readSseEvents } from '../../client';
 import {
   mergeAgentStartHeaders,
   type AgentStartHeaders,
@@ -279,46 +280,28 @@ async function send(overrideText?: string) {
     if (!res.ok || !res.body) {
       throw new Error(`HTTP ${res.status}`);
     }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let currentEvent = 'message';
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split(/\r?\n\r?\n/);
-      buffer = parts.pop() ?? '';
-      for (const chunk of parts) {
-        const lines = chunk.split(/\r?\n/);
-        let data = '';
-        for (const line of lines) {
-          if (line.startsWith('event:')) currentEvent = line.slice(6).trim();
-          else if (line.startsWith('data:')) data += line.slice(5).trim();
-        }
-        if (!data) continue;
-        try {
-          const parsed = JSON.parse(data);
-          if (currentEvent === 'step') {
-            asst.steps!.push(parsed);
-            asst.content = livePreview(asst.steps!);
-          } else if (currentEvent === 'result') {
-            asst.content = parsed.text ?? '(无内容)';
-            asst.steps = parsed.steps ?? asst.steps;
-            conversationId.value = parsed.conversationId;
-            if (parsed.conversationId) {
-              localStorage.setItem(storageKey.value, parsed.conversationId);
-              rememberConversation(parsed.conversationId, text);
-            }
-          } else if (currentEvent === 'error') {
-            asst.content = `❌ ${parsed.message ?? '未知错误'}`;
-            asst.failed = true;
+    for await (const { event, data } of readSseEvents(res)) {
+      try {
+        const parsed = JSON.parse(data);
+        if (event === 'step') {
+          asst.steps!.push(parsed);
+          asst.content = livePreview(asst.steps!);
+        } else if (event === 'result') {
+          asst.content = parsed.text ?? '(无内容)';
+          asst.steps = parsed.steps ?? asst.steps;
+          conversationId.value = parsed.conversationId;
+          if (parsed.conversationId) {
+            localStorage.setItem(storageKey.value, parsed.conversationId);
+            rememberConversation(parsed.conversationId, text);
           }
-        } catch {
-          // ignore parse error
+        } else if (event === 'error') {
+          asst.content = `❌ ${parsed.message ?? '未知错误'}`;
+          asst.failed = true;
         }
-        scrollBottom();
+      } catch {
+        // ignore parse error
       }
+      scrollBottom();
     }
   } catch (e: any) {
     asst.content = `❌ ${e?.message ?? e}`;

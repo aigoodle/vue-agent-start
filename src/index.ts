@@ -34,6 +34,7 @@ export {
   AgentStartError,
   createAgentStartClient,
   qs,
+  readSseEvents,
 } from './client';
 export type {
   AgentRunEvent,
@@ -55,6 +56,7 @@ export type {
   ProvidersNamespace,
   RunsNamespace,
   SegmentWire,
+  SseEvent,
   UnauthorizedInfo,
   WorkflowsNamespace,
 } from './client';
@@ -86,6 +88,8 @@ export * from './provider-hub/types';
 // export a structurally identical `HeadersLike`. Re-export it explicitly once
 // so the `export *` trio below doesn't trip TS2308 (ambiguous star export).
 export type { HeadersLike } from './provider-hub/composables/useProviderHub';
+
+export * from './connector-hub';
 
 // -----------------------------------------------------------------------------
 // knowledge-hub — dataset UI kit

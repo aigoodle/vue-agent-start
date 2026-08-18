@@ -48,7 +48,11 @@ import {
 
 import type { ChatIframeConfig } from '../../agent-flow/components/chat-iframe-types';
 
-import { createAgentStartClient, type AgentStartClient } from '../../client';
+import {
+  createAgentStartClient,
+  readSseEvents,
+  type AgentStartClient,
+} from '../../client';
 import {
   mergeAgentStartHeaders,
   type AgentStartHeaders,
@@ -297,6 +301,14 @@ interface ToolView {
   name: string;
   description: string;
   inputSchema?: string;
+  label?: string;
+  category?: string;
+  icon?: string;
+  provider?: string;
+  connectorId?: string;
+  actionId?: string;
+  riskLevel?: string;
+  configured?: boolean;
 }
 interface DatasetEntity {
   id: string;
@@ -317,6 +329,9 @@ interface WorkflowEntity {
   graph?: unknown;
   version?: string;
   published?: boolean;
+  markedName?: string;
+  markedComment?: string;
+  createdAt?: string;
 }
 const getWorkflowDraftReq = (appId: string) =>
   client().workflows.getDraft(appId) as unknown as Promise<WorkflowEntity>;
@@ -327,11 +342,21 @@ const saveWorkflowDraftReq = (appId: string, graph: unknown) =>
   ) as unknown as Promise<WorkflowEntity>;
 const publishWorkflowDraftReq = (appId: string) =>
   client().workflows.publishDraft(appId) as unknown as Promise<WorkflowEntity>;
+const listWorkflowHistoryReq = (appId: string) =>
+  client().workflows.listByApp(appId) as unknown as Promise<WorkflowEntity[]>;
+const restoreWorkflowSnapshotReq = (appId: string, snapshotId: string) =>
+  client().workflows.restoreSnapshot(appId, snapshotId) as unknown as Promise<WorkflowEntity>;
 
 // ---------------------------------------------------------------------------
 // AppStudioApi callback bag — the drawer's built-in panels call these.
 // ---------------------------------------------------------------------------
 const studioApi: AppStudioApi = {
+  runWorkflowGraph: (payload) =>
+    client().workflows.runGraph(payload as any),
+  runWorkflowGraphStream: (payload, opts) =>
+    client().workflows.runGraphStream(payload as any, opts),
+  listPublishedWorkflowOptions: () =>
+    client().agents.listPublishedWorkflowOptions(),
   listConversations: (appId: string, limit?: number) =>
     listConversationsReq(appId, limit),
   fetchHistory: (appId: string, conversationId: string, limit?: number) =>
@@ -539,9 +564,9 @@ const filtered = computed(() => {
     if (filterStrategy.value !== 'ALL' && a.strategy !== filterStrategy.value) {
       return false;
     }
-    if (filterPublished.value === 'published' && a.published === false)
+    if (filterPublished.value === 'published' && a.published !== true)
       return false;
-    if (filterPublished.value === 'draft' && a.published !== false)
+    if (filterPublished.value === 'draft' && a.published === true)
       return false;
     if (!q) return true;
     return (
@@ -554,10 +579,10 @@ const filtered = computed(() => {
 
 /** Convenience count helpers for the filter tabs. */
 const publishedCount = computed(
-  () => agents.value.filter((a) => a.published !== false).length,
+  () => agents.value.filter((a) => a.published === true).length,
 );
 const draftCount = computed(
-  () => agents.value.filter((a) => a.published === false).length,
+  () => agents.value.filter((a) => a.published !== true).length,
 );
 
 async function refresh() {
@@ -679,6 +704,7 @@ const drawerApp = ref<AgentEntity | null>(null);
  * populated for workflow / chatflow apps.
  */
 const drawerGraphJson = ref<string>('');
+const drawerWorkflowHistory = ref<WorkflowEntity[]>([]);
 
 /**
  * 抽屉里挂 ChatIframePanel / FlowDesigner 的调试 iframe 配置。每次打开抽屉时
@@ -693,13 +719,18 @@ const drawerChatConfig = computed<ChatIframeConfig | null>(() =>
 async function openDesigner(a: AgentEntity) {
   drawerApp.value = a;
   drawerGraphJson.value = '';
+  drawerWorkflowHistory.value = [];
   // Prefetch the draft BEFORE opening the drawer for flow-mode apps so
   // FlowDesigner mounts with the real payload already on `props` (avoids a
   // race with initGraph()'s setTimeout(10) seed).
   if (a.mode === 'workflow' || a.mode === 'chatflow') {
     try {
-      const draft = await getWorkflowDraftReq(a.id);
+      const [draft, history] = await Promise.all([
+        getWorkflowDraftReq(a.id),
+        listWorkflowHistoryReq(a.id),
+      ]);
       if (draft?.graph) drawerGraphJson.value = JSON.stringify(draft.graph);
+      drawerWorkflowHistory.value = history.filter((item) => item.published === true);
     } catch {
       drawerGraphJson.value = '';
     }
@@ -801,8 +832,20 @@ async function onDrawerPublish(payload: { appId: string }) {
     await publishWorkflowDraftReq(payload.appId);
     message.success('已发布新版本');
     await refresh();
+    drawerWorkflowHistory.value = (await listWorkflowHistoryReq(payload.appId))
+      .filter((item) => item.published === true);
   } catch (e: any) {
     message.error(e?.message ?? '发布失败');
+  }
+}
+
+async function onDrawerRestore(payload: { appId: string; snapshotId: string }) {
+  try {
+    const draft = await restoreWorkflowSnapshotReq(payload.appId, payload.snapshotId);
+    drawerGraphJson.value = draft.graph ? JSON.stringify(draft.graph) : '';
+    message.success('已恢复到所选发布版本，请保存或重新发布');
+  } catch (e: any) {
+    message.error(e?.message ?? '恢复失败');
   }
 }
 
@@ -823,32 +866,13 @@ async function onDrawerPreview(payload: {
       payload.onError(`预览失败：${res.status}`);
       return;
     }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '';
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let idx = buffer.indexOf('\n\n');
-      while (idx >= 0) {
-        const raw = buffer.slice(0, idx);
-        buffer = buffer.slice(idx + 2);
-        let eventName = 'message';
-        let dataStr = '';
-        for (const line of raw.split('\n')) {
-          if (line.startsWith('event:')) eventName = line.slice(6).trim();
-          else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
-        }
-        if (eventName === 'result' && dataStr) {
-          try {
-            const r = JSON.parse(dataStr);
-            if (r.text) payload.onChunk(String(r.text));
-          } catch {
-            // ignore malformed frame
-          }
-        }
-        idx = buffer.indexOf('\n\n');
+    for await (const { event, data } of readSseEvents(res)) {
+      if (event !== 'result') continue;
+      try {
+        const r = JSON.parse(data);
+        if (r.text) payload.onChunk(String(r.text));
+      } catch {
+        // ignore malformed frame
       }
     }
     payload.onDone();
@@ -932,6 +956,7 @@ function safeParseArray(json?: string): string[] {
 
 function remove(a: AgentEntity) {
   Modal.confirm({
+    maskClosable: false,
     title: '删除智能体',
     content: `确认删除「${a.name}」？相关对话历史仍会保留在数据库中。`,
     okText: '删除',
@@ -1112,12 +1137,11 @@ onBeforeUnmount(closeTransientUi);
               <div class="dify-title" :title="a.name">
                 {{ a.name }}
                 <Tag
-                  v-if="a.published === false"
-                  color="orange"
+                  :color="a.published === true ? 'green' : 'orange'"
                   size="small"
                   style="margin-left: 4px; font-size: 10px"
                 >
-                  草稿
+                  {{ a.published === true ? '已发布' : '草稿' }}
                 </Tag>
               </div>
               <div class="dify-meta">
@@ -1196,6 +1220,7 @@ onBeforeUnmount(closeTransientUi);
 
     <Modal
       v-model:open="showCreate"
+      :mask-closable="false"
       title="编辑基本信息"
       width="520px"
       :confirm-loading="submitting"
@@ -1262,6 +1287,7 @@ onBeforeUnmount(closeTransientUi);
 
     <Modal
       v-model:open="showShare"
+      :mask-closable="false"
       :title="shareAgent ? `分享 · ${shareAgent.name}` : '分享'"
       width="640px"
       :footer="null"
@@ -1309,6 +1335,7 @@ onBeforeUnmount(closeTransientUi);
       v-model:open="drawerOpen"
       :app="drawerApp"
       :initial-graph-json="drawerGraphJson"
+      :workflow-history="drawerWorkflowHistory"
       :api="studioApi"
       :api-base="apiBase"
       :chat-config="drawerChatConfig"
@@ -1319,11 +1346,12 @@ onBeforeUnmount(closeTransientUi);
           provider: m.providerName,
         }))
       "
-      :tools="tools.map((t) => ({ name: t.name, description: t.description }))"
+      :tools="tools.map((t) => ({ ...t, category: t.category || (t.name.startsWith('connector__') ? 'Connector' : '插件'), label: t.label || (t.name.startsWith('connector__') ? t.name.split('__').slice(2).join(' / ') : t.name) }))"
       :knowledge-bases="datasets.map((d) => ({ id: d.id, name: d.name }))"
       @save="onDrawerSave"
       @preview="onDrawerPreview"
       @publish="onDrawerPublish"
+      @restore="onDrawerRestore"
       @edit-info="onDrawerEditInfo"
       @export-dsl="onDrawerExportDsl"
       @duplicate="onDrawerDuplicate"

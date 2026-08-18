@@ -41,6 +41,14 @@ interface Props {
    * Missing / unknown mode defaults to {@code "WORKFLOW"}.
    */
   appMode?: string;
+  workflowOptionsLoader?: () => Promise<Array<{
+    appId: string;
+    workflowId: string;
+    name: string;
+    icon?: string;
+    iconBackground?: string;
+    inputVariables?: Array<Record<string, unknown>>;
+  }>>;
 }
 const props = defineProps<Props>();
 
@@ -168,6 +176,8 @@ function isLegacyBackendGraph(g: any): boolean {
     <div v-if="selectedNode" class="drawer-flow-panel">
       <NodeConfigCard
         :select-node="selectedNode"
+        :main-data="{ appId }"
+        :workflow-options-loader="workflowOptionsLoader"
         @on-close="onCloseConfig"
         @data-change="onConfigDataChange"
       />

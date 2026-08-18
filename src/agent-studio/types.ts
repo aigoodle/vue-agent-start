@@ -182,6 +182,8 @@ export interface AgentVariable {
 /** A tool listing in the tool picker + attached-tools row. */
 export interface StudioTool {
   name: string;
+  /** Human-friendly action label; name remains the stable persisted tool id. */
+  label?: string;
   description?: string;
   /** Group used to bucket tools in the picker (built-in / marketplace / mcp). */
   category?: string;
@@ -189,6 +191,11 @@ export interface StudioTool {
   icon?: string;
   /** Total installs — used by Dify to sort by popularity. Optional. */
   installs?: number;
+  provider?: string;
+  connectorId?: string;
+  actionId?: string;
+  riskLevel?: string;
+  configured?: boolean;
 }
 
 /** An attached knowledge base (dataset) row. */

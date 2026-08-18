@@ -16,6 +16,16 @@ defineProps<{ nodeId?: string }>();
 
 const formState: any = defineModel();
 
+if (!Array.isArray(formState.value.sysVariables)) formState.value.sysVariables = [];
+for (const variable of [
+  { name: 'user_id', type: 'String' },
+  { name: 'tenant_id', type: 'String' },
+]) {
+  if (!formState.value.sysVariables.some((item: any) => item?.name === variable.name)) {
+    formState.value.sysVariables.push(variable);
+  }
+}
+
 const variableModalRef = ref();
 
 // 直接把 item 作为参数交给 showModal，同一次同步调用里就把表单初值写进
