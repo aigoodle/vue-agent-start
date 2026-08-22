@@ -33,6 +33,7 @@ export interface AgentRunClient {
   get(runId: string): Promise<AgentRunSnapshot>;
   events(runId: string, afterSequence?: number, limit?: number): Promise<AgentRunEvent[]>;
   resume(runId: string, approvalId: string, decision: 'APPROVE' | 'DENY'): Promise<AgentRunResponse>;
+  resumeMany?(runId: string, decisions: Record<string, 'APPROVE' | 'DENY'>): Promise<AgentRunResponse>;
   cancel(runId: string): Promise<AgentRunSnapshot>;
   /** Polls durable events in sequence order until aborted or the run becomes terminal. */
   watch(runId: string, options?: AgentRunWatchOptions): AsyncGenerator<AgentRunEvent[], AgentRunSnapshot>;

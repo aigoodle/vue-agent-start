@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, ref } from 'vue';
+import { h, ref, watchEffect } from 'vue';
 
 import {
   DeleteOutlined,
@@ -10,7 +10,9 @@ import {
 
 import TriggersItemCard from '@/components/stubs/TriggersItemCard.vue';
 import VariableModal from '@/components/stubs/VariableModal.vue';
+import OutputItemCard from '@/workflow/OutputItemCard.vue';
 import WfField from '@/workflow/WfField.vue';
+import { synchronizeStartTriggerOutputs } from '@/workflow/utils/start_trigger_outputs';
 
 defineProps<{ nodeId?: string }>();
 
@@ -27,6 +29,10 @@ for (const variable of [
 }
 
 const variableModalRef = ref();
+
+watchEffect(() => {
+  synchronizeStartTriggerOutputs(formState.value);
+});
 
 // 直接把 item 作为参数交给 showModal，同一次同步调用里就把表单初值写进
 // 弹窗内部的 form；再也不通过 :main-data prop 中转，避免 prop 需要下一
@@ -122,6 +128,10 @@ const variableFormSubmit = (data: any) => {
         </div>
       </div>
     </WfField>
+  </div>
+
+  <div class="wf-config-section">
+    <OutputItemCard v-model="formState" readonly force-structured />
   </div>
 
   <div class="wf-config-section">

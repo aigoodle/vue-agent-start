@@ -10,6 +10,8 @@ import type {
   StudioConversationSummary,
   StudioHistoryMessage,
   StudioLlmCallRecord,
+  StudioLlmTrendPoint,
+  StudioLlmTrendRange,
   StudioLlmUsageStats,
 } from '../agent-studio/api/types';
 import type {
@@ -34,6 +36,11 @@ export interface AgentsNamespace {
   create(req: CreateAgentRequest): Promise<AgentEntity>;
   update(id: string, req: CreateAgentRequest): Promise<AgentEntity>;
   remove(id: string): Promise<void>;
+  listVersions(id: string): Promise<AgentVersion[]>;
+  publishVersion(id: string, summary?: string): Promise<AgentVersion>;
+  rollbackVersion(id: string, versionId: string, summary?: string): Promise<AgentVersion>;
+  disableVersion(id: string, versionId: string): Promise<AgentVersion>;
+  listRuntimes(): Promise<AgentRuntimeCapability[]>;
 
   // ---- chat runtime
   /** GET /agents/{id}/tools — the tool views the debug panel lists. */
@@ -43,6 +50,8 @@ export interface AgentsNamespace {
    * caller owns body streaming.
    */
   chatStream(id: string, req: ChatRequest): Promise<Response>;
+  /** Administrator-only mutable draft preview. */
+  previewStream(id: string, req: ChatRequest): Promise<Response>;
   /** POST /chat/conversations/{agentId}. */
   listConversations(agentId: string, limit?: number): Promise<ConversationSummary[]>;
   /** POST /chat/conversations/{agentId}/{conversationId}/messages. */
@@ -82,6 +91,7 @@ export interface AgentsNamespace {
   fetchAppMetrics(appId: string): Promise<StudioAppMetrics>;
   fetchLlmUsage(): Promise<StudioLlmUsageStats>;
   fetchRecentLlmCalls(limit?: number): Promise<StudioLlmCallRecord[]>;
+  fetchLlmTrend(range: StudioLlmTrendRange): Promise<StudioLlmTrendPoint[]>;
 
   // ---- api tokens
   listApiKeys(appId: string): Promise<StudioApiKey[]>;
@@ -98,6 +108,22 @@ export interface WorkflowAppOption {
   iconBackground?: string;
   inputVariables?: Array<Record<string, unknown>>;
 }
+
+export interface AgentVersion {
+  id: string;
+  tenantId: string;
+  appId: string;
+  versionNumber: number;
+  status: 'ACTIVE' | 'SUPERSEDED' | 'DISABLED';
+  changeSummary?: string;
+  publishedBy?: string;
+  publishedAt: string;
+  rollbackFromVersionId?: string;
+  runtimeType?: string;
+  runtimeRef?: string;
+}
+
+export interface AgentRuntimeCapability { type: string; nativeRuntime: boolean }
 
 export function createAgentsNamespace(core: HttpCore): AgentsNamespace {
   function annotations(appId: string): string {
@@ -124,11 +150,30 @@ export function createAgentsNamespace(core: HttpCore): AgentsNamespace {
       }),
     remove: (id) =>
       core.request<void>(`/agents/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    listVersions: (id) =>
+      core.request<AgentVersion[]>(`/agents/${encodeURIComponent(id)}/versions`),
+    publishVersion: (id, summary) =>
+      core.request<AgentVersion>(`/agents/${encodeURIComponent(id)}/versions/publish`, {
+        method: 'POST', body: JSON.stringify({ summary }),
+      }),
+    rollbackVersion: (id, versionId, summary) =>
+      core.request<AgentVersion>(`/agents/${encodeURIComponent(id)}/versions/${encodeURIComponent(versionId)}/rollback`, {
+        method: 'POST', body: JSON.stringify({ summary }),
+      }),
+    disableVersion: (id, versionId) =>
+      core.request<AgentVersion>(`/agents/${encodeURIComponent(id)}/versions/${encodeURIComponent(versionId)}/disable`, { method: 'POST' }),
+    listRuntimes: () => core.request<AgentRuntimeCapability[]>('/agent-runtimes'),
 
     listAgentTools: (id) =>
       core.request<AgentToolView[]>(`/agents/${encodeURIComponent(id)}/tools`),
     chatStream: (id, req) =>
       core.raw(`/agents/${encodeURIComponent(id)}/chat/stream`, {
+        method: 'POST',
+        headers: { Accept: 'text/event-stream' },
+        body: JSON.stringify(req),
+      }),
+    previewStream: (id, req) =>
+      core.raw(`/agents/${encodeURIComponent(id)}/chat/preview/stream`, {
         method: 'POST',
         headers: { Accept: 'text/event-stream' },
         body: JSON.stringify(req),
@@ -181,6 +226,8 @@ export function createAgentsNamespace(core: HttpCore): AgentsNamespace {
     fetchLlmUsage: () => core.request<StudioLlmUsageStats>('/llmops/total'),
     fetchRecentLlmCalls: (limit = 50) =>
       core.request<StudioLlmCallRecord[]>(`/llmops/recent${qs({ limit })}`),
+    fetchLlmTrend: (range) =>
+      core.request<StudioLlmTrendPoint[]>(`/llmops/trend${qs({ range })}`),
 
     listApiKeys: (appId) => core.request<StudioApiKey[]>(apiTokens(appId)),
     createApiKey: (appId, name) =>

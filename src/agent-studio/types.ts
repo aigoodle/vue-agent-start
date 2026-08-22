@@ -63,6 +63,8 @@ export interface AgentEntity {
   modelName?: string;
   /** Provider key that owns {@link modelName} (e.g. {@code qwen}). */
   modelProvider?: string;
+  runtimeType?: 'NATIVE' | 'SPRING_AI_ALIBABA' | string;
+  runtimeRef?: string;
   /**
    * Serialised runtime overrides — the 模型设置 drawer payload
    * ({@code temperature}, {@code topP}, {@code maxTokens},
@@ -91,6 +93,8 @@ export interface CreateAgentRequest {
   modelName?: string;
   /** Provider key that owns {@link modelName} (e.g. {@code qwen}). */
   modelProvider?: string;
+  runtimeType?: 'NATIVE' | 'SPRING_AI_ALIBABA' | string;
+  runtimeRef?: string;
   strategy?: AgentStrategy;
   toolNames?: string[];
   approvalRequiredTools?: string[];

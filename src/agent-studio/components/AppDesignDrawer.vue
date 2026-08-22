@@ -86,9 +86,12 @@ interface Props {
   workflowHistory?: Array<{
     id: string;
     version?: string;
+    versionNumber?: number;
+    status?: 'ACTIVE' | 'SUPERSEDED' | 'DISABLED';
     markedName?: string;
     markedComment?: string;
     createdAt?: string;
+    publishedAt?: string;
   }>;
   /**
    * @deprecated Legacy dropdown data source — left in for backward compat, but
@@ -99,6 +102,8 @@ interface Props {
   models?: StudioModelOption[];
   tools?: StudioTool[];
   knowledgeBases?: StudioKnowledge[];
+  /** Runtime capabilities discovered from the backend; extensions are never hard-coded by the component. */
+  runtimeTypes?: string[];
   /** Passed to the provider-hub picker for multi-tenant deployments. */
   tenantId?: string;
   /**
@@ -131,6 +136,7 @@ const props = withDefaults(defineProps<Props>(), {
   models: () => [],
   tools: () => [],
   knowledgeBases: () => [],
+  runtimeTypes: () => ['NATIVE'],
   workflowHistory: () => [],
   api: () => ({}),
   apiBase: '/api',
@@ -151,6 +157,8 @@ const emit = defineEmits<{
       modelName?: string;
       /** Provider key that owns {@link modelName} (e.g. {@code qwen}). */
       modelProvider?: string;
+      runtimeType?: 'NATIVE' | 'SPRING_AI_ALIBABA' | string;
+      runtimeRef?: string;
       /** Structured selection (kept for callers that want the full record). */
       modelSelection?: SelectedModel;
       toolNames?: string[];
@@ -177,10 +185,26 @@ const emit = defineEmits<{
    */
   (
     e: 'publish',
-    payload: { appId: string },
+    payload: {
+      appId: string;
+      mode: AppMode;
+      graphJson?: string;
+      name?: string;
+      instructions?: string;
+      openingStatement?: string;
+      modelName?: string;
+      modelProvider?: string;
+      runtimeType?: string;
+      runtimeRef?: string;
+      modelSettings?: Record<string, unknown>;
+      toolNames?: string[];
+      datasetIds?: string[];
+      retrievalConfigJson?: string;
+    },
   ): void;
   /** Restore one selected immutable snapshot into the mutable draft. */
   (e: 'restore', payload: { appId: string; snapshotId: string }): void;
+  (e: 'disableVersion', payload: { appId: string; versionId: string }): void;
   /** Open the app's runtime page in a new tab (Dify parity: "运行"). */
   (e: 'run', payload: { appId: string }): void;
   /** Show the embed-snippet dialog. */
@@ -232,6 +256,8 @@ interface EditableForm {
   modelName: string;
   /** Provider key that owns {@link modelName} (e.g. {@code qwen}). */
   modelProvider: string;
+  runtimeType: 'NATIVE' | 'SPRING_AI_ALIBABA' | string;
+  runtimeRef: string;
   modelSelection: SelectedModel;
   toolNames: string[];
   datasetIds: string[];
@@ -254,6 +280,8 @@ function makeEmptyForm(): EditableForm {
     openingStatement: '',
     modelName: '',
     modelProvider: '',
+    runtimeType: 'NATIVE',
+    runtimeRef: '',
     modelSelection: {},
     toolNames: [],
     datasetIds: [],
@@ -313,6 +341,8 @@ watch(
       openingStatement: app.openingStatement ?? '',
       modelName: app.modelName ?? '',
       modelProvider: app.modelProvider ?? '',
+      runtimeType: app.runtimeType ?? 'NATIVE',
+      runtimeRef: app.runtimeRef ?? '',
       modelSelection: hydrateSelection(app),
       toolNames: safeParseArray(app.toolNamesJson),
       datasetIds: safeParseArray(app.datasetIdsJson),
@@ -392,6 +422,8 @@ function collectSavePayload() {
     modelName: sel?.modelName || form.value.modelName || undefined,
     modelProvider:
       sel?.providerName || sel?.provider || form.value.modelProvider || undefined,
+    runtimeType: form.value.runtimeType || 'NATIVE',
+    runtimeRef: form.value.runtimeType === 'NATIVE' ? undefined : form.value.runtimeRef.trim() || undefined,
     modelSelection: sel?.providerName ? sel : undefined,
     // Flat blob the backend persists on app_model_configs.configs. Vendor
     // translation of thinkingMode into enable_thinking / think / thinking.type
@@ -422,8 +454,7 @@ async function submitPublish() {
     // Persist the current draft first so the snapshot captures what the user
     // sees on screen. Host is responsible for awaiting the save before firing
     // the publish (see /agent/list.vue::onDrawerSave + onDrawerPublish).
-    emit('save', payload);
-    emit('publish', { appId: payload.appId });
+    emit('publish', payload);
   } finally {
     publishing.value = false;
   }
@@ -649,7 +680,9 @@ function onBrandExport() {
 }
 
 const latestPublished = computed(() => props.workflowHistory[0] ?? null);
-const publishedAgo = computed(() => relativeTime(latestPublished.value?.createdAt));
+const publishedAgo = computed(() => relativeTime(
+  latestPublished.value?.publishedAt ?? latestPublished.value?.createdAt,
+));
 const historyOpen = ref(false);
 
 function relativeTime(ts?: string | number | null): string {
@@ -698,6 +731,10 @@ function restoreSnapshot(snapshotId: string) {
   if (!props.app) return;
   emit('restore', { appId: props.app.id, snapshotId });
   historyOpen.value = false;
+}
+function disableVersion(versionId: string) {
+  if (!props.app) return;
+  emit('disableVersion', { appId: props.app.id, versionId });
 }
 function onRun() {
   if (!props.app) return;
@@ -895,11 +932,11 @@ function closeDebug() {
 // ---------------------------------------------------------------------------
 const DEBUG_POS_KEY = 'agent-start-debug-panel-pos';
 /**
- * 面板实际宽度随视口变化（与 CSS `width: min(920px, 92vw)` 一致）。
+ * 面板实际宽度随视口变化（与 AI 聊天调试窗口的 460px / 92vw 一致）。
  * 拖动夹取必须用同一个值计算，否则会按旧宽度把面板推出屏幕。
  */
 function debugPanelW(): number {
-  return Math.min(920, Math.round(window.innerWidth * 0.92));
+  return Math.min(460, Math.round(window.innerWidth * 0.92));
 }
 const DEBUG_PANEL_H_RATIO = 0.86; // 相对抽屉高度的比例
 const DRAG_HANDLE_HEIGHT = 46; // 与 ChatIframePanel .cip-head 保持一致
@@ -1194,11 +1231,17 @@ function variableTypeLabel(type: AgentVariable['type']): string {
                   <div v-else class="dr-history-list">
                     <article v-for="item in workflowHistory" :key="item.id" class="dr-history-item">
                       <div class="dr-history-info">
-                        <strong>{{ item.markedName || item.version || '发布版本' }}</strong>
-                        <span>{{ formatDateTime(item.createdAt) }}（{{ relativeTime(item.createdAt) }}）</span>
+                        <strong>
+                          {{ item.markedName || item.version || (item.versionNumber ? `v${item.versionNumber}` : '发布版本') }}
+                          <small v-if="item.status"> · {{ item.status }}</small>
+                        </strong>
+                        <span>{{ formatDateTime(item.publishedAt ?? item.createdAt) }}（{{ relativeTime(item.publishedAt ?? item.createdAt) }}）</span>
                         <p v-if="item.markedComment">{{ item.markedComment }}</p>
                       </div>
-                      <button class="dr-publish-restore" @click="restoreSnapshot(item.id)">恢复此版本</button>
+                      <div class="dr-history-actions">
+                        <button v-if="item.status !== 'ACTIVE'" class="dr-publish-restore" @click="restoreSnapshot(item.id)">恢复此版本</button>
+                        <button v-if="item.status === 'ACTIVE'" class="dr-publish-restore dr-version-disable" @click="disableVersion(item.id)">停用</button>
+                      </div>
                     </article>
                   </div>
                 </section>
@@ -1443,6 +1486,26 @@ function variableTypeLabel(type: AgentVariable['type']): string {
               <div v-else class="dr-chat-split">
                 <!-- LEFT: config cards -->
                 <section class="dr-config-col">
+                  <div class="dr-card">
+                    <div class="dr-card-head">
+                      <span class="dr-card-title"><span class="dr-card-title-dot" />执行运行时</span>
+                    </div>
+                    <select v-model="form.runtimeType" class="dr-input">
+                      <option v-for="runtime in runtimeTypes" :key="runtime" :value="runtime">
+                        {{ runtime === 'NATIVE' ? 'Agent Start 原生运行时' : runtime }}
+                      </option>
+                    </select>
+                    <input
+                      v-if="form.runtimeType !== 'NATIVE'"
+                      v-model="form.runtimeRef"
+                      class="dr-input"
+                      placeholder="宿主注册的 Agent / Graph 引用，例如 support-agent"
+                    />
+                    <small class="dr-muted">
+                      该选择会随发布版本固定；可选运行时必须由宿主应用安装并注册。
+                    </small>
+                  </div>
+
                   <!-- 提示词 -->
                   <div class="dr-card">
                     <div class="dr-card-head">
@@ -1796,6 +1859,10 @@ function variableTypeLabel(type: AgentVariable['type']): string {
               :variables="flowDebugVariables"
               :execute-workflow="api.runWorkflowGraph"
               :execute-workflow-stream="api.runWorkflowGraphStream"
+              :cancel-run="api.cancelWorkflowRun"
+              :pause-run="api.pauseWorkflowRun"
+              :resume-run="api.resumeWorkflowRun"
+              :signal-run="api.signalWorkflowRun"
               :title="`调试：${app?.name || '工作流'}`"
               @close="closeDebug"
             />
@@ -2336,7 +2403,8 @@ function variableTypeLabel(type: AgentVariable['type']): string {
   top: 80px;
   right: 24px;
   z-index: 60;
-  width: min(920px, 92vw); /* 左右分栏调试面板需要更宽；与 debugPanelW() 保持一致 */
+  width: 460px;
+  max-width: 92vw; /* 与 AI 聊天调试窗口及 debugPanelW() 保持一致 */
   height: 86vh;
   max-height: calc(100vh - 96px);
   box-shadow:
@@ -2480,6 +2548,14 @@ function variableTypeLabel(type: AgentVariable['type']): string {
 }
 .dr-publish-restore:hover {
   background: #eef2ff;
+}
+.dr-history-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.dr-version-disable {
+  color: #d14343;
 }
 .dr-publish-primary {
   margin-top: 2px;

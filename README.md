@@ -80,7 +80,6 @@ import { ProviderApp } from 'vue-agent-start';
 
 const headers = async () => ({
   Authorization: `Bearer ${await getAccessToken()}`,
-  'X-Tenant-Id': currentTenantId.value,
 });
 </script>
 
@@ -96,13 +95,16 @@ const headers = async () => ({
 3. Header 同名时，组件 Header 覆盖全局 Header。
 4. 未配置 `apiBase` 时默认使用 `/api`。
 
-因此可以全局注入登录凭证，再为单个组件追加租户 Header：
+租户应由宿主后端根据登录凭证解析，不应把浏览器传入的 Header 当作授权依据。只有旧网关需要
+租户提示且会使用认证结果覆盖它时，才显式启用兼容模式：
 
-```vue
-<ProviderApp :headers="{ 'X-Tenant-Id': tenantId }" />
+```ts
+createAgentStartClient({
+  getAccessToken: () => getToken(),
+  getTenant: () => currentTenantId.value,
+  sendTenantHeader: true,
+});
 ```
-
-最终请求同时包含全局的 `Authorization` 和局部的 `X-Tenant-Id`。
 
 ## 轻量 aigoodle 入口
 
@@ -136,3 +138,32 @@ const client = createAgentStartClient({
 
 const models = await client.models.list();
 ```
+
+## 可持久化 Agent Run 检查器
+
+`AgentRunTimeline` 同时适用于原生 Runtime 和 Spring AI Alibaba 等可选扩展。它消费统一的
+`/agent-runs` 协议，展示有序事件、运行耗时以及不可变的请求、Agent 定义和响应快照，并提供审批、
+取消和刷新能力，但不接管宿主路由或认证。
+
+```vue
+<AgentRunTimeline
+  ref="runInspector"
+  :client="agentStart.runs"
+  :run-id="runId"
+  :event-types="['TOOL_STARTED', 'TOOL_SUCCEEDED', 'RUN_FAILED']"
+  @event-selected="openEnterpriseAudit"
+>
+  <template #approval="{ approval, approve, deny, acting }">
+    <EnterpriseApprovalCard
+      :approval="approval"
+      :disabled="acting"
+      @approve="approve"
+      @deny="deny"
+    />
+  </template>
+</AgentRunTimeline>
+```
+
+组件提供 `header`、`approval`、`event`、`empty`、`actions` slots，宿主可以接入自己的 RBAC、
+审批流程、审计展示和设计系统。模板 ref 暴露 `refresh()`、`cancel()`、`snapshot` 和 `events`。
+组件不会要求浏览器选择可信租户，租户身份仍由宿主认证上下文在服务端确定。

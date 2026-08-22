@@ -45,6 +45,8 @@ const emit = defineEmits<{
 const NAV: Array<{ id: DatasetTab; icon: string; label: string }> = [
   { id: 'documents', icon: '📄', label: '文档' },
   { id: 'recall', icon: '⊕', label: '召回测试' },
+  { id: 'knowledge-graph', icon: '🧩', label: '知识图谱' },
+  { id: 'operations', icon: '◫', label: 'RAG 运行' },
   { id: 'settings', icon: '⚙', label: '设置' },
 ];
 

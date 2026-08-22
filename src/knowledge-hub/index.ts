@@ -31,6 +31,8 @@ export { default as DatasetSidebar } from './components/DatasetSidebar.vue';
 export { default as DocumentChunksView } from './components/DocumentChunksView.vue';
 export { default as DocumentTable } from './components/DocumentTable.vue';
 export { default as RecallTestingPanelV2 } from './components/RecallTestingPanelV2.vue';
+export { default as KnowledgeGraphPanel } from './components/KnowledgeGraphPanel.vue';
+export { default as RagOperationsPanel } from './components/RagOperationsPanel.vue';
 
 // --- Legacy widgets (still used by /workflow KNOWLEDGE_RETRIEVAL node etc.)
 export { default as DatasetPicker } from './components/DatasetPicker.vue';

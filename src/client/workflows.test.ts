@@ -46,3 +46,30 @@ describe('workflows.runGraphStream', () => {
     expect(init.signal).toBe(controller.signal);
   });
 });
+
+describe('workflow durable run controls', () => {
+  it('encodes run ids and sends pause/cancel reasons', async () => {
+    const fetchSpy = vi.fn().mockImplementation(() => Promise.resolve(new Response(
+      JSON.stringify({ code: 'ok', data: true }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )));
+    const client = createAgentStartClient({ baseUrl: '/api', fetch: fetchSpy as any });
+    await client.workflows.pauseRun('run/a', '人工检查');
+    await client.workflows.cancelRun('run/a', '用户停止');
+    expect(fetchSpy.mock.calls[0]![0]).toBe('/api/agent-start/workflow-runs/run%2Fa/pause');
+    expect(JSON.parse(fetchSpy.mock.calls[0]![1].body)).toEqual({ reason: '人工检查' });
+    expect(fetchSpy.mock.calls[1]![0]).toBe('/api/agent-start/workflow-runs/run%2Fa/cancel');
+  });
+
+  it('sends idempotent durable-wait signals', async () => {
+    const body = { runId: 'r1', status: 'SUCCEEDED', success: true };
+    const fetchSpy = vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: 'ok', data: body }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    }));
+    const client = createAgentStartClient({ baseUrl: '/api', fetch: fetchSpy as any });
+    const request = { resumeToken: 'secret', eventId: 'event-1', payload: { approved: true } };
+    await client.workflows.signalRun('r1', request);
+    expect(fetchSpy.mock.calls[0]![0]).toBe('/api/agent-start/workflow-runs/r1/signal');
+    expect(JSON.parse(fetchSpy.mock.calls[0]![1].body)).toEqual(request);
+  });
+});

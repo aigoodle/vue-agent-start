@@ -57,7 +57,38 @@ export interface RetrieveHitWire {
   content: string;
   position?: number;
   score?: number;
+  datasetId?: string;
+  documentId?: string;
+  documentName?: string;
+  vectorScore?: number;
+  keywordScore?: number;
+  metadata?: Record<string, unknown>;
   [k: string]: unknown;
+}
+export interface KnowledgeGraphNodeWire {
+  id: string;
+  type: string;
+  label: string;
+  datasetId: string;
+  documentId?: string | null;
+  segmentId?: string | null;
+  headingPath?: string | null;
+  source?: string | null;
+  description?: string | null;
+  weight?: number;
+  evidenceSegmentIds?: string[];
+}
+export interface KnowledgeGraphEdgeWire {
+  source: string;
+  target: string;
+  relation: string;
+  weight?: number;
+  evidenceSegmentIds?: string[];
+}
+export interface KnowledgeGraphWire {
+  datasetId: string;
+  nodes: KnowledgeGraphNodeWire[];
+  edges: KnowledgeGraphEdgeWire[];
 }
 
 /** Raw recall-history row. */
@@ -68,6 +99,40 @@ export interface RecallHistoryWire {
   hitCount?: number;
   createdAt?: string;
   [k: string]: unknown;
+}
+
+export interface IndexVersionWire {
+  id: string;
+  version: string;
+  status: 'REBUILDING' | 'ACTIVE' | 'RETIRED' | 'FAILED';
+  embeddingModelVersion?: string;
+  chunkingRuleVersion?: string;
+  contentChecksum?: string;
+  documentCount?: number;
+  segmentCount?: number;
+  createdAt?: string;
+  errorMessage?: string;
+}
+
+export interface IngestionJobWire {
+  documentId: string;
+  datasetId: string;
+  filename?: string;
+  status?: string;
+  retryCount?: number;
+  lastError?: string;
+  updatedAt?: string;
+}
+
+export interface RetrievalEvaluationReportWire {
+  datasetName: string;
+  datasetVersion: string;
+  experimentName: string;
+  topK: number;
+  evaluatedAt: string;
+  metrics: Record<string, number>;
+  cases: Array<Record<string, unknown>>;
+  configuration: Record<string, string>;
 }
 
 export interface KnowledgeNamespace {
@@ -84,6 +149,7 @@ export interface KnowledgeNamespace {
   getDocument(datasetId: string, docId: string): Promise<DocumentWire>;
   uploadDocument(datasetId: string, file: File): Promise<void>;
   deleteDocument(datasetId: string, docId: string): Promise<void>;
+  setDocumentEnabled(datasetId: string, docId: string, enabled: boolean): Promise<DocumentWire>;
   getParsedDocument(datasetId: string, docId: string): Promise<unknown>;
   reparseDocument(datasetId: string, docId: string): Promise<DocumentWire>;
   previewChunks(file: File, rule: unknown, limit?: number): Promise<ChunkPreview>;
@@ -113,6 +179,13 @@ export interface KnowledgeNamespace {
   // retrieval
   retrieve(datasetId: string, req: RetrieveRequest): Promise<RetrieveHitWire[]>;
   listRecallHistory(datasetId: string, limit?: number): Promise<RecallHistoryWire[]>;
+  getKnowledgeGraph(datasetId: string): Promise<KnowledgeGraphWire>;
+  listIndexVersions(datasetId: string): Promise<IndexVersionWire[]>;
+  beginIndexVersion(datasetId: string, request: Record<string, unknown>): Promise<IndexVersionWire>;
+  activateIndexVersion(datasetId: string, versionId: string): Promise<void>;
+  evaluate(datasetId: string, request: Record<string, unknown>): Promise<RetrievalEvaluationReportWire>;
+  listPoisonedIngestionJobs(datasetId: string): Promise<IngestionJobWire[]>;
+  replayIngestionJob(datasetId: string, documentId: string): Promise<boolean>;
 }
 
 export function createKnowledgeNamespace(core: HttpCore): KnowledgeNamespace {
@@ -152,6 +225,11 @@ export function createKnowledgeNamespace(core: HttpCore): KnowledgeNamespace {
     deleteDocument: (datasetId, docId) =>
       core.request<void>(`${docs(datasetId)}/${encodeURIComponent(docId)}`, {
         method: 'DELETE',
+      }),
+    setDocumentEnabled: (datasetId, docId, enabled) =>
+      core.request<DocumentWire>(`${docs(datasetId)}/${encodeURIComponent(docId)}/enabled`, {
+        method: 'PUT',
+        body: JSON.stringify({ enabled }),
       }),
     getParsedDocument: (datasetId, docId) =>
       core.request(`${docs(datasetId)}/${encodeURIComponent(docId)}/parsed`),
@@ -205,6 +283,8 @@ export function createKnowledgeNamespace(core: HttpCore): KnowledgeNamespace {
             topK: req.topK ?? 10,
             scoreThreshold: req.scoreThreshold,
             vectorWeight: req.vectorWeight,
+            rerankEnabled: req.rerankEnabled,
+            rerankModelId: req.rerankModelId,
             metadataFilter: req.metadataFilter,
           }),
         },
@@ -213,5 +293,23 @@ export function createKnowledgeNamespace(core: HttpCore): KnowledgeNamespace {
       core.request<RecallHistoryWire[]>(
         `/datasets/${encodeURIComponent(datasetId)}/hit-testing/history${qs({ limit })}`,
       ),
+    getKnowledgeGraph: (datasetId) =>
+      core.request<KnowledgeGraphWire>(`/datasets/${encodeURIComponent(datasetId)}/knowledge-graph`),
+    listIndexVersions: (datasetId) =>
+      core.request<IndexVersionWire[]>(`/datasets/${encodeURIComponent(datasetId)}/rag/index-versions`),
+    beginIndexVersion: (datasetId, request) =>
+      core.request<IndexVersionWire>(`/datasets/${encodeURIComponent(datasetId)}/rag/index-versions`, {
+        method: 'POST', body: JSON.stringify(request),
+      }),
+    activateIndexVersion: (datasetId, versionId) =>
+      core.request<void>(`/datasets/${encodeURIComponent(datasetId)}/rag/index-versions/${encodeURIComponent(versionId)}/activate`, { method: 'POST' }),
+    evaluate: (datasetId, request) =>
+      core.request<RetrievalEvaluationReportWire>(`/datasets/${encodeURIComponent(datasetId)}/rag/evaluate`, {
+        method: 'POST', body: JSON.stringify(request),
+      }),
+    listPoisonedIngestionJobs: (datasetId) =>
+      core.request<IngestionJobWire[]>(`/datasets/${encodeURIComponent(datasetId)}/ingestion-jobs/poisoned`),
+    replayIngestionJob: (datasetId, documentId) =>
+      core.request<boolean>(`/datasets/${encodeURIComponent(datasetId)}/ingestion-jobs/${encodeURIComponent(documentId)}/replay`, { method: 'POST' }),
   };
 }

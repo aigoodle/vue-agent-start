@@ -21,6 +21,7 @@ import ConditionNodeCard from './nodeCard/ConditionNodeCard.vue';
 import EndNodeCard from './nodeCard/EndNodeCard.vue';
 import DocumentExtractorCard from './nodeCard/DocumentExtractorCard.vue';
 import HttpNodeCard from './nodeCard/HttpNodeCard.vue';
+import DurableWaitCard from './nodeCard/DurableWaitCard.vue';
 import HumanInputCard from './nodeCard/HumanInputCard.vue';
 import IterationCard from './nodeCard/IterationCard.vue';
 import KnowledgeRetrievalCard from './nodeCard/KnowledgeRetrievalCard.vue';
@@ -114,6 +115,9 @@ const nodeTypeTheme: Record<string, { icon: string; accent: string }> = {
   LIST_OPERATOR: { icon: 'variable', accent: '#22d3ee' },
   DOCUMENT_EXTRACTOR: { icon: 'file', accent: '#0891b2' },
   HUMAN_INPUT: { icon: 'user', accent: '#f59e0b' },
+  APPROVAL: { icon: 'user', accent: '#f59e0b' },
+  WAIT_EVENT: { icon: 'user', accent: '#0ea5e9' },
+  SLEEP_UNTIL: { icon: 'schedule', accent: '#8b5cf6' },
   VARIABLE_ASSIGNER: { icon: 'variable', accent: '#059669' },
 };
 
@@ -421,6 +425,11 @@ watch(() => props.selectNode, panelInit);
         v-else-if="selectNode.type === 'HUMAN_INPUT'"
         v-model="formData"
         :node-id="selectNode.id"
+      />
+      <DurableWaitCard
+        v-else-if="['APPROVAL', 'WAIT_EVENT', 'SLEEP_UNTIL'].includes(selectNode.type)"
+        v-model="formData"
+        :node-type="selectNode.type"
       />
       <VariableAssignerCard
         v-else-if="selectNode.type === 'VARIABLE_ASSIGNER'"

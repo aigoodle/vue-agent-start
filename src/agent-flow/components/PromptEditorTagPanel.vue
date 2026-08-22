@@ -195,13 +195,8 @@ function isActive(nodeId: string, parentName: string | null, name: string) {
 </script>
 
 <template>
-  <div
-    v-if="show"
-    ref="panelRef"
-    class="wf-tag-panel"
-    :style="panelPos"
-    @mousedown.stop
-  >
+  <Teleport to="body">
+  <div v-if="show" ref="panelRef" class="wf-tag-panel" :style="panelPos" @mousedown.stop>
     <div class="wf-tag-panel-header">
       <div class="wf-tag-panel-title">快速插入变量</div>
       <button class="wf-tag-panel-close" @click="close">
@@ -277,6 +272,7 @@ function isActive(nodeId: string, parentName: string | null, name: string) {
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <style scoped>

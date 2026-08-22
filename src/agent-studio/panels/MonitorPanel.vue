@@ -4,7 +4,7 @@
  *
  * All backend I/O goes through {@link AppStudioApi} — the host supplies
  * {@code fetchAppMetrics}, {@code fetchLlmUsage}, {@code fetchRecentLlmCalls}
- * and the panel wires them into the tile grid + recent-calls table.
+ * and {@code fetchLlmTrend}; the trend is independent from the recent-calls table.
  *
  * Layout mirrors the Dify workspace/monitor stub:
  *   ┌───── 应用级指标 ──────────────┐
@@ -30,12 +30,16 @@ import {
   SwapOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons-vue';
-import { Button, Empty, Skeleton, Table, Tag, message } from 'ant-design-vue';
+import { Button, Empty, Segmented, Skeleton, Table, Tag, message } from 'ant-design-vue';
+
+import SparkChart from '../components/SparkChart.vue';
 
 import type {
   AppStudioApi,
   StudioAppMetrics,
   StudioLlmCallRecord,
+  StudioLlmTrendPoint,
+  StudioLlmTrendRange,
   StudioLlmUsageStats,
 } from '../api';
 
@@ -49,6 +53,44 @@ const appMetrics = ref<StudioAppMetrics | null>(null);
 const totalStats = ref<StudioLlmUsageStats | null>(null);
 const recentCalls = ref<StudioLlmCallRecord[]>([]);
 const loading = ref(false);
+const trendLoading = ref(false);
+const callChartRange = ref<StudioLlmTrendRange>('HOUR');
+const callTrend = ref<StudioLlmTrendPoint[]>([]);
+
+const callChartOptions = [
+  { label: '近 1 小时', value: 'HOUR' },
+  { label: '近 24 小时', value: 'DAY' },
+  { label: '近 7 天', value: 'WEEK' },
+];
+
+const callChart = computed(() => {
+  return {
+    series: callTrend.value.map((point) => point.calls),
+    labels: callTrend.value.map((point) => fmtChartTime(point.bucketStart)),
+  };
+});
+
+const trendDescription = computed(() => ({
+  HOUR: '每 10 分钟一个节点，共 6 个时间桶',
+  DAY: '每 1 小时一个节点，共 24 个时间桶',
+  WEEK: '每天一个节点，共 7 个时间桶',
+})[callChartRange.value]);
+
+async function loadTrend() {
+  if (!props.api.fetchLlmTrend) {
+    callTrend.value = [];
+    return;
+  }
+  trendLoading.value = true;
+  try {
+    callTrend.value = await props.api.fetchLlmTrend(callChartRange.value);
+  } catch (e: any) {
+    callTrend.value = [];
+    message.error(e?.message ?? '调用趋势加载失败');
+  } finally {
+    trendLoading.value = false;
+  }
+}
 
 const callColumns = [
   { title: '模型', key: 'model', dataIndex: 'model', ellipsis: true },
@@ -100,6 +142,7 @@ async function reload() {
         .catch(() => (recentCalls.value = [])),
     );
   }
+  jobs.push(loadTrend());
   try {
     await Promise.all(jobs);
   } catch (e: any) {
@@ -110,6 +153,7 @@ async function reload() {
 }
 
 watch(() => props.app?.id, reload);
+watch(callChartRange, loadTrend);
 onMounted(reload);
 
 // ---- Formatters ---------------------------------------------------------
@@ -155,6 +199,17 @@ function fmtCallTime(iso?: string): string {
     return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtChartTime(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  if (callChartRange.value === 'WEEK') {
+    return `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  return callChartRange.value === 'DAY'
+    ? `${pad(d.getHours())}:00`
+    : `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /**
@@ -329,48 +384,75 @@ const globalTiles = computed(() => {
       </div>
     </section>
 
-    <!-- Recent calls -->
-    <section class="monitor-section">
-      <div class="monitor-section-title">
-        <span class="monitor-section-dot" />
-        最近 10 条 LLM 调用
+    <!-- Recent-call trend + records share one row to keep the dashboard compact. -->
+    <section class="monitor-section monitor-call-grid">
+      <div class="monitor-call-card">
+        <div class="monitor-call-head">
+          <div class="monitor-section-title">
+            <span class="monitor-section-dot" />
+            调用曲线
+          </div>
+          <Segmented
+            v-model:value="callChartRange"
+            size="small"
+            :options="callChartOptions"
+          />
+        </div>
+        <div class="monitor-chart-note">
+          {{ trendDescription }}
+        </div>
+        <Skeleton v-if="trendLoading" active :paragraph="{ rows: 5 }" />
+        <SparkChart
+          v-else
+          :series="callChart.series"
+          :labels="callChart.labels"
+          color="#6366f1"
+          :height="230"
+        />
       </div>
-      <Table
-        class="monitor-table"
-        :columns="callColumns"
-        :data-source="recentCalls"
-        :loading="loading"
-        :pagination="false"
-        row-key="id"
-        size="small"
-        :scroll="{ x: 720 }"
-        :locale="{ emptyText: '尚无 LLM 调用记录' }"
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'costMicros'">
-            {{ fmtCost(record.costMicros) }}
+
+      <div class="monitor-call-card monitor-call-table-card">
+        <div class="monitor-section-title">
+          <span class="monitor-section-dot" />
+          最近 10 条 LLM 调用
+        </div>
+        <Table
+          class="monitor-table"
+          :columns="callColumns"
+          :data-source="recentCalls"
+          :loading="loading"
+          :pagination="false"
+          row-key="id"
+          size="small"
+          :scroll="{ x: 720, y: 260 }"
+          :locale="{ emptyText: '尚无 LLM 调用记录' }"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'costMicros'">
+              {{ fmtCost(record.costMicros) }}
+            </template>
+            <template v-else-if="column.key === 'latencyMs'">
+              {{ fmtLatency(record.latencyMs) }}
+            </template>
+            <template v-else-if="column.key === 'success'">
+              <Tag :color="record.success ? 'green' : 'red'" class="mono-tag">
+                {{ record.success ? '✓' : '✕' }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'createdAt'">
+              <span
+                class="monitor-time"
+                :title="record.createdAt"
+              >{{ fmtCallTime(record.createdAt) }}</span>
+            </template>
           </template>
-          <template v-else-if="column.key === 'latencyMs'">
-            {{ fmtLatency(record.latencyMs) }}
-          </template>
-          <template v-else-if="column.key === 'success'">
-            <Tag :color="record.success ? 'green' : 'red'" class="mono-tag">
-              {{ record.success ? '✓' : '✕' }}
-            </Tag>
-          </template>
-          <template v-else-if="column.key === 'createdAt'">
-            <span
-              class="monitor-time"
-              :title="record.createdAt"
-            >{{ fmtCallTime(record.createdAt) }}</span>
-          </template>
-        </template>
-      </Table>
-      <Empty
-        v-if="!loading && recentCalls.length === 0"
-        description="尚无 LLM 调用记录 —— 让应用跑一次对话就会出现"
-        class="monitor-empty"
-      />
+        </Table>
+        <Empty
+          v-if="!loading && recentCalls.length === 0"
+          description="尚无 LLM 调用记录 —— 让应用跑一次对话就会出现"
+          class="monitor-empty"
+        />
+      </div>
     </section>
   </div>
 </template>
@@ -505,6 +587,42 @@ const globalTiles = computed(() => {
   padding: 24px 0;
 }
 
+/* ── Recent-call trend + records ───────────────────────────────────── */
+.monitor-call-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.8fr) minmax(0, 1.2fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.monitor-call-card {
+  min-width: 0;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #eef1f5;
+  border-radius: 12px;
+}
+.monitor-call-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.monitor-call-head .monitor-section-title,
+.monitor-call-table-card > .monitor-section-title {
+  margin-bottom: 0;
+}
+.monitor-chart-note {
+  margin: 6px 0 12px 10px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+.monitor-call-table-card {
+  overflow: hidden;
+}
+.monitor-call-table-card .monitor-table {
+  margin-top: 10px;
+}
+
 /* ── Recent calls table ─────────────────────────────────────────────── */
 .monitor-table :deep(.ant-table-thead > tr > th) {
   background: #f8fafc;
@@ -531,5 +649,11 @@ const globalTiles = computed(() => {
   margin: 0;
   min-width: 28px;
   text-align: center;
+}
+
+@media (max-width: 960px) {
+  .monitor-call-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -43,7 +43,7 @@ export interface Dataset extends DatasetSummary {
 }
 
 /** Navigation tabs of the dataset detail view. */
-export type DatasetTab = 'documents' | 'recall' | 'settings';
+export type DatasetTab = 'documents' | 'recall' | 'knowledge-graph' | 'operations' | 'settings';
 
 // --------- process rule (chunking) -----------------------------------------
 

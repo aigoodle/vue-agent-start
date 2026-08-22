@@ -9,4 +9,16 @@ describe('JsonSchemaForm', () => {
     await wrapper.get('input[type="number"]').setValue('3');
     expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({ retries: 3 });
   });
+
+  it('does not force workflow users to edit raw JSON when no fields are declared', () => {
+    const wrapper = mount(JsonSchemaForm, {
+      props: {
+        schema: JSON.stringify({ type: 'object', additionalProperties: true }),
+        allowAdvanced: false,
+        emptyText: '连接器未声明字段',
+      },
+    });
+    expect(wrapper.text()).toContain('连接器未声明字段');
+    expect(wrapper.find('textarea').exists()).toBe(false);
+  });
 });

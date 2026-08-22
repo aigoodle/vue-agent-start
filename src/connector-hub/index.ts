@@ -4,5 +4,8 @@ export { default as ConnectorConnectionModal } from './components/ConnectorConne
 export { default as ConnectorDetailDrawer } from './components/ConnectorDetailDrawer.vue';
 export { default as JsonSchemaForm } from './components/JsonSchemaForm.vue';
 export { default as OpenClawPluginPanel } from './components/OpenClawPluginPanel.vue';
+export { default as ChannelConnectionPanel } from './components/ChannelConnectionPanel.vue';
+export { default as MyRobotsPanel } from './components/MyRobotsPanel.vue';
+export { default as RobotFormModal } from './components/RobotFormModal.vue';
 export * from './types';
 export * from './composables/useConnectorHub';

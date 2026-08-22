@@ -10,6 +10,10 @@ export interface RetrieveRequest {
   topK?: number;
   scoreThreshold?: number;
   vectorWeight?: number;
+  rerankEnabled?: boolean;
+  rerankModelId?: string;
+  rerankPoolSize?: number;
+  maxChunksPerDocument?: number;
   metadataFilter?: Record<string, unknown>;
 }
 
@@ -34,6 +38,12 @@ export interface RecallHit {
   position?: number;
   score: number;
   documentName?: string;
+  documentId?: string;
+  blockType?: string;
+  heading?: string;
+  metadata?: Record<string, unknown>;
+  vectorScore?: number;
+  keywordScore?: number;
 }
 
 /** Historical recall query row shown in the "记录" list. */

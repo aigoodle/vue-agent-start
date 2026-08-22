@@ -9,7 +9,6 @@ import 'vue-agent-start/style.css';
 const client = createAgentStartClient({
   baseUrl: '/api',
   getAccessToken: () => authStore.token,
-  getTenant: () => tenantStore.id,
 });
 app.use(installAgentStartClient, client);
 ```
@@ -18,8 +17,12 @@ app.use(installAgentStartClient, client);
 <script setup lang="ts">
 import { ConnectorHubApp } from 'vue-agent-start/connector-hub';
 </script>
-<template><ConnectorHubApp tenant-id="default" /></template>
+<template><ConnectorHubApp /></template>
 ```
+
+租户必须由宿主后端根据 Access Token/Session 注入可信上下文。`tenant-id` 仅用于宿主明确需要的
+目录展示提示，不是认证参数；组件默认不再发送 `X-Tenant-Id`。旧网关确实依赖该 Header 时，宿主
+可显式设置 `getTenant` 与 `sendTenantHeader: true`，并必须在网关端用认证结果覆盖而不是信任浏览器值。
 
 `ConnectorHubApp` 提供 Connector 目录、租户同步、启停、加密连接配置、Action 测试、
 OpenClaw 插件生命周期和执行审计。浏览器始终访问 Java 管理 API，不接触 Bridge Token。
@@ -39,6 +42,6 @@ Connector Action 自动出现在 Agent Studio 工具选择器的 `Connector` 分
 
 ```ts
 const catalog = await client.connectors.list();
-await client.connectors.synchronize('default');
+await client.connectors.synchronize();
 await client.connectors.execute('openclaw', 'plugin-id', 'tool-name', { text: 'hello' });
 ```

@@ -25,6 +25,7 @@ import type {
   DocMetadata,
   DocumentRow,
   EmbeddingModelOption,
+  KnowledgeGraph,
   ProcessRule,
   ParsedDocument,
   RecallHit,
@@ -37,6 +38,8 @@ import DatasetSidebar from './DatasetSidebar.vue';
 import DocumentChunksView from './DocumentChunksView.vue';
 import DocumentTable from './DocumentTable.vue';
 import RecallTestingPanelV2 from './RecallTestingPanelV2.vue';
+import RagOperationsPanel from './RagOperationsPanel.vue';
+import KnowledgeGraphPanel from './KnowledgeGraphPanel.vue';
 
 interface Props {
   open: boolean;
@@ -74,6 +77,9 @@ const chunkPageSize = ref(20);
 const hits = ref<RecallHit[]>([]);
 const recallHistory = ref<RecentQuery[]>([]);
 const recallLoading = ref(false);
+const recallGraph = ref<KnowledgeGraph | null>(null);
+const knowledgeGraph = ref<KnowledgeGraph | null>(null);
+const knowledgeGraphLoading = ref(false);
 
 const embeddingModels = ref<EmbeddingModelOption[]>([]);
 const defaultEmbeddingModelId = ref<null | string>(null);
@@ -92,6 +98,7 @@ watch(
     if (!isOpen || !id) {
       dataset.value = null;
       documents.value = [];
+      recallGraph.value = null;
       tab.value = 'documents';
       openDocId.value = null;
       return;
@@ -103,6 +110,7 @@ watch(
       loadEmbeddingModels(),
       loadRerankModels(),
       loadRecallHistory(),
+      loadKnowledgeGraph(),
     ]);
   },
   { immediate: true },
@@ -181,10 +189,13 @@ async function loadRecallHistory() {
 }
 
 // ---------- sidebar
-function onNav(next: DatasetTab) {
+async function onNav(next: DatasetTab) {
   // Reset the doc-drilldown when nav switches away from documents.
   if (next !== 'documents') openDocId.value = null;
   tab.value = next;
+  if (next === 'knowledge-graph') {
+    await loadKnowledgeGraph();
+  }
 }
 function onCopyApi() {
   if (props.datasetId && props.hub.onCopyApi) props.hub.onCopyApi(props.datasetId);
@@ -451,9 +462,83 @@ async function onRunRecall(payload: {
       rerankModelId: payload.config?.rerankModelId,
       vectorWeight: payload.config?.vectorWeight,
     } as any);
+    if (!knowledgeGraph.value) {
+      await loadKnowledgeGraph();
+    }
+    recallGraph.value = buildRecallSubgraph(hits.value, knowledgeGraph.value);
     await loadRecallHistory();
   } finally {
     recallLoading.value = false;
+  }
+}
+
+function buildRecallSubgraph(
+  sourceHits: RecallHit[],
+  sourceGraph: KnowledgeGraph | null,
+): KnowledgeGraph | null {
+  if (!sourceGraph) return null;
+  if (sourceHits.length === 0) {
+    return {
+      datasetId: sourceGraph.datasetId,
+      nodes: [],
+      edges: [],
+    };
+  }
+
+  const matched = new Set<string>();
+  for (const hit of sourceHits) {
+    if (hit.documentId) matched.add(`document:${hit.documentId}`);
+    if (hit.segmentId) matched.add(`segment:${hit.segmentId}`);
+  }
+
+  if (matched.size === 0) {
+    return {
+      datasetId: sourceGraph.datasetId,
+      nodes: [],
+      edges: [],
+    };
+  }
+
+  const nodeIds = new Set<string>(matched);
+  let frontier = new Set<string>(matched);
+  for (let depth = 0; depth < 2 && frontier.size > 0; depth += 1) {
+    const next = new Set<string>();
+    for (const edge of sourceGraph.edges) {
+      if (!frontier.has(edge.source) && !frontier.has(edge.target)) continue;
+      if (!nodeIds.has(edge.source)) next.add(edge.source);
+      if (!nodeIds.has(edge.target)) next.add(edge.target);
+      nodeIds.add(edge.source);
+      nodeIds.add(edge.target);
+    }
+    frontier = next;
+  }
+
+  const edges = sourceGraph.edges.filter(
+    (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target),
+  );
+
+  return {
+    datasetId: sourceGraph.datasetId,
+    nodes: sourceGraph.nodes.filter((node) => nodeIds.has(node.id)),
+    edges,
+  };
+}
+
+async function loadKnowledgeGraph() {
+  if (!props.datasetId) return;
+  knowledgeGraphLoading.value = true;
+  try {
+    knowledgeGraph.value = await props.hub.getKnowledgeGraph(props.datasetId);
+    recallGraph.value = buildRecallSubgraph(hits.value, knowledgeGraph.value);
+  } catch {
+    knowledgeGraph.value = {
+      datasetId: props.datasetId,
+      nodes: [],
+      edges: [],
+    };
+    recallGraph.value = buildRecallSubgraph([], knowledgeGraph.value);
+  } finally {
+    knowledgeGraphLoading.value = false;
   }
 }
 
@@ -594,6 +679,8 @@ const sidebarData = computed(() => ({
                   · {{ {
                     documents: '文档',
                     recall: '召回测试',
+                    'knowledge-graph': '知识图谱',
+                    operations: 'RAG 运行',
                     settings: '设置',
                   }[tab] }}
                 </span>
@@ -645,7 +732,18 @@ const sidebarData = computed(() => ({
                 :initial-config="parsedRetrievalConfig"
                 :rerank-models="rerankModels"
                 :indexing-technique="dataset?.indexingTechnique"
+                :graph="recallGraph"
                 @run="onRunRecall"
+              />
+              <KnowledgeGraphPanel
+                v-else-if="tab === 'knowledge-graph'"
+                :graph="knowledgeGraph ?? undefined"
+                :loading="knowledgeGraphLoading"
+              />
+              <RagOperationsPanel
+                v-else-if="tab === 'operations' && datasetId"
+                :dataset-id="datasetId"
+                :hub="hub"
               />
               <DatasetSettingsPanel
                 v-else-if="tab === 'settings'"

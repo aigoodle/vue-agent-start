@@ -15,7 +15,9 @@ import type {
   IndexingTechnique,
   RetrievalConfig,
 } from '../types/dataset';
+import type { KnowledgeGraph } from '../types/api';
 import RetrievalConfigPopover from './RetrievalConfigPopover.vue';
+import KnowledgeGraphPanel from './KnowledgeGraphPanel.vue';
 
 interface Props {
   hits?: RecallHit[];
@@ -29,6 +31,7 @@ interface Props {
   initialConfig?: RetrievalConfig;
   rerankModels?: Array<{ id: string; label: string }>;
   indexingTechnique?: IndexingTechnique;
+  graph?: KnowledgeGraph | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -37,6 +40,7 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   initialConfig: () => ({ method: 'VECTOR', topK: 3 }),
   rerankModels: () => [],
+  graph: null,
 });
 
 const emit = defineEmits<{
@@ -63,6 +67,7 @@ const methodIcon = computed(() => {
 
 const charCount = computed(() => query.value.length);
 const canRun = computed(() => query.value.trim().length > 0);
+const viewMode = ref<'list' | 'graph'>('list');
 
 // Popover trigger anchor + open state.
 const methodBtnRef = ref<HTMLElement | null>(null);
@@ -161,37 +166,86 @@ function replay(h: RecentQuery) {
            panel doesn't waste the upper half on whitespace. Empty / loading /
            populated states now share the same anchor. -->
       <div class="kh-recall-right">
-        <div class="kh-recall-results-title">
-          命中片段
-          <span v-if="hits.length > 0" class="kh-recall-results-count">
-            · {{ hits.length }} 个
-          </span>
-        </div>
-        <div v-if="hits.length === 0" class="kh-recall-right-empty">
-          <div class="kh-recall-empty-target">🎯</div>
-          <div class="kh-recall-empty-hint">召回测试结果显示在这里</div>
-        </div>
-        <div v-else class="kh-recall-results">
-          <div
-            v-for="(hit, i) in hits"
-            :key="hit.segmentId"
-            class="kh-recall-hit"
-          >
-            <div class="kh-recall-hit-head">
-              <span class="kh-recall-hit-tag">
-                {{ i + 1 }}
-              </span>
-              <span v-if="hit.documentName" class="kh-recall-hit-doc">
-                📄 {{ hit.documentName }}
-              </span>
-              <span class="kh-recall-flex" />
-              <span class="kh-recall-hit-score">
-                综合 {{ hit.score.toFixed(3) }}
-              </span>
-            </div>
-            <div class="kh-recall-hit-body">{{ hit.content }}</div>
+        <div class="kh-recall-results-toolbar">
+          <div class="kh-recall-results-title">
+            命中片段
+            <span v-if="hits.length > 0" class="kh-recall-results-count">
+              · {{ hits.length }} 个
+            </span>
+          </div>
+          <div class="kh-recall-view-switch">
+            <button
+              :class="[
+                'kh-recall-view-btn',
+                viewMode === 'list' ? 'kh-recall-view-btn-active' : '',
+              ]"
+              @click="viewMode = 'list'"
+            >
+              列表
+            </button>
+            <button
+              :class="[
+                'kh-recall-view-btn',
+                viewMode === 'graph' ? 'kh-recall-view-btn-active' : '',
+              ]"
+              @click="viewMode = 'graph'"
+            >
+              图谱
+            </button>
           </div>
         </div>
+        <template v-if="viewMode === 'graph'">
+          <KnowledgeGraphPanel :graph="props.graph" :loading="loading" />
+          <div
+            v-if="(props.graph?.nodes?.length ?? 0) === 0"
+            class="kh-recall-right-empty"
+          >
+            <div class="kh-recall-empty-target">🧭</div>
+            <div class="kh-recall-empty-hint">检索命中未映射到知识图谱节点</div>
+          </div>
+        </template>
+        <template v-else>
+          <div v-if="hits.length === 0" class="kh-recall-right-empty">
+            <div class="kh-recall-empty-target">🎯</div>
+            <div class="kh-recall-empty-hint">召回测试结果显示在这里</div>
+          </div>
+          <div v-else class="kh-recall-results">
+            <div
+              v-for="(hit, i) in hits"
+              :key="hit.segmentId"
+              class="kh-recall-hit"
+            >
+              <div class="kh-recall-hit-head">
+                <span class="kh-recall-hit-tag">{{ i + 1 }}</span>
+                <span v-if="hit.documentName" class="kh-recall-hit-doc">
+                  📄 {{ hit.documentName }}
+                </span>
+                <span v-if="hit.blockType" class="kh-recall-hit-type">
+                  {{ hit.blockType }}
+                </span>
+                <span v-if="hit.heading" class="kh-recall-hit-heading">
+                  {{ hit.heading }}
+                </span>
+                <span class="kh-recall-flex" />
+                <span class="kh-recall-hit-score">
+                  综合 {{ hit.score.toFixed(3) }}
+                </span>
+              </div>
+              <div
+                v-if="hit.vectorScore != null || hit.keywordScore != null"
+                class="kh-recall-hit-metrics"
+              >
+                <span v-if="hit.vectorScore != null">
+                  向量 {{ hit.vectorScore.toFixed(3) }}
+                </span>
+                <span v-if="hit.keywordScore != null">
+                  关键词 {{ hit.keywordScore.toFixed(3) }}
+                </span>
+              </div>
+              <div class="kh-recall-hit-body">{{ hit.content }}</div>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -452,9 +506,37 @@ function replay(h: RecentQuery) {
   font-weight: 600;
   color: #334155;
 }
+.kh-recall-results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .kh-recall-results-count {
   color: #94a3b8;
   font-weight: 400;
+}
+.kh-recall-view-switch {
+  display: inline-flex;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.kh-recall-view-btn {
+  border: none;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #475569;
+  background: #fff;
+  cursor: pointer;
+}
+.kh-recall-view-btn + .kh-recall-view-btn {
+  border-left: 1px solid #e2e8f0;
+}
+.kh-recall-view-btn-active {
+  color: #4338ca;
+  background: #eef2ff;
+  font-weight: 600;
 }
 .kh-recall-right-empty {
   padding: 32px 12px 40px;
@@ -511,5 +593,22 @@ function replay(h: RecentQuery) {
   font-size: 12px;
   color: #334155;
   line-height: 1.55;
+}
+.kh-recall-hit-type,
+.kh-recall-hit-heading {
+  color: #64748b;
+  font-size: 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: #f8fafc;
+}
+.kh-recall-hit-metrics {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 4px;
 }
 </style>

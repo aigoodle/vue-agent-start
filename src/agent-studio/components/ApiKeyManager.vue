@@ -18,8 +18,8 @@
  * passes results back via the {@code keys} prop.
  *
  * Key masking follows Dify: show the 3-char prefix + "..." + last 20 chars.
- * A "复制" button next to each row copies the *full* token; a per-row copy
- * of the masked preview would be useless.
+ * The full token is available only for the freshly-created row. Reloaded rows
+ * are masked by the server and intentionally cannot be copied as credentials.
  */
 import { computed, ref } from 'vue';
 import { CopyOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons-vue';
@@ -75,6 +75,10 @@ function mask(token: string | undefined): string {
   if (!token) return '';
   if (token.length <= 24) return token;
   return `${token.slice(0, 3)}...${token.slice(-20)}`;
+}
+
+function canCopy(token: string | undefined): boolean {
+  return !!token && !token.includes('...');
 }
 
 async function copy(text: string) {
@@ -147,10 +151,11 @@ const dataSource = computed(() => props.keys ?? []);
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'token'">
             <div class="akm-token-cell">
-              <Tooltip :title="record.token" placement="topLeft">
+              <Tooltip :title="canCopy(record.token) ? '新密钥，仅本次可复制' : '密钥已隐藏，无法再次查看'" placement="topLeft">
                 <span class="akm-token-mono">{{ mask(record.token) }}</span>
               </Tooltip>
               <button
+                v-if="canCopy(record.token)"
                 type="button"
                 class="akm-icon-btn"
                 title="复制"

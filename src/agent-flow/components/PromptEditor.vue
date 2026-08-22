@@ -123,7 +123,7 @@ function serializeToText(): string {
     }
   };
   for (const child of Array.from(root.childNodes)) walk(child);
-  return text.replace(/\n+$/g, '');
+  return text.replace(/[\u200B\uFEFF]/g, '').replace(/\n+$/g, '');
 }
 
 /** 把模板字符串反序列化到 DOM */

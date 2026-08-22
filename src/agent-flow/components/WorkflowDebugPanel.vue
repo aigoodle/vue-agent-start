@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * WorkflowDebugPanel — 工作流试运行调试面板（左右分栏）。
+ * WorkflowDebugPanel — 工作流试运行调试面板（单列紧凑布局）。
  *
- * 左列：START 节点输入参数表单 + 执行/停止/清空操作。
- * 右列：执行过程时间线（逐节点）+ 最终输出。
+ * 输入参数、执行操作、逐节点执行过程和最终输出共用一列，避免窄面板
+ * 被固定侧栏挤占空间。
  *
  * 执行优先走 SSE 流式端点（`POST /workflows/run-graph/stream`，事件序列
  * `workflow_started → node_finished (每节点) → workflow_finished`，与 Dify
@@ -15,7 +15,7 @@
 import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 
 import { readSseEvents } from '../../client/sse';
-import { runWorkflow, runWorkflowStream } from '../adapter/backend';
+import { cancelWorkflowRun, pauseWorkflowRun, resumeWorkflowRun, runWorkflow, runWorkflowStream, signalWorkflowRun } from '../adapter/backend';
 import type { ChatDebugVariable } from './chat-iframe-types';
 
 interface Props {
@@ -34,6 +34,10 @@ interface Props {
     payload: Record<string, unknown>,
     opts?: { signal?: AbortSignal },
   ) => Promise<Response | null>;
+  cancelRun?: (runId: string, reason?: string) => Promise<unknown>;
+  pauseRun?: (runId: string, reason?: string) => Promise<unknown>;
+  resumeRun?: (runId: string) => Promise<unknown>;
+  signalRun?: (runId: string, request: Record<string, unknown>) => Promise<unknown>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -54,6 +58,9 @@ const abortNotice = ref(false);
 const liveSteps = ref<Array<Record<string, any>>>([]);
 const expanded = reactive<Record<string, boolean>>({});
 const abortController = ref<AbortController | null>(null);
+const activeRunId = ref('');
+const controlBusy = ref(false);
+const waitPayload = ref('{}');
 /** Monotonic token — every frame checks it so stale runs can't mutate state. */
 let runSeq = 0;
 
@@ -177,6 +184,10 @@ async function consumeStream(res: Response, mySeq: number) {
   for await (const { event, data } of readSseEvents(res)) {
     if (mySeq !== runSeq) return; // stale run — a newer execute()/reset() owns the state
     if (event === 'workflow_started' || event === 'run-start') {
+      try {
+        const started = JSON.parse(data);
+        activeRunId.value = String(started.runId ?? started.run_id ?? '');
+      } catch { /* older streams may send an empty start frame */ }
       continue;
     }
     if (event === 'node_finished' || event === 'step') {
@@ -199,6 +210,7 @@ async function consumeStream(res: Response, mySeq: number) {
       }
       sawTerminal = true;
       result.value = parsed;
+      activeRunId.value = String(parsed.runId ?? activeRunId.value ?? '');
       adoptResultSteps(parsed);
       continue;
     }
@@ -226,6 +238,7 @@ async function executeOneShot(payload: Record<string, unknown>, mySeq: number) {
     : await runWorkflow!(payload);
   if (mySeq !== runSeq) return;
   result.value = unwrapResponse(response);
+  activeRunId.value = String(result.value.runId ?? '');
   adoptResultSteps(result.value);
 }
 
@@ -295,8 +308,56 @@ async function execute() {
   }
 }
 
-function stop() {
+async function stop() {
+  if (activeRunId.value) {
+    controlBusy.value = true;
+    try { await (props.cancelRun ?? cancelWorkflowRun)(activeRunId.value, '用户从调试面板停止'); }
+    catch (error: any) { requestError.value = error?.message || '取消运行失败'; }
+    finally { controlBusy.value = false; }
+  }
   abortController.value?.abort();
+}
+
+async function pause() {
+  if (!activeRunId.value || controlBusy.value) return;
+  controlBusy.value = true;
+  try { await (props.pauseRun ?? pauseWorkflowRun)(activeRunId.value, '用户从调试面板暂停'); }
+  catch (error: any) { requestError.value = error?.message || '暂停运行失败'; }
+  finally { controlBusy.value = false; }
+}
+
+async function resume() {
+  const runId = String(result.value?.runId ?? activeRunId.value ?? '');
+  if (!runId || controlBusy.value) return;
+  controlBusy.value = true;
+  requestError.value = '';
+  try {
+    result.value = unwrapResponse(await (props.resumeRun ?? resumeWorkflowRun)(runId));
+    adoptResultSteps(result.value);
+  } catch (error: any) { requestError.value = error?.message || '恢复运行失败'; }
+  finally { controlBusy.value = false; }
+}
+
+async function submitWait(approved?: boolean) {
+  const runId = String(result.value?.runId ?? '');
+  const wait = result.value?.waitRequest;
+  if (!runId || !wait?.resumeToken || controlBusy.value) return;
+  let payload: Record<string, unknown>;
+  try { payload = approved === undefined ? JSON.parse(waitPayload.value || '{}') : { approved }; }
+  catch { requestError.value = '恢复载荷不是有效的 JSON'; return; }
+  controlBusy.value = true;
+  requestError.value = '';
+  try {
+    const signalled = unwrapResponse(await (props.signalRun ?? signalWorkflowRun)(runId, {
+      resumeToken: wait.resumeToken,
+      eventId: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`,
+      payload,
+    }));
+    const nextResult = signalled.runResult ?? signalled;
+    result.value = nextResult;
+    adoptResultSteps(nextResult);
+  } catch (error: any) { requestError.value = error?.message || '提交恢复事件失败'; }
+  finally { controlBusy.value = false; }
 }
 
 function reset() {
@@ -305,6 +366,7 @@ function reset() {
   running.value = false;
   streamActive.value = false;
   result.value = null;
+  activeRunId.value = '';
   requestError.value = '';
   abortNotice.value = false;
   liveSteps.value = [];
@@ -329,8 +391,7 @@ onBeforeUnmount(() => {
     </header>
 
     <div class="wdp-body">
-      <!-- ── 左列：输入参数 + 操作 ─────────────────────────────────── -->
-      <div class="wdp-left">
+      <div class="wdp-input-section">
         <div class="wdp-section-head">
           <span>输入参数</span>
           <span v-if="missingRequired.length" class="wdp-required">{{ missingRequired.length }} 项必填</span>
@@ -376,6 +437,7 @@ onBeforeUnmount(() => {
             {{ running ? '执行中…' : '▶ 执行工作流' }}
           </button>
           <button v-if="streamActive" class="wdp-stop" title="中止本次流式执行" @click="stop">■ 停止</button>
+          <button v-if="streamActive && activeRunId" class="wdp-reset" :disabled="controlBusy" @click="pause">Ⅱ 暂停</button>
           <button
             v-if="result || requestError || abortNotice || liveSteps.length"
             class="wdp-reset"
@@ -385,21 +447,33 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- ── 右列：执行过程 + 最终输出 ─────────────────────────────── -->
-      <div class="wdp-right">
+      <div class="wdp-process-section">
         <div class="wdp-section-head">
           <span>执行过程</span>
           <span v-if="running" class="wdp-running-chip">
             <span class="wdp-spinner" />
             {{ streamActive ? `已完成 ${liveSteps.length} 个节点` : '正在等待响应…' }}
           </span>
-          <span v-else-if="result" :class="result.success === false ? 'wdp-failed' : 'wdp-success'">
-            {{ result.success === false ? '执行失败' : '执行完成' }}
+          <span v-else-if="result" :class="['WAITING','PAUSED'].includes(result.status) ? 'wdp-waiting' : result.success === false ? 'wdp-failed' : 'wdp-success'">
+            {{ result.status || (result.success === false ? '执行失败' : '执行完成') }}
           </span>
         </div>
 
         <div v-if="abortNotice" class="wdp-aborted">已手动停止执行，以下为停止前已完成节点的结果。</div>
         <div v-if="requestError" class="wdp-error">{{ requestError }}</div>
+        <div v-if="result?.status === 'WAITING'" class="wdp-wait-card">
+          <strong>{{ result.waitRequest?.type === 'APPROVAL' ? '等待审批' : result.waitRequest?.type === 'SLEEP_UNTIL' ? '定时等待中' : '等待恢复输入' }}</strong>
+          <small v-if="result.waitingNodeId">节点：{{ stepTitle({ nodeId: result.waitingNodeId }, 0) }}</small>
+          <small v-if="result.waitRequest?.correlationKey">Correlation Key：<code>{{ result.waitRequest.correlationKey }}</code></small>
+          <small v-if="result.waitRequest?.expiresAt">截止：{{ result.waitRequest.expiresAt }}</small>
+          <small v-if="result.waitRequest?.wakeAt">自动唤醒：{{ result.waitRequest.wakeAt }}</small>
+          <div v-if="result.waitRequest?.type === 'APPROVAL'" class="wdp-actions"><button class="wdp-run" :disabled="controlBusy" @click="submitWait(true)">批准</button><button class="wdp-stop" :disabled="controlBusy" @click="submitWait(false)">拒绝</button></div>
+          <template v-else-if="result.waitRequest?.type !== 'SLEEP_UNTIL'">
+            <textarea v-model="waitPayload" rows="5" placeholder='恢复载荷 JSON，例如 {"response":"确认"}' />
+            <button class="wdp-run" :disabled="controlBusy" @click="submitWait()">提交并恢复</button>
+          </template>
+        </div>
+        <div v-if="result?.status === 'PAUSED'" class="wdp-wait-card"><strong>运行已暂停</strong><button class="wdp-run" :disabled="controlBusy" @click="resume">继续执行</button></div>
         <div
           v-if="!running && !result && !requestError && !abortNotice && liveSteps.length === 0"
           class="wdp-placeholder"
@@ -448,5 +522,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.wdp-shell{display:flex;flex-direction:column;width:100%;height:100%;overflow:hidden;border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 18px 48px rgb(15 23 42/.18);color:#1f2937;container-type:inline-size}.wdp-head{display:flex;align-items:center;justify-content:space-between;min-height:46px;padding:0 14px;border-bottom:1px solid #eef0f3;background:#fff}.wdp-head>div{display:flex;align-items:baseline;gap:8px}.wdp-subtitle{font-size:12px;color:#94a3b8}.wdp-icon-btn{border:0;background:transparent;font-size:23px;color:#64748b;cursor:pointer}.wdp-body{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr);flex:1;min-height:0;overflow:hidden}.wdp-left{overflow-y:auto;padding:14px;border-right:1px solid #eef0f3}.wdp-right{overflow-y:auto;padding:14px;min-width:0}.wdp-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;font-weight:650}.wdp-required,.wdp-failed{color:#dc2626}.wdp-success{color:#16a34a}.wdp-form{display:grid;gap:10px}.wdp-field{display:grid;gap:5px;font-size:12px;color:#475569}.wdp-field i{font-style:normal;color:#dc2626}.wdp-field input:not([type=checkbox]),.wdp-field select,.wdp-field textarea{box-sizing:border-box;width:100%;padding:8px 10px;border:1px solid #dbe1e8;border-radius:7px;background:#fff;font:inherit;color:#111827;outline:none}.wdp-field input:focus,.wdp-field select:focus,.wdp-field textarea:focus{border-color:#6366f1;box-shadow:0 0 0 2px rgb(99 102 241/.1)}.wdp-field small,.wdp-empty-input{font-size:11px;color:#94a3b8}.wdp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.wdp-run,.wdp-reset,.wdp-stop{padding:8px 14px;border-radius:7px;border:1px solid #dbe1e8;cursor:pointer}.wdp-run{flex:1;border-color:#4f46e5;background:#4f46e5;color:#fff;font-weight:600}.wdp-run:disabled{cursor:not-allowed;opacity:.5}.wdp-stop{border-color:#dc2626;background:#fff;color:#dc2626;font-weight:600}.wdp-reset{background:#fff;color:#475569}.wdp-running-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:400;color:#6366f1}.wdp-running,.wdp-placeholder,.wdp-error,.wdp-aborted{padding:12px;border-radius:8px;font-size:12px}.wdp-running,.wdp-placeholder{background:#f8fafc;color:#64748b}.wdp-error{background:#fef2f2;color:#b91c1c}.wdp-aborted{margin-bottom:8px;background:#fffbeb;color:#b45309}.wdp-spinner{display:inline-block;width:11px;height:11px;border:2px solid #c7d2fe;border-top-color:#4f46e5;border-radius:50%;animation:wdp-spin .8s linear infinite}.wdp-timeline{display:grid;gap:8px}.wdp-step{position:relative;border:1px solid #e5e7eb;border-radius:9px;overflow:hidden}.wdp-step.failed{border-color:#fecaca}.wdp-step-head{display:flex;width:100%;align-items:center;gap:8px;padding:10px;border:0;background:#fafafa;text-align:left;cursor:pointer}.wdp-step-pending{border-style:dashed;border-color:#c7d2fe;background:#fafbff}.wdp-step-pending .wdp-step-head{background:transparent;cursor:default}.wdp-dot{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;background:#dcfce7;color:#15803d;font-size:11px}.failed .wdp-dot{background:#fee2e2;color:#dc2626}.wdp-dot-pending{background:#eef2ff;animation:wdp-pulse 1s ease-in-out infinite}.wdp-step-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}.wdp-step-head code,.wdp-final code{font-size:10px;color:#64748b}.wdp-duration{font-size:10px;color:#94a3b8}.wdp-step-detail{display:grid;gap:10px;padding:10px;border-top:1px solid #eef0f3}.wdp-io b{display:block;margin-bottom:5px;font-size:11px;color:#64748b}.wdp-io pre,.wdp-final pre{max-height:220px;margin:0;overflow:auto;padding:9px;border-radius:7px;background:#0f172a;color:#e2e8f0;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.wdp-io p,.wdp-meta{margin:0;font-size:11px;color:#94a3b8}.wdp-final{margin-top:14px}.wdp-final .wdp-section-head{margin-bottom:8px}@keyframes wdp-spin{to{transform:rotate(360deg)}}@keyframes wdp-pulse{0%,100%{opacity:1}50%{opacity:.3}}@container (max-width:640px){.wdp-body{grid-template-columns:1fr;overflow:auto}.wdp-left{overflow:visible;border-right:0;border-bottom:1px solid #eef0f3}.wdp-right{overflow:visible}}@media (max-width:700px){.wdp-body{grid-template-columns:1fr;overflow:auto}.wdp-left{overflow:visible;border-right:0;border-bottom:1px solid #eef0f3}.wdp-right{overflow:visible}}
+.wdp-shell{display:flex;flex-direction:column;width:100%;height:100%;overflow:hidden;border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 18px 48px rgb(15 23 42/.18);color:#1f2937}.wdp-head{display:flex;align-items:center;justify-content:space-between;min-height:46px;padding:0 14px;border-bottom:1px solid #eef0f3;background:#fff}.wdp-head>div{display:flex;align-items:baseline;gap:8px}.wdp-subtitle{font-size:12px;color:#94a3b8}.wdp-icon-btn{border:0;background:transparent;font-size:23px;color:#64748b;cursor:pointer}.wdp-body{flex:1;min-height:0;overflow-y:auto}.wdp-input-section,.wdp-process-section{padding:14px;min-width:0}.wdp-input-section{border-bottom:1px solid #eef0f3}.wdp-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:13px;font-weight:650}.wdp-required,.wdp-failed{color:#dc2626}.wdp-success{color:#16a34a}.wdp-form{display:grid;gap:10px}.wdp-field{display:grid;gap:5px;font-size:12px;color:#475569}.wdp-field i{font-style:normal;color:#dc2626}.wdp-field input:not([type=checkbox]),.wdp-field select,.wdp-field textarea{box-sizing:border-box;width:100%;padding:8px 10px;border:1px solid #dbe1e8;border-radius:7px;background:#fff;font:inherit;color:#111827;outline:none}.wdp-field input:focus,.wdp-field select:focus,.wdp-field textarea:focus{border-color:#6366f1;box-shadow:0 0 0 2px rgb(99 102 241/.1)}.wdp-field small,.wdp-empty-input{font-size:11px;color:#94a3b8}.wdp-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.wdp-run,.wdp-reset,.wdp-stop{padding:8px 14px;border-radius:7px;border:1px solid #dbe1e8;cursor:pointer}.wdp-run{flex:1;border-color:#4f46e5;background:#4f46e5;color:#fff;font-weight:600}.wdp-run:disabled{cursor:not-allowed;opacity:.5}.wdp-stop{border-color:#dc2626;background:#fff;color:#dc2626;font-weight:600}.wdp-reset{background:#fff;color:#475569}.wdp-running-chip{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:400;color:#6366f1}.wdp-running,.wdp-placeholder,.wdp-error,.wdp-aborted{padding:12px;border-radius:8px;font-size:12px}.wdp-running,.wdp-placeholder{background:#f8fafc;color:#64748b}.wdp-error{background:#fef2f2;color:#b91c1c}.wdp-aborted{margin-bottom:8px;background:#fffbeb;color:#b45309}.wdp-spinner{display:inline-block;width:11px;height:11px;border:2px solid #c7d2fe;border-top-color:#4f46e5;border-radius:50%;animation:wdp-spin .8s linear infinite}.wdp-timeline{display:grid;gap:8px}.wdp-step{position:relative;border:1px solid #e5e7eb;border-radius:9px;overflow:hidden}.wdp-step.failed{border-color:#fecaca}.wdp-step-head{display:flex;width:100%;align-items:center;gap:8px;padding:10px;border:0;background:#fafafa;text-align:left;cursor:pointer}.wdp-step-pending{border-style:dashed;border-color:#c7d2fe;background:#fafbff}.wdp-step-pending .wdp-step-head{background:transparent;cursor:default}.wdp-dot{display:inline-grid;place-items:center;width:19px;height:19px;border-radius:50%;background:#dcfce7;color:#15803d;font-size:11px}.failed .wdp-dot{background:#fee2e2;color:#dc2626}.wdp-dot-pending{background:#eef2ff;animation:wdp-pulse 1s ease-in-out infinite}.wdp-step-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}.wdp-step-head code,.wdp-final code{font-size:10px;color:#64748b}.wdp-duration{font-size:10px;color:#94a3b8}.wdp-step-detail{display:grid;gap:10px;padding:10px;border-top:1px solid #eef0f3}.wdp-io b{display:block;margin-bottom:5px;font-size:11px;color:#64748b}.wdp-io pre,.wdp-final pre{max-height:220px;margin:0;overflow:auto;padding:9px;border-radius:7px;background:#0f172a;color:#e2e8f0;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.wdp-io p,.wdp-meta{margin:0;font-size:11px;color:#94a3b8}.wdp-final{margin-top:14px}.wdp-final .wdp-section-head{margin-bottom:8px}@keyframes wdp-spin{to{transform:rotate(360deg)}}@keyframes wdp-pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.wdp-waiting{color:#d97706}.wdp-wait-card{display:grid;gap:8px;margin-bottom:10px;padding:12px;border:1px solid #fde68a;border-radius:8px;background:#fffbeb;color:#92400e;font-size:12px}.wdp-wait-card small{display:block}.wdp-wait-card textarea{box-sizing:border-box;width:100%;padding:8px;border:1px solid #fcd34d;border-radius:6px;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
 </style>

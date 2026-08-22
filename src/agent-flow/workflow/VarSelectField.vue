@@ -112,6 +112,11 @@ function clear(e: MouseEvent) {
       </span>
     </template>
     <span v-else class="wf-vsf-placeholder">{{ placeholder }}</span>
+    <span class="wf-vsf-selector-icon" title="选择上游变量" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="14" height="14">
+        <path fill="currentColor" d="M4 6h2v2H4V6zm4 0h12v2H8V6zM4 11h2v2H4v-2zm4 0h12v2H8v-2zM4 16h2v2H4v-2zm4 0h12v2H8v-2z" />
+      </svg>
+    </span>
 
     <PromptEditorTagPanel
       :show="panelOpen"
@@ -157,6 +162,9 @@ function clear(e: MouseEvent) {
 .wf-vsf-small { min-height: 24px; font-size: 13px; }
 .wf-vsf-middle { min-height: 32px; font-size: 14px; }
 .wf-vsf-large { min-height: 40px; font-size: 15px; }
+.wf-vsf-placeholder { flex:1; min-width:0; color:#9ca3af; }
+.wf-vsf-selector-icon { display:inline-flex; align-items:center; justify-content:center; flex:none; width:22px; color:#94a3b8; }
+.wf-vsf:hover .wf-vsf-selector-icon { color:#4f46e5; }
 
 .wf-vsf-placeholder {
   color: #9ca3af;
