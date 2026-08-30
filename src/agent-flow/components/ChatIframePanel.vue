@@ -47,6 +47,7 @@ const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'ready'): void;
   (e: 'inputs-change', inputs: Record<string, unknown>): void;
+  (e: 'event', payload: { name: string; data?: unknown }): void;
 }>();
 
 const CHANNEL = 'boot-school-chat';
@@ -251,6 +252,13 @@ function onMessage(event: MessageEvent) {
     case 'chat:close':
       emit('close');
       break;
+    case 'chat:event': {
+      const payload = data.payload as { name?: unknown; data?: unknown } | null;
+      if (payload && typeof payload.name === 'string') {
+        emit('event', { name: payload.name, data: payload.data });
+      }
+      break;
+    }
     default:
       break;
   }

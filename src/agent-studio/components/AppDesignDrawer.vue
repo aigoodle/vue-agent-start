@@ -45,6 +45,7 @@ import {
 } from '@ant-design/icons-vue';
 
 import ChatIframePanel from '../../agent-flow/components/ChatIframePanel.vue';
+import ChatflowExecutionTrace from '../../agent-flow/components/ChatflowExecutionTrace.vue';
 import WorkflowDebugPanel from '../../agent-flow/components/WorkflowDebugPanel.vue';
 import type {
   ChatDebugVariable,
@@ -847,6 +848,8 @@ const chatDebugVariables = computed<ChatDebugVariable[]>(() =>
 // (workflow / chatflow) 画布占满整屏，才用这个按钮开右侧浮层。
 // ---------------------------------------------------------------------------
 const debugPanelOpen = ref(false);
+const chatflowTraceExpanded = ref(false);
+const chatflowTraceRef = ref<InstanceType<typeof ChatflowExecutionTrace> | null>(null);
 /**
  * 每次打开按当前时间刷新，用作 ChatIframePanel 的 key，强制重挂 iframe：
  * 用户改完变量之后再点一次「调试」希望是"新一轮"，避免旧会话残留。
@@ -883,6 +886,7 @@ const workflowDebugGraph = computed<Record<string, unknown>>(() =>
 function openDebug() {
   if (!isWorkflowMode.value && !props.chatConfig?.src) return;
   debugSessionSuffix.value = Date.now();
+  chatflowTraceExpanded.value = false;
   debugPanelOpen.value = true;
 }
 function closeDebug() {
@@ -895,11 +899,14 @@ function closeDebug() {
 // ---------------------------------------------------------------------------
 const DEBUG_POS_KEY = 'agent-start-debug-panel-pos';
 /**
- * 面板实际宽度随视口变化（与 CSS `width: min(920px, 92vw)` 一致）。
+ * 普通工作流 / 展开的 CHATFLOW 使用完整宽度；CHATFLOW 默认只占一半。
  * 拖动夹取必须用同一个值计算，否则会按旧宽度把面板推出屏幕。
  */
 function debugPanelW(): number {
-  return Math.min(920, Math.round(window.innerWidth * 0.92));
+  const fullWidth = Math.min(920, Math.round(window.innerWidth * 0.92));
+  return props.app?.mode === 'chatflow' && !chatflowTraceExpanded.value
+    ? Math.min(460, fullWidth)
+    : fullWidth;
 }
 const DEBUG_PANEL_H_RATIO = 0.86; // 相对抽屉高度的比例
 const DRAG_HANDLE_HEIGHT = 46; // 与 ChatIframePanel .cip-head 保持一致
@@ -957,6 +964,23 @@ function defaultDebugPos(): { left: number; top: number } {
     left: window.innerWidth - debugPanelW() - 24,
     top: 80,
   });
+}
+
+function toggleChatflowTrace() {
+  const oldWidth = debugPanelW();
+  const oldLeft = debugPos.value?.left;
+  chatflowTraceExpanded.value = !chatflowTraceExpanded.value;
+  if (oldLeft !== undefined) {
+    // 扩缩时固定右边缘，避免聊天窗在屏幕上跳动。
+    debugPos.value = clampDebugPos({
+      left: oldLeft + oldWidth - debugPanelW(),
+      top: debugPos.value!.top,
+    });
+  }
+}
+
+function onChatflowEvent(payload: { name: string; data?: unknown }) {
+  chatflowTraceRef.value?.receive(payload);
 }
 
 function onDebugPanelPointerDown(e: PointerEvent) {
@@ -1778,7 +1802,11 @@ function variableTypeLabel(type: AgentVariable['type']): string {
           <div
             v-if="debugPanelOpen && (isWorkflowMode || chatConfig?.src)"
             class="dr-debug-panel"
-            :class="{ 'dr-debug-panel-dragging': debugDragging }"
+            :class="{
+              'dr-debug-panel-dragging': debugDragging,
+              'dr-debug-panel-chatflow': app?.mode === 'chatflow',
+              'dr-debug-panel-expanded': app?.mode === 'chatflow' && chatflowTraceExpanded,
+            }"
             :style="
               debugPos
                 ? { left: debugPos.left + 'px', top: debugPos.top + 'px' }
@@ -1799,20 +1827,47 @@ function variableTypeLabel(type: AgentVariable['type']): string {
               :title="`调试：${app?.name || '工作流'}`"
               @close="closeDebug"
             />
-            <ChatIframePanel
-              v-else
-              :key="debugSessionSuffix"
-              :src="chatConfig?.src || ''"
-              :params="chatConfig?.params"
-              :context="chatConfig?.context"
-              :title="chatConfig?.title || `调试：${app?.name || ''}`"
-              :session-key="
-                chatConfig?.sessionKey ||
-                `${app?.mode || 'app'}-${app?.id || 'draft'}-${debugSessionSuffix}`
-              "
-              :variables="isFlowMode ? flowDebugVariables : chatDebugVariables"
-              @close="closeDebug"
-            />
+            <template v-else>
+              <button
+                v-if="app?.mode === 'chatflow'"
+                type="button"
+                class="dr-chatflow-expand"
+                :title="chatflowTraceExpanded ? '收起执行过程' : '展开执行过程'"
+                :aria-label="chatflowTraceExpanded ? '收起执行过程' : '展开执行过程'"
+                @pointerdown.stop
+                @click.stop="toggleChatflowTrace"
+              >{{ chatflowTraceExpanded ? '▶' : '◀' }}</button>
+              <div v-if="app?.mode === 'chatflow'" class="dr-chatflow-layout">
+                <ChatflowExecutionTrace
+                  v-show="chatflowTraceExpanded"
+                  ref="chatflowTraceRef"
+                  class="dr-chatflow-trace"
+                  :graph="workflowDebugGraph"
+                />
+                <ChatIframePanel
+                  :key="debugSessionSuffix"
+                  :src="chatConfig?.src || ''"
+                  :params="chatConfig?.params"
+                  :context="chatConfig?.context"
+                  :title="chatConfig?.title || `调试：${app?.name || ''}`"
+                  :session-key="chatConfig?.sessionKey || `chatflow-${app?.id || 'draft'}-${debugSessionSuffix}`"
+                  :variables="flowDebugVariables"
+                  @event="onChatflowEvent"
+                  @close="closeDebug"
+                />
+              </div>
+              <ChatIframePanel
+                v-else
+                :key="debugSessionSuffix"
+                :src="chatConfig?.src || ''"
+                :params="chatConfig?.params"
+                :context="chatConfig?.context"
+                :title="chatConfig?.title || `调试：${app?.name || ''}`"
+                :session-key="chatConfig?.sessionKey || `${app?.mode || 'app'}-${app?.id || 'draft'}-${debugSessionSuffix}`"
+                :variables="chatDebugVariables"
+                @close="closeDebug"
+              />
+            </template>
           </div>
         </transition>
       </div>
@@ -2346,6 +2401,17 @@ function variableTypeLabel(type: AgentVariable['type']): string {
   overflow: hidden;
   touch-action: none; /* 阻止移动端手势卷动，让 pointermove 走拖动 */
 }
+.dr-debug-panel-chatflow {
+  width: min(460px, 92vw);
+  overflow: visible;
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dr-debug-panel-chatflow.dr-debug-panel-expanded { width: min(920px, 92vw); }
+.dr-chatflow-layout{display:grid;grid-template-columns:1fr;width:100%;height:100%;gap:10px}
+.dr-debug-panel-expanded .dr-chatflow-layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.dr-chatflow-trace{min-width:0}
+.dr-chatflow-expand{position:absolute;z-index:4;left:-22px;top:50%;display:grid;place-items:center;width:24px;height:48px;padding:0;transform:translateY(-50%);border:1px solid #c7d2fe;border-right:0;border-radius:9px 0 0 9px;background:#fff;color:#4f46e5;box-shadow:-4px 3px 10px rgb(15 23 42/.12);cursor:pointer;font-size:11px}
+.dr-chatflow-expand:hover{background:#eef2ff;color:#3730a3}
 /* 用了 left/top 内联样式时，覆盖默认的 right 定位 */
 .dr-debug-panel[style*='left'] {
   right: auto;
