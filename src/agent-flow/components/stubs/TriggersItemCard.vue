@@ -1,13 +1,28 @@
 <script setup lang="ts">
-import { computed, watchEffect } from 'vue';
-import { ApiOutlined, ClockCircleOutlined, ThunderboltOutlined } from '@ant-design/icons-vue';
+import { computed, onMounted, ref, watch, watchEffect } from 'vue';
+import { ApiOutlined, ClockCircleOutlined, MessageOutlined, ThunderboltOutlined } from '@ant-design/icons-vue';
+
+import { createAgentStartClient } from '../../../client';
+import { useAgentStartClient } from '../../../client/vue';
+import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
+import type { ChannelConnection, ChannelDefinition } from '../../../connector-hub/types';
 
 const formState: any = defineModel();
+const global = useAgentStartConfig();
+const client = useAgentStartClient() ?? createAgentStartClient({
+  baseUrl: global.apiBase ?? '/api',
+  headers: () => mergeAgentStartHeaders(global.headers),
+});
+const channels = ref<ChannelDefinition[]>([]);
+const channelConnections = ref<ChannelConnection[]>([]);
+const connectorLoading = ref(false);
+const connectorError = ref('');
 
 const TRIGGERS = [
   { key: 'http', label: 'HTTP 请求', icon: ApiOutlined, color: '#06b6d4' },
   { key: 'schedule', label: '定时', icon: ClockCircleOutlined, color: '#f59e0b' },
   { key: 'webhook', label: 'Webhook', icon: ThunderboltOutlined, color: '#8b5cf6' },
+  { key: 'connector', label: '消息连接器', icon: MessageOutlined, color: '#ec4899' },
 ];
 
 const enabled = computed({
@@ -28,6 +43,12 @@ function ensureTrigger() {
   trigger.dayOfMonth ??= 1;
   trigger.timeZone ??= 'Asia/Shanghai';
   trigger.payloadJson ??= '{}';
+  trigger.provider ??= '';
+  trigger.channelId ??= '';
+  trigger.channelName ??= '';
+  trigger.connectionId ??= '';
+  trigger.connectionName ??= '';
+  trigger.messageTypes ??= [];
   return trigger;
 }
 
@@ -57,6 +78,45 @@ const schedulePreview = computed(() => {
   if (trigger.scheduleType === 'ONCE') return trigger.runAt ? `一次：${trigger.runAt}` : '请选择执行时间';
   return `Cron：${generatedCron()}（${trigger.timeZone}）`;
 });
+
+const installedChannels = computed(() => channels.value.filter((channel) => channel.enabled
+  && channelConnections.value.some((connection) => connection.provider === channel.provider
+    && connection.channelId === channel.channelId && connection.desiredStatus !== 'DISABLED')));
+const selectedChannel = computed(() => installedChannels.value.find((channel) =>
+  channel.provider === ensureTrigger().provider && channel.channelId === ensureTrigger().channelId));
+const availableConnections = computed(() => channelConnections.value.filter((connection) =>
+  connection.provider === ensureTrigger().provider && connection.channelId === ensureTrigger().channelId
+    && connection.desiredStatus !== 'DISABLED'));
+
+watch(() => [ensureTrigger().provider, ensureTrigger().channelId], () => {
+  const trigger = ensureTrigger();
+  trigger.channelName = selectedChannel.value?.name ?? '';
+  if (!availableConnections.value.some((item) => item.id === trigger.connectionId)) {
+    trigger.connectionId = '';
+    trigger.connectionName = '';
+  }
+});
+
+watch(() => ensureTrigger().connectionId, (connectionId) => {
+  ensureTrigger().connectionName = channelConnections.value.find((item) => item.id === connectionId)?.name ?? '';
+});
+
+async function loadMessageConnectors() {
+  connectorLoading.value = true;
+  connectorError.value = '';
+  try {
+    [channels.value, channelConnections.value] = await Promise.all([
+      client.connectors.listChannels(),
+      client.connectors.listChannelConnections(),
+    ]);
+  } catch (error: any) {
+    connectorError.value = error?.message ?? '加载消息连接器失败';
+  } finally {
+    connectorLoading.value = false;
+  }
+}
+
+onMounted(loadMessageConnectors);
 </script>
 
 <template>
@@ -126,6 +186,64 @@ const schedulePreview = computed(() => {
       <div class="wf-schedule-note">保存/发布后由后端持久化调度；集群部署时同一周期只会被一个节点抢占执行。</div>
     </div>
 
+    <div v-else-if="enabled && currentType === 'connector'" class="wf-connector-form">
+      <div v-if="connectorLoading" class="wf-connector-status">正在加载消息连接器…</div>
+      <div v-else-if="connectorError" class="wf-connector-error">
+        {{ connectorError }}
+        <a-button size="small" type="link" @click="loadMessageConnectors">重试</a-button>
+      </div>
+
+      <label>消息连接器
+        <a-select
+          :value="formState.triggers.provider && formState.triggers.channelId ? `${formState.triggers.provider}:${formState.triggers.channelId}` : undefined"
+          placeholder="请选择已接入的消息平台"
+          show-search
+          :filter-option="(input: string, option: any) => String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())"
+          @change="(value: string) => { const [provider, ...parts] = value.split(':'); formState.triggers.provider = provider; formState.triggers.channelId = parts.join(':'); }"
+        >
+          <a-select-option
+            v-for="channel in installedChannels"
+            :key="`${channel.provider}:${channel.channelId}`"
+            :value="`${channel.provider}:${channel.channelId}`"
+            :label="`${channel.name} ${channel.provider}`"
+          >
+            {{ channel.name }}（{{ channel.provider }}）
+          </a-select-option>
+        </a-select>
+      </label>
+
+      <div v-if="!connectorLoading && !connectorError && installedChannels.length === 0" class="wf-connector-warning">
+        暂无已安装并启用的消息连接器，请先在连接器中心完成接入。
+      </div>
+
+      <label>接收账号 / 连接
+        <a-select v-model:value="formState.triggers.connectionId" :disabled="!selectedChannel" placeholder="全部已配置账号">
+          <a-select-option value="">全部已配置账号</a-select-option>
+          <a-select-option
+            v-for="connection in availableConnections"
+            :key="connection.id"
+            :value="connection.id"
+            :disabled="connection.desiredStatus === 'DISABLED'"
+          >
+            {{ connection.name }} · {{ connection.runtimeStatus }}
+          </a-select-option>
+        </a-select>
+      </label>
+
+      <label>接收的消息类型
+        <a-select v-model:value="formState.triggers.messageTypes" mode="multiple" placeholder="全部消息类型">
+          <a-select-option v-for="type in ['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'FILE', 'RICH_TEXT']" :key="type" :value="type">{{ type }}</a-select-option>
+        </a-select>
+      </label>
+
+      <div v-if="selectedChannel && availableConnections.length === 0" class="wf-connector-warning">
+        此连接器还没有可用账号，请先在连接器中心完成账号接入。
+      </div>
+      <div class="wf-connector-note">
+        收到入站消息后执行当前工作流；消息正文、发送者、会话 ID、附件和原始消息会作为开始节点的触发器输入。
+      </div>
+    </div>
+
     <div v-else-if="enabled" class="wf-triggers-hint">
       {{ currentType === 'webhook' ? 'Webhook 的路径和密钥由发布接口生成。' : 'HTTP 触发后会把请求体作为开始节点输入。' }}
     </div>
@@ -135,7 +253,7 @@ const schedulePreview = computed(() => {
 <style scoped>
 .wf-triggers { display: flex; flex-direction: column; gap: 8px; }
 .wf-triggers-toggle { display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:#f9fafb; border-radius:6px; font-size:12px; color:#4b5563; }
-.wf-triggers-types { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.wf-triggers-types { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; }
 .wf-triggers-type { display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; background:#fff; border:1px solid #e5e7eb; border-radius:6px; cursor:pointer; color:#4b5563; font-size:11px; }
 .wf-triggers-type:hover,.wf-triggers-type.is-active { border-color:var(--tc); color:var(--tc); }
 .wf-triggers-type.is-active { background:color-mix(in srgb,var(--tc) 10%,transparent); }
@@ -145,4 +263,10 @@ const schedulePreview = computed(() => {
 .wf-schedule-form :deep(.ant-select),.wf-schedule-form :deep(.ant-input-number) { width:100%; }
 .wf-schedule-preview { padding:7px 9px; border-radius:5px; background:#fff; color:#92400e; font:11px ui-monospace,monospace; overflow-wrap:anywhere; }
 .wf-schedule-note,.wf-triggers-hint { padding:6px 10px; font-size:11px; color:#92400e; background:#fef3c7; border-radius:4px; }
+.wf-connector-form { display:grid; gap:9px; padding:10px; border:1px solid #fbcfe8; border-radius:7px; background:#fdf2f8; }
+.wf-connector-form label { display:grid; gap:4px; font-size:11px; color:#4b5563; }
+.wf-connector-form :deep(.ant-select) { width:100%; }
+.wf-connector-status { color:#6b7280; font-size:11px; }
+.wf-connector-error,.wf-connector-warning { padding:7px 9px; border-radius:5px; background:#fff1f2; color:#be123c; font-size:11px; }
+.wf-connector-note { padding:7px 9px; border-radius:5px; background:#fff; color:#9d174d; font-size:11px; line-height:1.5; }
 </style>

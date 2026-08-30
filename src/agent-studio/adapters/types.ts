@@ -32,6 +32,8 @@ export interface AgentEntity {
   workflowId?: string;
   modelName?: string;
   modelProvider?: string;
+  runtimeType?: 'NATIVE' | 'SPRING_AI_ALIBABA' | string;
+  runtimeRef?: string;
   modelSettingsJson?: string;
   strategy?: AgentStrategy;
   toolNamesJson?: string;
@@ -61,6 +63,8 @@ export interface CreateAgentRequest {
   retrievalConfig?: Record<string, unknown>;
   modelName?: string;
   modelProvider?: string;
+  runtimeType?: 'NATIVE' | 'SPRING_AI_ALIBABA' | string;
+  runtimeRef?: string;
   strategy?: AgentStrategy;
   toolNames?: string[];
   approvalRequiredTools?: string[];

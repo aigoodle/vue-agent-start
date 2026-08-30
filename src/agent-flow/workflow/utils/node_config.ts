@@ -8,7 +8,7 @@
  * {@link NodeCatalogItem.type} 与 backend `spring-agent-workflow` 的
  * {@code NodeType} 枚举一致（UPPER_SNAKE），也是 FlowDesigner 里
  * `<template #node-{type}>` 注册的 slot 名 —— 单一标识贯穿画布、持久化、
- * 引擎执行三层。设计器独有的类型（USER_INPUT / FILE_UPLOAD / HUMAN_INPUT /
+ * 引擎执行三层。设计器独有的类型（USER_INPUT / FILE_UPLOAD /
  * LOOP）没有严格对应的 backend NodeType，backend 的
  * {@code NodeType.fromJson} 会把它们映射到最接近的引擎节点（前三者 → START，
  * LOOP → ITERATION），使得设计器保存的图仍能跑起来。
@@ -47,6 +47,9 @@ const nodeItems: NodeCatalogItem[] = [
   { type: 'VARIABLE_ASSIGNER', name: '变量赋值', icon: 'variable', category: '逻辑' },
   { type: 'PARAMETER_EXTRACTOR', name: '参数提取', icon: 'variable', category: '逻辑' },
   { type: 'HUMAN_INPUT', name: '人工介入', icon: 'user', category: '逻辑' },
+  { type: 'APPROVAL', name: '审批', icon: 'user', category: '逻辑' },
+  { type: 'WAIT_EVENT', name: '等待事件', icon: 'user', category: '逻辑' },
+  { type: 'SLEEP_UNTIL', name: '定时等待', icon: 'schedule', category: '逻辑' },
 
   // 工具
   { type: 'HTTP_REQUEST', name: 'HTTP 请求', icon: 'http', category: '工具' },

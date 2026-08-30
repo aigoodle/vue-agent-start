@@ -32,6 +32,11 @@ export interface BackendAdapter {
     opts?: { signal?: AbortSignal },
   ) => Promise<Response | null>;
 
+  cancelWorkflowRun?: (runId: string, reason?: string) => Promise<{ data: any }>;
+  pauseWorkflowRun?: (runId: string, reason?: string) => Promise<{ data: any }>;
+  resumeWorkflowRun?: (runId: string) => Promise<{ data: any }>;
+  signalWorkflowRun?: (runId: string, request: Record<string, any>) => Promise<{ data: any }>;
+
   /** 可选：模型下拉数据源（Pinia store 风格，返回带 fetch 方法的对象） */
   useModelState?: () => any;
 
@@ -102,6 +107,30 @@ export const runWorkflow: BackendAdapter['runWorkflow'] = async (p) => {
   if (!b.runWorkflow) return { data: {} };
   return b.runWorkflow(p);
 };
+
+export async function cancelWorkflowRun(runId: string, reason?: string) {
+  const fn = useBackend().cancelWorkflowRun;
+  if (!fn) throw new Error('宿主未配置 cancelWorkflowRun');
+  return fn(runId, reason);
+}
+
+export async function pauseWorkflowRun(runId: string, reason?: string) {
+  const fn = useBackend().pauseWorkflowRun;
+  if (!fn) throw new Error('宿主未配置 pauseWorkflowRun');
+  return fn(runId, reason);
+}
+
+export async function resumeWorkflowRun(runId: string) {
+  const fn = useBackend().resumeWorkflowRun;
+  if (!fn) throw new Error('宿主未配置 resumeWorkflowRun');
+  return fn(runId);
+}
+
+export async function signalWorkflowRun(runId: string, request: Record<string, any>) {
+  const fn = useBackend().signalWorkflowRun;
+  if (!fn) throw new Error('宿主未配置 signalWorkflowRun');
+  return fn(runId, request);
+}
 
 /** 流式试运行薄壳：宿主未实现时返回 `null`，调用方据此回退一次性执行。 */
 export const runWorkflowStream: Required<

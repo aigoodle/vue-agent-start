@@ -44,11 +44,41 @@ export interface RunGraphRequest {
 
 /** Wire shape returned by /workflows/run-graph. */
 export interface RunGraphResultWire {
+  runId?: string;
   success?: boolean;
+  status?: WorkflowRunStatus;
   error?: string;
   outputs?: Record<string, unknown>;
   steps?: Array<Record<string, unknown>>;
+  waitingNodeId?: string;
+  waitRequest?: WorkflowWaitRequestWire;
   [k: string]: unknown;
+}
+
+export type WorkflowRunStatus =
+  | 'RUNNING' | 'PAUSING' | 'PAUSED' | 'CANCELLING' | 'CANCELLED'
+  | 'TIMED_OUT' | 'SUCCEEDED' | 'FAILED' | 'WAITING';
+
+export type WorkflowWaitType = 'HUMAN_INPUT' | 'APPROVAL' | 'WAIT_EVENT' | 'SLEEP_UNTIL';
+
+export interface WorkflowWaitRequestWire {
+  type: WorkflowWaitType;
+  correlationKey?: string;
+  inputSchema?: Record<string, unknown>;
+  expiresAt?: string;
+  wakeAt?: string;
+  resumeToken: string;
+}
+
+export interface WorkflowSignalRequest {
+  resumeToken: string;
+  eventId: string;
+  payload?: Record<string, unknown>;
+}
+export interface WorkflowSignalResultWire {
+  accepted: boolean;
+  duplicate: boolean;
+  runResult?: RunGraphResultWire;
 }
 
 /** Node-type metadata row from /node-types. */
@@ -93,6 +123,16 @@ export interface WorkflowsNamespace {
    * cancellation is only possible through the signal.
    */
   runGraphStream(req: RunGraphRequest, opts?: ExtraRequestOptions): Promise<Response>;
+  /** POST /workflow-runs/{runId}/cancel. */
+  cancelRun(runId: string, reason?: string): Promise<boolean>;
+  /** POST /workflow-runs/{runId}/pause. */
+  pauseRun(runId: string, reason?: string): Promise<boolean>;
+  /** POST /workflow-runs/{runId}/resume. */
+  resumeRun(runId: string): Promise<RunGraphResultWire>;
+  /** Resume a durable wait by run id. eventId makes repeated callbacks idempotent. */
+  signalRun(runId: string, req: WorkflowSignalRequest): Promise<WorkflowSignalResultWire>;
+  /** Resume a durable wait by its correlation key. */
+  signalEvent(correlationKey: string, req: WorkflowSignalRequest): Promise<WorkflowSignalResultWire>;
   /** GET /node-types — engine node metadata. */
   listNodeTypes(): Promise<NodeTypeMetaWire[]>;
   /** GET /workflow-examples. */
@@ -146,6 +186,26 @@ export function createWorkflowsNamespace(core: HttpCore): WorkflowsNamespace {
         },
         opts,
       ),
+    cancelRun: (runId, reason) =>
+      core.request<boolean>(`/workflow-runs/${encodeURIComponent(runId)}/cancel`, {
+        method: 'POST', body: JSON.stringify(reason ? { reason } : {}),
+      }),
+    pauseRun: (runId, reason) =>
+      core.request<boolean>(`/workflow-runs/${encodeURIComponent(runId)}/pause`, {
+        method: 'POST', body: JSON.stringify(reason ? { reason } : {}),
+      }),
+    resumeRun: (runId) =>
+      core.request<RunGraphResultWire>(`/workflow-runs/${encodeURIComponent(runId)}/resume`, {
+        method: 'POST', body: JSON.stringify({}),
+      }),
+    signalRun: (runId, req) =>
+      core.request<WorkflowSignalResultWire>(`/workflow-runs/${encodeURIComponent(runId)}/signal`, {
+        method: 'POST', body: JSON.stringify(req),
+      }),
+    signalEvent: (correlationKey, req) =>
+      core.request<WorkflowSignalResultWire>(`/workflow-events/${encodeURIComponent(correlationKey)}`, {
+        method: 'POST', body: JSON.stringify(req),
+      }),
     listNodeTypes: () => core.request<NodeTypeMetaWire[]>('/node-types'),
     listExamples: () => core.request<WorkflowExampleWire[]>('/workflow-examples'),
   };

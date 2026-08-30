@@ -5,10 +5,10 @@
  * cleanly — no adapter translation needed between the designer and the engine.
  *
  * Designer-only entries with no backend {@code NodeType} equivalent
- * ({@code USER_INPUT}, {@code FILE_UPLOAD}, {@code HUMAN_INPUT}, {@code LOOP})
+ * ({@code USER_INPUT}, {@code FILE_UPLOAD}, {@code LOOP})
  * still use the UPPER_SNAKE convention for consistency; the backend's
  * {@code NodeType.fromJson} maps them onto the closest engine node at run
- * time (USER_INPUT/FILE_UPLOAD/HUMAN_INPUT → START, LOOP → ITERATION).
+ * time (USER_INPUT/FILE_UPLOAD → START, LOOP → ITERATION).
  */
 const nodeCardForm: any = {
   START: {
@@ -36,7 +36,9 @@ const nodeCardForm: any = {
           value: '',
           description: '触发器输出',
           hidden: true,
-          children: [],
+          children: [
+            { name: 'type', type: 'string', label: '触发器类型' },
+          ],
         },
       ],
     },
@@ -263,9 +265,27 @@ const nodeCardForm: any = {
   },
   CONNECTOR: {
     label: '连接器', provider: '', connectorId: '', connectorName: '',
+    connectorMode: 'CHANNEL_MESSAGE', channelSource: 'REPLY_TRIGGER', channelConnectionId: '',
+    channelName: '', messageContent: '', messageType: 'TEXT', targetId: '', channelConversationId: '',
     actionId: '', actionName: '', installationId: '', connectionId: '', connectionName: '',
-    inputs: {}, outputKey: 'result',
-    output: [{ type: 'object', name: 'result', value: {}, label: '连接器执行结果' }],
+    connectionSource: 'DEFAULT', connectionIdTemplate: '',
+    inputs: {}, inputField: 'input', inputText: '', outputKey: 'result',
+    output: [{
+      type: 'object', name: 'result', value: {}, label: '连接器执行结果', children: [
+        { type: 'boolean', name: 'success', value: true, label: '是否执行成功' },
+        { type: 'object', name: 'data', value: {}, label: '业务返回数据' },
+        { type: 'array', name: 'content', value: [], label: '文本或资源内容' },
+        { type: 'object', name: 'metadata', value: {}, label: '执行元数据' },
+        { type: 'string', name: 'provider', value: '', label: '连接器提供方' },
+        { type: 'string', name: 'connectorId', value: '', label: '连接器 ID' },
+        { type: 'string', name: 'actionId', value: '', label: 'Action ID' },
+        { type: 'string', name: 'connectionId', value: '', label: '连接账号 ID' },
+        { type: 'string', name: 'messageId', value: '', label: '渠道消息 ID' },
+        { type: 'string', name: 'channelId', value: '', label: '消息渠道 ID' },
+        { type: 'string', name: 'targetId', value: '', label: '接收目标 ID' },
+        { type: 'string', name: 'conversationId', value: '', label: '会话 ID' },
+      ],
+    }],
   },
   SCHEDULE_TRIGGER: {
     name: '工作流定时任务',
@@ -356,14 +376,37 @@ const nodeCardForm: any = {
     ],
   },
   HUMAN_INPUT: {
-    approvalType: 'approve',
-    prompt: '请审批以下内容',
+    correlationKey: '',
+    formMode: 'FIXED',
+    model: { modelId: '', modelName: '', modelProvider: '', mode: 'chat', completionParams: {} },
+    generationPrompt: '{{#sys.query#}}',
+    inputSchema: { type: 'object', properties: {} },
     formFields: [],
-    timeout: 3600,
-    output: [
-      { type: 'string', name: 'response', value: '', label: '人工响应' },
-      { type: 'boolean', name: 'approved', value: false, label: '是否批准' },
-    ],
+    formTitle: '人工输入',
+    prompt: '',
+    submitButtonText: '提交',
+    timeoutEnabled: true,
+    timeoutValue: 1,
+    timeoutUnit: 'hour',
+    timeoutSeconds: 3600,
+    presentationMode: 'AUTO',
+    channelProvider: '', channelId: '', channelConnectionId: '', channelTarget: '',
+    deliveryFallback: 'WEB_LINK_THEN_TEXT',
+    output: [{ type: 'object', name: 'values', value: {}, label: '人工提交数据' }],
+  },
+  APPROVAL: {
+    correlationKey: '', inputSchema: { type: 'object', properties: { approved: { type: 'boolean' } }, required: ['approved'] },
+    timeoutSeconds: 3600, timeoutStrategy: 'TIMEOUT', escalationCorrelationKey: '',
+    allowedUserIds: [], allowedRoles: [], escalationAllowedRoles: [],
+    output: [{ type: 'boolean', name: 'approved', value: false, label: '是否批准' }],
+  },
+  WAIT_EVENT: {
+    correlationKey: '', inputSchema: { type: 'object', properties: {} }, timeoutSeconds: 0,
+    output: [{ type: 'object', name: 'payload', value: {}, label: '事件载荷' }],
+  },
+  SLEEP_UNTIL: {
+    until: '', delayMillis: undefined,
+    output: [],
   },
   VARIABLE_ASSIGNER: {
     assignments: [

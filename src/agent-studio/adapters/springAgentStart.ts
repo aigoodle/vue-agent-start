@@ -190,6 +190,7 @@ export function createAgentStudioSpringBackend(
     fetchAppMetrics: (appId) => client.agents.fetchAppMetrics(appId),
     fetchLlmUsage: () => client.agents.fetchLlmUsage(),
     fetchRecentLlmCalls: (limit = 50) => client.agents.fetchRecentLlmCalls(limit),
+    fetchLlmTrend: (range) => client.agents.fetchLlmTrend(range),
 
     listApiKeys: (appId) => client.agents.listApiKeys(appId),
     createApiKey: (appId, name) => client.agents.createApiKey(appId, name),

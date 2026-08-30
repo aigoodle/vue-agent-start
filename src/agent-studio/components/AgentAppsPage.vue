@@ -53,6 +53,7 @@ import {
   readSseEvents,
   type AgentStartClient,
 } from '../../client';
+import { provideAgentStartClient } from '../../client/vue';
 import {
   mergeAgentStartHeaders,
   type AgentStartHeaders,
@@ -123,6 +124,11 @@ function client(): AgentStartClient {
   return cachedClient;
 }
 
+// FlowDesigner and its deeply nested node panels share the same authenticated
+// client. Without this provide, those panels can only see global plugin headers
+// and lose the headers passed directly to AgentAppsPage.
+provideAgentStartClient(client());
+
 // ---- CreateAgent / UpdateAgent request shape (mirrors #/api/agent) ----
 interface CreateAgentRequestFull {
   tenantId?: string;
@@ -140,6 +146,8 @@ interface CreateAgentRequestFull {
   retrievalConfig?: Record<string, unknown>;
   modelName?: string;
   modelProvider?: string;
+  runtimeType?: 'NATIVE' | 'SPRING_AI_ALIBABA' | string;
+  runtimeRef?: string;
   strategy?: AgentStrategy;
   toolNames?: string[];
   approvalRequiredTools?: string[];
@@ -153,6 +161,7 @@ interface CreateAgentRequestFull {
 
 // ---- Agent CRUD ----
 const listAgents = () => client().agents.list() as Promise<AgentEntity[]>;
+const listRuntimes = () => client().agents.listRuntimes();
 const createAgentReq = (req: CreateAgentRequestFull) =>
   client().agents.create(req) as Promise<AgentEntity>;
 const updateAgentReq = (id: string, req: CreateAgentRequestFull) =>
@@ -160,8 +169,8 @@ const updateAgentReq = (id: string, req: CreateAgentRequestFull) =>
 const deleteAgentReq = (id: string) => client().agents.remove(id);
 
 // ---- Chat stream (raw fetch — SSE) ----
-function chatStreamReq(id: string, body: { query: string }) {
-  return client().agents.chatStream(id, body);
+function previewStreamReq(id: string, body: { query: string }) {
+  return client().agents.previewStream(id, body);
 }
 
 // ---- Conversations + history (called by AppStudioApi bag) ----
@@ -286,6 +295,8 @@ const fetchRecentReq = (limit = 50) =>
   client().agents.fetchRecentLlmCalls(limit) as unknown as Promise<
     LlmCallRecord[]
   >;
+const fetchLlmTrendReq = (range: 'HOUR' | 'DAY' | 'WEEK') =>
+  client().agents.fetchLlmTrend(range);
 
 // ---- Models / Tools / Datasets ----
 interface ModelEntity {
@@ -332,6 +343,9 @@ interface WorkflowEntity {
   markedName?: string;
   markedComment?: string;
   createdAt?: string;
+  publishedAt?: string;
+  versionNumber?: number;
+  status?: 'ACTIVE' | 'SUPERSEDED' | 'DISABLED';
 }
 const getWorkflowDraftReq = (appId: string) =>
   client().workflows.getDraft(appId) as unknown as Promise<WorkflowEntity>;
@@ -355,6 +369,10 @@ const studioApi: AppStudioApi = {
     client().workflows.runGraph(payload as any),
   runWorkflowGraphStream: (payload, opts) =>
     client().workflows.runGraphStream(payload as any, opts),
+  cancelWorkflowRun: (runId, reason) => client().workflows.cancelRun(runId, reason),
+  pauseWorkflowRun: (runId, reason) => client().workflows.pauseRun(runId, reason),
+  resumeWorkflowRun: (runId) => client().workflows.resumeRun(runId),
+  signalWorkflowRun: (runId, request) => client().workflows.signalRun(runId, request as any),
   listPublishedWorkflowOptions: () =>
     client().agents.listPublishedWorkflowOptions(),
   listConversations: (appId: string, limit?: number) =>
@@ -371,6 +389,7 @@ const studioApi: AppStudioApi = {
   fetchAppMetrics: (appId: string) => fetchAppMetricsReq(appId),
   fetchLlmUsage: () => fetchTotalReq() as any,
   fetchRecentLlmCalls: (limit?: number) => fetchRecentReq(limit) as any,
+  fetchLlmTrend: (range: 'HOUR' | 'DAY' | 'WEEK') => fetchLlmTrendReq(range) as any,
   listApiKeys: (appId: string) => listApiKeysReq(appId) as any,
   createApiKey: (appId: string, name?: string) =>
     createApiKeyReq(appId, name) as any,
@@ -453,6 +472,7 @@ function buildChatIframeConfig(
 // ---------------------------------------------------------------------------
 const agents = ref<AgentEntity[]>([]);
 const llmModels = ref<ModelEntity[]>([]);
+const runtimeTypes = ref<string[]>(['NATIVE']);
 const tools = ref<ToolView[]>([]);
 const datasets = ref<DatasetEntity[]>([]);
 const loading = ref(false);
@@ -602,6 +622,11 @@ async function refresh() {
 
 async function loadDeps() {
   try {
+    runtimeTypes.value = (await listRuntimes()).map((item) => item.type);
+  } catch {
+    runtimeTypes.value = ['NATIVE'];
+  }
+  try {
     llmModels.value = await listModelsReq('LLM');
   } catch {
     llmModels.value = [];
@@ -734,6 +759,19 @@ async function openDesigner(a: AgentEntity) {
     } catch {
       drawerGraphJson.value = '';
     }
+  } else {
+    try {
+      drawerWorkflowHistory.value = (await client().agents.listVersions(a.id)).map((version) => ({
+        id: version.id,
+        versionNumber: version.versionNumber,
+        version: `v${version.versionNumber}`,
+        status: version.status,
+        markedComment: version.changeSummary,
+        publishedAt: version.publishedAt,
+      }));
+    } catch {
+      drawerWorkflowHistory.value = [];
+    }
   }
   drawerOpen.value = true;
   if (!llmLoaded.value) loadDeps();
@@ -755,7 +793,7 @@ function parseRetrievalConfig(
   }
 }
 
-async function onDrawerSave(payload: {
+interface DrawerSavePayload {
   appId: string;
   mode: AppMode;
   graphJson?: string;
@@ -764,21 +802,25 @@ async function onDrawerSave(payload: {
   openingStatement?: string;
   modelName?: string;
   modelProvider?: string;
+  runtimeType?: 'NATIVE' | 'SPRING_AI_ALIBABA' | string;
+  runtimeRef?: string;
   modelSettings?: Record<string, unknown>;
   toolNames?: string[];
   datasetIds?: string[];
   retrievalConfigJson?: string;
-}) {
+}
+
+async function persistDrawerDraft(payload: DrawerSavePayload) {
   const existing = agents.value.find((x) => x.id === payload.appId);
-  submitting.value = true;
-  try {
-    await updateAgentReq(payload.appId, {
+  await updateAgentReq(payload.appId, {
       name: payload.name ?? existing?.name ?? '',
       mode: payload.mode,
       instructions: payload.instructions,
       openingStatement: payload.openingStatement,
       modelName: payload.modelName ?? existing?.modelName,
       modelProvider: payload.modelProvider ?? existing?.modelProvider,
+      runtimeType: payload.runtimeType ?? existing?.runtimeType ?? 'NATIVE',
+      runtimeRef: payload.runtimeRef,
       modelSettings: payload.modelSettings,
       strategy: (existing?.strategy as AgentStrategy) ?? 'REACT',
       toolNames: payload.toolNames ?? [],
@@ -788,18 +830,22 @@ async function onDrawerSave(payload: {
       memoryEnabled: existing?.memoryEnabled,
       memoryWindow: existing?.memoryWindow,
       published: existing?.published,
-    });
-    if (
-      (payload.mode === 'workflow' || payload.mode === 'chatflow') &&
-      payload.graphJson
-    ) {
-      try {
-        const parsed = JSON.parse(payload.graphJson);
-        await saveWorkflowDraftReq(payload.appId, parsed);
-      } catch {
-        message.warning('画布数据无法解析，草稿未保存');
-      }
+  });
+  if ((payload.mode === 'workflow' || payload.mode === 'chatflow') && payload.graphJson) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload.graphJson);
+    } catch {
+      throw new Error('画布数据无法解析');
     }
+    await saveWorkflowDraftReq(payload.appId, parsed);
+  }
+}
+
+async function onDrawerSave(payload: DrawerSavePayload) {
+  submitting.value = true;
+  try {
+    await persistDrawerDraft(payload);
     message.success('已保存');
     await refresh();
     const fresh = agents.value.find((x) => x.id === payload.appId);
@@ -827,13 +873,33 @@ function onDrawerDuplicate(_payload: { appId: string }) {
   message.info('复制应用功能开发中');
 }
 
-async function onDrawerPublish(payload: { appId: string }) {
+async function onDrawerPublish(payload: DrawerSavePayload) {
   try {
-    await publishWorkflowDraftReq(payload.appId);
+    // Save and publish are deliberately sequential: an immutable version must
+    // snapshot exactly the draft visible in the designer.
+    await persistDrawerDraft(payload);
+    const app = agents.value.find((item) => item.id === payload.appId);
+    const flowMode = app?.mode === 'workflow' || app?.mode === 'chatflow';
+    if (flowMode) {
+      await publishWorkflowDraftReq(payload.appId);
+    } else {
+      await client().agents.publishVersion(payload.appId, '从应用设计器发布');
+    }
     message.success('已发布新版本');
     await refresh();
-    drawerWorkflowHistory.value = (await listWorkflowHistoryReq(payload.appId))
-      .filter((item) => item.published === true);
+    if (flowMode) {
+      drawerWorkflowHistory.value = (await listWorkflowHistoryReq(payload.appId))
+        .filter((item) => item.published === true);
+    } else {
+      drawerWorkflowHistory.value = (await client().agents.listVersions(payload.appId)).map((version) => ({
+        id: version.id,
+        versionNumber: version.versionNumber,
+        version: `v${version.versionNumber}`,
+        status: version.status,
+        markedComment: version.changeSummary,
+        publishedAt: version.publishedAt,
+      }));
+    }
   } catch (e: any) {
     message.error(e?.message ?? '发布失败');
   }
@@ -841,11 +907,42 @@ async function onDrawerPublish(payload: { appId: string }) {
 
 async function onDrawerRestore(payload: { appId: string; snapshotId: string }) {
   try {
+    const app = agents.value.find((item) => item.id === payload.appId);
+    if (app?.mode !== 'workflow' && app?.mode !== 'chatflow') {
+      await client().agents.rollbackVersion(payload.appId, payload.snapshotId, '从应用设计器回滚');
+      drawerWorkflowHistory.value = (await client().agents.listVersions(payload.appId)).map((version) => ({
+        id: version.id,
+        versionNumber: version.versionNumber,
+        version: `v${version.versionNumber}`,
+        status: version.status,
+        markedComment: version.changeSummary,
+        publishedAt: version.publishedAt,
+      }));
+      message.success('已回滚并发布新版本');
+      return;
+    }
     const draft = await restoreWorkflowSnapshotReq(payload.appId, payload.snapshotId);
     drawerGraphJson.value = draft.graph ? JSON.stringify(draft.graph) : '';
     message.success('已恢复到所选发布版本，请保存或重新发布');
   } catch (e: any) {
     message.error(e?.message ?? '恢复失败');
+  }
+}
+
+async function onDrawerDisableVersion(payload: { appId: string; versionId: string }) {
+  try {
+    await client().agents.disableVersion(payload.appId, payload.versionId);
+    drawerWorkflowHistory.value = (await client().agents.listVersions(payload.appId)).map((version) => ({
+      id: version.id,
+      versionNumber: version.versionNumber,
+      version: `v${version.versionNumber}`,
+      status: version.status,
+      markedComment: version.changeSummary,
+      publishedAt: version.publishedAt,
+    }));
+    message.success('已停用该版本，生产请求将停止使用它');
+  } catch (e: any) {
+    message.error(e?.message ?? '停用失败');
   }
 }
 
@@ -861,7 +958,7 @@ async function onDrawerPreview(payload: {
   onError: (m: string) => void;
 }) {
   try {
-    const res = await chatStreamReq(payload.appId, { query: payload.query });
+    const res = await previewStreamReq(payload.appId, { query: payload.query });
     if (!res.ok || !res.body) {
       payload.onError(`预览失败：${res.status}`);
       return;
@@ -922,6 +1019,8 @@ async function submitCreate() {
       openingStatement: existing.openingStatement,
       modelName: existing.modelName,
       modelProvider: existing.modelProvider,
+      runtimeType: existing.runtimeType,
+      runtimeRef: existing.runtimeRef,
       strategy: (existing.strategy as AgentStrategy) ?? 'REACT',
       toolNames: existing.toolNamesJson
         ? safeParseArray(existing.toolNamesJson)
@@ -1339,6 +1438,7 @@ onBeforeUnmount(closeTransientUi);
       :api="studioApi"
       :api-base="apiBase"
       :chat-config="drawerChatConfig"
+      :runtime-types="runtimeTypes"
       :models="
         llmModels.map((m) => ({
           id: m.id,
@@ -1352,6 +1452,7 @@ onBeforeUnmount(closeTransientUi);
       @preview="onDrawerPreview"
       @publish="onDrawerPublish"
       @restore="onDrawerRestore"
+      @disable-version="onDrawerDisableVersion"
       @edit-info="onDrawerEditInfo"
       @export-dsl="onDrawerExportDsl"
       @duplicate="onDrawerDuplicate"

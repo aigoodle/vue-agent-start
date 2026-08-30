@@ -29,15 +29,12 @@ const onConnectionPlusClick = (event, nodeId, handleId) => {
   emit('connection-plus-click', event, nodeId, handleId);
 };
 
-const approvalLabel = computed(() =>
-  ({
-    approve: '审批（是/否）',
-    form: '表单填写',
-    text: '文本回复',
-  })[props.data.approvalType] || '未配置'
-);
-
 const fieldCount = computed(() => props.data.formFields?.length || 0);
+const timeoutLabel = computed(() => {
+  if (!props.data.timeoutEnabled || !props.data.timeoutSeconds) return '不限时';
+  const units = { minute: '分钟', hour: '小时', day: '天' };
+  return `${props.data.timeoutValue || 1} ${units[props.data.timeoutUnit] || '小时'}`;
+});
 </script>
 
 <template>
@@ -66,8 +63,8 @@ const fieldCount = computed(() => props.data.formFields?.length || 0);
     <div class="wf-node-content">
       <div class="wf-node-description">{{ data.description }}</div>
       <div class="wf-node-preview">
-        <div class="wf-node-preview-label">介入类型</div>
-        <div class="wf-node-preview-value">{{ approvalLabel }}</div>
+        <div class="wf-node-preview-label">表单填写</div>
+        <div class="wf-node-preview-value">{{ timeoutLabel }}</div>
       </div>
       <div v-if="fieldCount > 0" class="human-field-hint">
         {{ fieldCount }} 个表单字段

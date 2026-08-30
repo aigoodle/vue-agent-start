@@ -51,6 +51,7 @@ export interface AgentRunResponse {
   text?: string;
   error?: string;
   pendingApproval?: { approvalId: string; toolName: string; toolInput: string };
+  pendingApprovals?: Array<{ approvalId: string; toolName: string; toolInput: string }>;
 }
 
 export interface AgentRunWatchOptions {
@@ -75,6 +76,10 @@ export interface RunsNamespace {
     runId: string,
     approvalId: string,
     decision: 'APPROVE' | 'DENY',
+  ): Promise<AgentRunResponse>;
+  resumeMany(
+    runId: string,
+    decisions: Record<string, 'APPROVE' | 'DENY'>,
   ): Promise<AgentRunResponse>;
   cancel(runId: string): Promise<AgentRunSnapshot>;
   /** Polls durable events in sequence order until aborted or terminal. */
@@ -174,6 +179,13 @@ export function createRunsNamespace(core: HttpCore): RunsNamespace {
         method: 'POST',
         body: JSON.stringify({ approvalId, decision }),
       }),
+    resumeMany: (runId, decisions) => {
+      if (!Object.keys(decisions).length) throw new Error('At least one approval decision is required');
+      return core.request<AgentRunResponse>(`${base(runId)}/resume`, {
+        method: 'POST',
+        body: JSON.stringify({ decisions }),
+      });
+    },
     cancel: (runId) =>
       core.request<AgentRunSnapshot>(`${base(runId)}/cancel`, { method: 'POST' }),
     watch,

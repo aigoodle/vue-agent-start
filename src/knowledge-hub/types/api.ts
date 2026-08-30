@@ -15,6 +15,7 @@ import type {
   RetrievalConfig,
 } from './dataset';
 import type { RecallHit, RecentQuery, RetrieveRequest } from './retrieval';
+import type { IndexVersionWire, IngestionJobWire, RetrievalEvaluationReportWire } from '../../client/knowledge';
 
 // ------- datasets
 export interface DatasetsApi {
@@ -79,6 +80,32 @@ export interface ChunkPreview {
   chunks: Array<{ index: number; text: string; tokens: number; metadata?: Record<string, unknown> }>;
 }
 
+export interface KnowledgeGraphNode {
+  id: string;
+  type: string;
+  label: string;
+  datasetId: string;
+  documentId?: string;
+  segmentId?: string;
+  headingPath?: string;
+  source?: string;
+  description?: string;
+  weight?: number;
+  evidenceSegmentIds?: string[];
+}
+export interface KnowledgeGraphEdge {
+  source: string;
+  target: string;
+  relation: string;
+  weight?: number;
+  evidenceSegmentIds?: string[];
+}
+export interface KnowledgeGraph {
+  datasetId: string;
+  nodes: KnowledgeGraphNode[];
+  edges: KnowledgeGraphEdge[];
+}
+
 // ------- segments
 export interface SegmentsApi {
   /**
@@ -121,6 +148,16 @@ export interface RetrievalApi {
     req: RetrieveRequest,
   ): Promise<RecallHit[]>;
   listRecallHistory(datasetId: string, limit?: number): Promise<RecentQuery[]>;
+  getKnowledgeGraph(datasetId: string): Promise<KnowledgeGraph>;
+}
+
+export interface RagOperationsApi {
+  listIndexVersions?(datasetId: string): Promise<IndexVersionWire[]>;
+  beginIndexVersion?(datasetId: string, request: Record<string, unknown>): Promise<IndexVersionWire>;
+  activateIndexVersion?(datasetId: string, versionId: string): Promise<void>;
+  evaluateRetrieval?(datasetId: string, request: Record<string, unknown>): Promise<RetrievalEvaluationReportWire>;
+  listPoisonedIngestionJobs?(datasetId: string): Promise<IngestionJobWire[]>;
+  replayIngestionJob?(datasetId: string, documentId: string): Promise<boolean>;
 }
 
 // ------- models
@@ -180,6 +217,7 @@ export type KnowledgeHubApi = DatasetsApi &
   DocumentsApi &
   SegmentsApi &
   RetrievalApi &
+  RagOperationsApi &
   ModelsApi &
   KnowledgeHubHooks;
 
@@ -189,7 +227,7 @@ export type KnowledgeHubApi = DatasetsApi &
  * than the {@link DatasetsApi#getDataset} + {@link DocumentsApi#uploadDocument}
  * atoms. Hosts that only need the drawer implement this smaller surface.
  */
-export interface DatasetDetailHub extends SegmentsApi, RetrievalApi, ModelsApi {
+export interface DatasetDetailHub extends SegmentsApi, RetrievalApi, RagOperationsApi, ModelsApi {
   loadDataset(id: string): Promise<DatasetSummary>;
   updateDataset(
     id: string,
@@ -219,6 +257,7 @@ export interface DatasetDetailHub extends SegmentsApi, RetrievalApi, ModelsApi {
     rule: ProcessRule,
     limit?: number,
   ): Promise<ChunkPreview>;
+  getKnowledgeGraph(datasetId: string): Promise<KnowledgeGraph>;
 
   onCopyApi?(datasetId: string): void;
 }

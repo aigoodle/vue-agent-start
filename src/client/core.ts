@@ -46,13 +46,17 @@ export interface AgentStartClientOptions {
   /** Authorization scheme prefix. Default `Bearer`. */
   tokenType?: string;
   /**
-   * Lazy tenant-id provider, evaluated on every request. Sent as the
-   * {@link tenantHeader} header. Endpoints that also accept a `?tenantId=`
-   * query parameter fall back to this value when the caller doesn't pass one
-   * explicitly.
+   * Lazy tenant-id hint used by tenant-aware catalog calls. It is never an
+   * authentication boundary: the backend must derive its trusted tenant from
+   * the host's authenticated principal.
    */
   getTenant?: () => MaybePromise<string | null | undefined>;
-  /** Header name for the tenant id. Default `X-Tenant-Id`. */
+  /**
+   * Opt-in compatibility transport for legacy gateways that require a tenant
+   * header. Disabled by default because a browser-provided header is forgeable.
+   */
+  sendTenantHeader?: boolean;
+  /** Header name used only when `sendTenantHeader` is true. Default `X-Tenant-Id`. */
   tenantHeader?: string;
   /** Escape hatch: extra headers merged into every request (lazy). */
   headers?: HeadersProvider;
@@ -62,10 +66,22 @@ export interface AgentStartClientOptions {
   onError?: (msg: string) => void;
   /** Available to adapters that want to toast adapter-level successes. */
   onSuccess?: (msg: string) => void;
+  /** Low-level observability hook for host tracing/metrics. Never changes request behavior. */
+  onRequestCompleted?: (event: RequestCompletedEvent) => void;
   /** Default request timeout. Default: 60_000 ms. */
   timeoutMs?: number;
   /** Timeout for multipart uploads. Default: 300_000 ms. */
   uploadTimeoutMs?: number;
+}
+
+export interface RequestCompletedEvent {
+  method: string;
+  path: string;
+  url: string;
+  status?: number;
+  durationMs: number;
+  success: boolean;
+  errorCode?: string;
 }
 
 export interface UnauthorizedInfo {
@@ -185,7 +201,7 @@ export function createHttpCore(options: AgentStartClientOptions = {}): HttpCore 
         headers.Authorization = `${options.tokenType ?? 'Bearer'} ${token}`;
       }
     }
-    if (options.getTenant) {
+    if (options.getTenant && options.sendTenantHeader) {
       const tenantId = await options.getTenant();
       if (tenantId) {
         headers[options.tenantHeader ?? 'X-Tenant-Id'] = tenantId;
@@ -229,6 +245,10 @@ export function createHttpCore(options: AgentStartClientOptions = {}): HttpCore 
     timeoutMs: number,
   ): Promise<Response> {
     const url = `${rootUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+    const startedAt = Date.now();
+    let status: number | undefined;
+    let success = false;
+    let errorCode: string | undefined;
     const { signal, dispose } = composeSignal(opts?.signal, opts?.timeoutMs ?? timeoutMs);
     try {
       const isForm = typeof FormData !== 'undefined' && init.body instanceof FormData;
@@ -247,20 +267,28 @@ export function createHttpCore(options: AgentStartClientOptions = {}): HttpCore 
         const wrapped = new AgentStartError(msg, {
           code: aborted ? 'ABORTED' : 'NETWORK',
         });
+        errorCode = wrapped.code;
         options.onError?.(msg);
         throw wrapped;
       }
+      status = res.status;
       if (res.status === 401) {
         options.onUnauthorized?.({ url, status: 401 });
       }
       if (!res.ok) {
         const msg = await errorMessage(res);
         options.onError?.(msg);
+        errorCode = `HTTP_${res.status}`;
         throw new AgentStartError(msg, { status: res.status });
       }
+      success = true;
       return res;
     } finally {
       dispose();
+      options.onRequestCompleted?.({
+        method: init.method ?? 'GET', path, url, status,
+        durationMs: Date.now() - startedAt, success, errorCode,
+      });
     }
   }
 

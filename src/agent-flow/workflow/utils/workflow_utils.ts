@@ -1,6 +1,7 @@
 import { useWorkflowStore } from '@/stores/workflow';
 import langUtils from '@/utils/langUtils';
 import nodeCardForm from '@/workflow/utils/node_card_form';
+import { synchronizeStartTriggerOutputs } from '@/workflow/utils/start_trigger_outputs';
 
 export default {
   conditionOperators: [
@@ -82,12 +83,17 @@ export default {
       return [];
     }
 
+    if (data.triggersEnabled) {
+      // START connector outputs must be available even before its config panel
+      // has ever been opened; all downstream variable pickers call this path.
+      synchronizeStartTriggerOutputs(data);
+    }
     if (data.structOutput && data.structOutputEnabled) {
       outputList.push(...data.structOutput?.data);
     } else if (data.output && Array.isArray(data.output)) {
       outputList.push(...data.output);
     }
-    if (data.triggersEnabled) {
+    if (data.triggersEnabled && !data.structOutputEnabled) {
       outputList.push(...data.structOutput?.data);
     }
     if (data.id === '1') {

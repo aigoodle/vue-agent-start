@@ -73,14 +73,10 @@ const onConnectionPlusClick = (event, nodeId, handleId) => {
     </div>
 
     <div class="wf-node-content">
-      <div v-if="data.triggers && data.triggers.name" class="wf-node-triggers">
-        <img
-          class="wf-node-triggers-icon"
-          src="https://picsum.photos/800/600?random=11"
-          alt=""
-        />
-        <div>{{ data.triggers.name }}</div>
-        <div class="wf-node-triggers-scope">全部</div>
+      <div v-if="data.triggersEnabled && data.triggers" class="wf-node-triggers">
+        <Icon :name="data.triggers.type === 'connector' ? 'connector' : 'start'" class="wf-node-triggers-icon" />
+        <div>{{ data.triggers.type === 'connector' ? (data.triggers.channelName || '消息连接器') : (data.triggers.name || data.triggers.type) }}</div>
+        <div class="wf-node-triggers-scope">{{ data.triggers.type === 'connector' ? (data.triggers.connectionName || '全部账号') : '全部' }}</div>
       </div>
 
       <div v-if="variables.length > 0" class="wf-node-preview start-var-preview">

@@ -7,12 +7,16 @@ import {
   PlusOutlined,
 } from '@ant-design/icons-vue';
 
-defineProps({
+const props = defineProps({
   showTitle: {
     type: Boolean,
     default: () => true,
   },
   readonly: {
+    type: Boolean,
+    default: () => false,
+  },
+  forceStructured: {
     type: Boolean,
     default: () => false,
   },
@@ -34,6 +38,7 @@ const model: any = ref({});
 const parentModel: any = ref({});
 
 const structData = computed(() => formState.value?.structOutput?.data ?? []);
+const structuredVisible = computed(() => formState.value?.structOutputEnabled || props.forceStructured);
 const rootChildren = computed(() => structData.value[0]?.children ?? []);
 const totalFields = computed(() => {
   let count = 0;
@@ -215,11 +220,11 @@ const TreeNode: any = defineComponent({
     <div class="output-card-head" v-if="showTitle">
       <div class="output-card-head-left">
         <span class="output-card-title">输出变量</span>
-        <span v-if="formState.structOutputEnabled" class="output-card-count">
+        <span v-if="structuredVisible" class="output-card-count">
           {{ totalFields }} 字段
         </span>
       </div>
-      <div v-show="formState.structOutput?.data" class="output-card-toggle">
+      <div v-show="formState.structOutput?.data && !readonly" class="output-card-toggle">
         <span class="output-card-toggle-label">结构化输出</span>
         <a-switch
           size="small"
@@ -229,7 +234,7 @@ const TreeNode: any = defineComponent({
     </div>
 
     <div class="output-card-body">
-      <template v-if="formState.structOutputEnabled">
+      <template v-if="structuredVisible">
         <div class="output-tree">
           <template v-for="root in structData" :key="root.id">
             <div class="output-tree-root">

@@ -1,55 +1,285 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+
 import type { JsonSchema } from '../types';
 import { parseJsonSchema } from '../types';
+import VarInsertField from '../../agent-flow/workflow/VarInsertField.vue';
 
-const props = withDefaults(defineProps<{ modelValue?: Record<string, unknown>; schema?: string | JsonSchema; secretFields?: string[] }>(), { modelValue: () => ({}), secretFields: () => [] });
-const emit = defineEmits<{ (e: 'update:modelValue', value: Record<string, unknown>): void }>();
+const props = withDefaults(
+  defineProps<{
+    modelValue?: Record<string, unknown>;
+    schema?: string | JsonSchema;
+    secretFields?: string[];
+    allowAdvanced?: boolean;
+    emptyText?: string;
+    nodeId?: string;
+  }>(),
+  { modelValue: () => ({}), secretFields: () => [], allowAdvanced: true, emptyText: '该操作没有需要填写的参数' },
+);
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: Record<string, unknown>): void;
+}>();
+
 const value = ref<Record<string, unknown>>({ ...props.modelValue });
 const advanced = ref(false);
 const jsonText = ref('{}');
 const jsonError = ref('');
+
 const parsed = computed(() => parseJsonSchema(props.schema));
 const fields = computed(() => Object.entries(parsed.value.properties ?? {}));
-const isOpen = computed(() => fields.value.length === 0 && parsed.value.additionalProperties !== false);
-watch(() => props.modelValue, v => { value.value = { ...(v ?? {}) }; jsonText.value = JSON.stringify(value.value, null, 2); }, { deep: true, immediate: true });
+const isOpen = computed(
+  () => fields.value.length === 0 && parsed.value.additionalProperties !== false,
+);
+
+watch(
+  () => props.modelValue,
+  (v) => {
+    value.value = { ...(v ?? {}) };
+    jsonText.value = JSON.stringify(value.value, null, 2);
+  },
+  { deep: true, immediate: true },
+);
+
 function setField(name: string, schema: JsonSchema, raw: unknown) {
   let next = raw;
-  if (schema.type === 'number' || schema.type === 'integer') next = raw === '' ? undefined : Number(raw);
+  if (schema.type === 'number' || schema.type === 'integer') {
+    next = typeof raw === 'string' && raw.includes('{{#') ? raw : raw === '' ? undefined : Number(raw);
+  }
   if (schema.type === 'boolean') next = Boolean(raw);
+  if ((schema.type === 'object' || schema.type === 'array') && typeof raw === 'string') {
+    try { next = JSON.parse(raw); } catch { next = raw; }
+  }
   value.value = { ...value.value, [name]: next };
   emit('update:modelValue', value.value);
   jsonText.value = JSON.stringify(value.value, null, 2);
 }
+
 function applyJson() {
-  try { const next = JSON.parse(jsonText.value); if (!next || Array.isArray(next) || typeof next !== 'object') throw new Error('必须是 JSON 对象'); value.value = next; emit('update:modelValue', next); jsonError.value = ''; }
-  catch (e: any) { jsonError.value = e?.message ?? 'JSON 格式错误'; }
+  try {
+    const next = JSON.parse(jsonText.value);
+    if (!next || Array.isArray(next) || typeof next !== 'object') {
+      throw new Error('必须是 JSON 对象');
+    }
+    value.value = next;
+    emit('update:modelValue', next);
+    jsonError.value = '';
+  } catch (e: any) {
+    jsonError.value = e?.message ?? 'JSON 格式错误';
+  }
 }
+
 function inputType(name: string, schema: JsonSchema) {
-  return props.secretFields.includes(name) || schema.format === 'password' ? 'password' : schema.type === 'number' || schema.type === 'integer' ? 'number' : 'text';
+  if (props.secretFields.includes(name) || schema.format === 'password') {
+    return 'password';
+  }
+  if (schema.type === 'number' || schema.type === 'integer') return 'number';
+  return 'text';
 }
 </script>
+
 <template>
   <div class="jsf">
-    <div v-if="!advanced && !isOpen" class="jsf-fields">
+    <div v-if="fields.length > 0 && !advanced" class="jsf-fields">
       <label v-for="[name, field] in fields" :key="name" class="jsf-field">
-        <span>{{ field.title || name }} <b v-if="parsed.required?.includes(name)">*</b></span>
+        <span class="jsf-label">
+          {{ field.title || name }}
+          <b v-if="parsed.required?.includes(name)">*</b>
+        </span>
         <small v-if="field.description">{{ field.description }}</small>
-        <select v-if="field.enum" :value="value[name]" @change="setField(name, field, ($event.target as HTMLSelectElement).value)">
-          <option value="">请选择</option><option v-for="item in field.enum" :key="String(item)" :value="item">{{ item }}</option>
+        <select
+          v-if="field.enum"
+          :value="value[name]"
+          @change="
+            setField(name, field, ($event.target as HTMLSelectElement).value)
+          "
+        >
+          <option value="">请选择</option>
+          <option v-for="item in field.enum" :key="String(item)" :value="item">
+            {{ item }}
+          </option>
         </select>
-        <input v-else-if="field.type === 'boolean'" type="checkbox" :checked="Boolean(value[name])" @change="setField(name, field, ($event.target as HTMLInputElement).checked)" />
-        <textarea v-else-if="field.format === 'textarea' || field.type === 'object' || field.type === 'array'" :value="typeof value[name] === 'string' ? value[name] : JSON.stringify(value[name] ?? (field.type === 'array' ? [] : {}), null, 2)" @change="setField(name, field, ($event.target as HTMLTextAreaElement).value)" />
-        <input v-else :type="inputType(name, field)" :min="field.minimum" :max="field.maximum" :value="value[name] as any" @input="setField(name, field, ($event.target as HTMLInputElement).value)" />
+        <input
+          v-else-if="field.type === 'boolean'"
+          type="checkbox"
+          :checked="Boolean(value[name])"
+          @change="
+            setField(name, field, ($event.target as HTMLInputElement).checked)
+          "
+        />
+        <textarea
+          v-else-if="
+            field.format === 'textarea' ||
+            field.type === 'object' ||
+            field.type === 'array'
+          "
+          :value="
+            typeof value[name] === 'string'
+              ? value[name]
+              : JSON.stringify(value[name] ?? (field.type === 'array' ? [] : {}), null, 2)
+          "
+          @change="
+            setField(name, field, ($event.target as HTMLTextAreaElement).value)
+          "
+        />
+        <VarInsertField
+          v-else-if="['string', 'number', 'integer'].includes(field.type || 'string') && nodeId && !secretFields.includes(name) && field.format !== 'password'"
+          :model-value="String(value[name] ?? '')"
+          :node-id="nodeId"
+          :placeholder="field.description || `输入${field.title || name}，或选择上游参数`"
+          @update:model-value="setField(name, field, $event)"
+        />
+        <input
+          v-else
+          :type="inputType(name, field)"
+          :min="field.minimum"
+          :max="field.maximum"
+          :value="value[name] as any"
+          @input="
+            setField(name, field, ($event.target as HTMLInputElement).value)
+          "
+        />
       </label>
     </div>
-    <div v-else>
-      <textarea v-model="jsonText" class="jsf-json" spellcheck="false" @blur="applyJson" />
+    <div v-else-if="advanced || (isOpen && allowAdvanced)" class="jsf-json-wrap">
+      <textarea
+        v-model="jsonText"
+        class="jsf-json"
+        spellcheck="false"
+        @blur="applyJson"
+      />
       <div v-if="jsonError" class="jsf-error">{{ jsonError }}</div>
     </div>
-    <button v-if="!isOpen" type="button" class="jsf-mode" @click="advanced = !advanced">{{ advanced ? '返回表单模式' : 'JSON 高级模式' }}</button>
+    <div v-else class="jsf-empty">{{ emptyText }}</div>
+    <button
+      v-if="allowAdvanced && !isOpen"
+      type="button"
+      class="jsf-mode"
+      @click="advanced = !advanced"
+    >
+      {{ advanced ? '返回表单模式' : 'JSON 高级模式' }}
+    </button>
   </div>
 </template>
+
 <style scoped>
-.jsf-fields{display:grid;gap:14px}.jsf-field{display:grid;gap:6px;color:#1f2937;font-size:13px}.jsf-field small{color:#6b7280}.jsf-field b{color:#ef4444}.jsf-field input:not([type=checkbox]),.jsf-field select,.jsf-field textarea,.jsf-json{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:7px;padding:8px 10px;background:var(--connector-bg,#fff);color:inherit}.jsf-field textarea,.jsf-json{min-height:110px;font-family:ui-monospace,monospace}.jsf-json{min-height:220px}.jsf-mode{border:0;background:none;color:#4f46e5;padding:8px 0;cursor:pointer}.jsf-error{color:#dc2626;font-size:12px;margin-top:4px}:global(.dark) .jsf-field{color:#e5e7eb}
+.jsf {
+  display: grid;
+  gap: 12px;
+}
+.jsf-fields {
+  display: grid;
+  gap: 14px;
+}
+.jsf-field {
+  display: grid;
+  gap: 6px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+}
+.jsf-label b {
+  color: #ef4444;
+  font-weight: 600;
+}
+.jsf-field small {
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* 输入控件（对齐项目统一的输入框样式） */
+.jsf-field input:not([type='checkbox']),
+.jsf-field select,
+.jsf-field textarea,
+.jsf-json {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #111827;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.jsf-field input:not([type='checkbox']):focus,
+.jsf-field select:focus,
+.jsf-field textarea:focus,
+.jsf-json:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.jsf-field input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  justify-self: start;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+.jsf-field textarea,
+.jsf-json {
+  min-height: 110px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.6;
+  resize: vertical;
+}
+.jsf-json {
+  min-height: 220px;
+}
+.jsf-json-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+/* 模式切换 / 错误提示 */
+.jsf-mode {
+  justify-self: start;
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #4f46e5;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.jsf-mode:hover {
+  color: #6366f1;
+  text-decoration: underline;
+}
+.jsf-error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #dc2626;
+}
+.jsf-empty {
+  padding: 12px;
+  color: #6b7280;
+  background: #f9fafb;
+  border: 1px dashed #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+:global(.dark) .jsf-field {
+  color: #d1d5db;
+}
+:global(.dark) .jsf-field input:not([type='checkbox']),
+:global(.dark) .jsf-field select,
+:global(.dark) .jsf-field textarea,
+:global(.dark) .jsf-json {
+  background: #2d2d2d;
+  border-color: #3d3d3d;
+  color: #f3f4f6;
+}
+:global(.dark) .jsf-mode {
+  color: #818cf8;
+}
+:global(.dark) .jsf-error {
+  color: #f87171;
+}
 </style>

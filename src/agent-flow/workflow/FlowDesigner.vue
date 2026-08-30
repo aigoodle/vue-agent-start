@@ -11,6 +11,7 @@ import { useWorkflowStore } from '@/stores/workflow';
 import langUtils from '@/utils/langUtils';
 import nodeCardForm from '@/workflow/utils/node_card_form';
 import workflow_utils from '@/workflow/utils/workflow_utils';
+import { validateWorkflowGraph } from '@/workflow/utils/graph_validator';
 
 import CustomEdge from './CustomEdge.vue';
 import Icon from './Icon.vue';
@@ -23,7 +24,7 @@ import DocumentExtractorNode from './nodes/DocumentExtractorNode.vue';
 import EndNode from './nodes/EndNode.vue';
 import FileUploadNode from './nodes/FileUploadNode.vue';
 import HttpNode from './nodes/HttpNode.vue';
-import HumanInputNode from './nodes/HumanInputNode.vue';
+import DurableWaitNode from './nodes/DurableWaitNode.vue';
 import IterationNode from './nodes/IterationNode.vue';
 import KnowledgeRetrievalNode from './nodes/KnowledgeRetrievalNode.vue';
 import ListOperatorNode from './nodes/ListOperatorNode.vue';
@@ -136,7 +137,7 @@ const workflowStore = useWorkflowStore();
 
 // 节点类型配置 —— 每个 `type` 字符串与 backend `NodeType` 枚举（UPPER_SNAKE）
 // 保持一致，同时也是 FlowDesigner 里 `<template #node-{type}>` 注册的 slot 名。
-// 设计器独有的 USER_INPUT / FILE_UPLOAD / HUMAN_INPUT / LOOP 没有严格的
+// 设计器独有的 USER_INPUT / FILE_UPLOAD / LOOP 没有严格的
 // backend 对应节点，backend 的 NodeType.fromJson 会把它们映射到最接近的引擎
 // 节点（前三者 → START，LOOP → ITERATION），保证保存的图仍能跑起来。
 const nodeCategories = ref([
@@ -232,9 +233,27 @@ const nodeCategories = ref([
       },
       {
         type: 'HUMAN_INPUT',
-        label: '人工介入',
+        label: '人工输入',
         icon: 'user',
-        description: '暂停等待人工响应',
+        description: '持久化等待人工补充信息',
+      },
+      {
+        type: 'APPROVAL',
+        label: '审批',
+        icon: 'user',
+        description: '持久化等待审批决定',
+      },
+      {
+        type: 'WAIT_EVENT',
+        label: '等待事件',
+        icon: 'user',
+        description: '通过 correlation key 等待外部事件',
+      },
+      {
+        type: 'SLEEP_UNTIL',
+        label: '定时等待',
+        icon: 'schedule',
+        description: '释放线程并在指定时间恢复',
       },
       {
         type: 'DOCUMENT_EXTRACTOR',
@@ -579,6 +598,9 @@ function getDefaultLabel(type) {
     PARAMETER_EXTRACTOR: '参数提取',
     DOCUMENT_EXTRACTOR: '文档提取',
     HUMAN_INPUT: '人工介入',
+    APPROVAL: '审批',
+    WAIT_EVENT: '等待事件',
+    SLEEP_UNTIL: '定时等待',
     HTTP_REQUEST: 'HTTP 请求',
     SERVICE_API: '服务接口',
     CONNECTOR: '连接器',
@@ -609,6 +631,9 @@ function getDefaultDescription(type) {
     PARAMETER_EXTRACTOR: '从上游文本中抽取结构化参数',
     DOCUMENT_EXTRACTOR: '从文件变量中提取文本内容',
     HUMAN_INPUT: '暂停工作流等待人工审批或补充信息',
+    APPROVAL: '暂停工作流并等待审批决定',
+    WAIT_EVENT: '等待匹配 correlation key 的外部事件',
+    SLEEP_UNTIL: '持久化等待并在指定时间恢复',
     HTTP_REQUEST: 'HTTP 请求节点',
     SERVICE_API: '调用内部服务接口（免鉴权）',
     CONNECTOR: '调用 OpenClaw 或自有 Connector',
@@ -806,47 +831,8 @@ const publishing = ref(false);
 
 /** 校验工作流图；返回错误信息数组，为空数组表示通过 */
 function validateWorkflow(): string[] {
-  const errors: string[] = [];
-  const ns = nodes.value;
-  const es = edges.value;
-  const starts = ns.filter((n) => n.type === 'START');
-  const ends = ns.filter((n) => n.type === 'END' || n.type === 'ANSWER');
-
-  if (starts.length === 0) errors.push('缺少开始节点');
-  if (starts.length > 1) errors.push('存在多个开始节点');
-  if (ends.length === 0) errors.push('缺少结束/回复节点');
-
-  // 计算 start 可达的节点集合
-  const adj: Record<string, string[]> = {};
-  for (const e of es) {
-    (adj[e.source] ||= []).push(e.target);
-  }
-  const reachable = new Set<string>();
-  const queue: string[] = starts.map((s) => s.id);
-  while (queue.length > 0) {
-    const cur = queue.shift()!;
-    if (reachable.has(cur)) continue;
-    reachable.add(cur);
-    for (const next of adj[cur] || []) queue.push(next);
-  }
-
-  const unreachable = ns.filter((n) => !reachable.has(n.id));
-  if (unreachable.length > 0) {
-    errors.push(
-      `${unreachable.length} 个节点未与开始节点连通：${unreachable
-        .map((n) => n.data?.label || n.id)
-        .slice(0, 3)
-        .join('、')}${unreachable.length > 3 ? ' 等' : ''}`,
-    );
-  }
-
-  // end 必须能被 start 触达
-  const endReachable = ends.some((e) => reachable.has(e.id));
-  if (ends.length > 0 && !endReachable) {
-    errors.push('结束节点无法从开始节点触达');
-  }
-
-  return errors;
+  return validateWorkflowGraph({ nodes: nodes.value, edges: edges.value })
+    .map((issue) => issue.message);
 }
 
 function getFlowInfo() {
@@ -860,6 +846,11 @@ function getFlowInfo() {
 /** 顶部工具栏「试运行」：走 BackendAdapter.runWorkflow */
 async function onRun() {
   if (running.value) return;
+  const errors = validateWorkflow();
+  if (errors.length > 0) {
+    langUtils.message({ code: 1, message: `无法试运行：${errors.join('；')}` });
+    return;
+  }
   running.value = true;
   try {
     const graph = getFlowInfo();
@@ -1798,13 +1789,16 @@ defineExpose({
             />
           </template>
           <template #node-HUMAN_INPUT="props">
-            <HumanInputNode
+            <DurableWaitNode
               v-bind="props"
               @connection-plus-click="onConnectionPlusClick"
               @duplicate="duplicateNodeById"
               @delete="deleteNodeById"
             />
           </template>
+          <template #node-APPROVAL="props"><DurableWaitNode v-bind="props" @connection-plus-click="onConnectionPlusClick" @duplicate="duplicateNodeById" @delete="deleteNodeById" /></template>
+          <template #node-WAIT_EVENT="props"><DurableWaitNode v-bind="props" @connection-plus-click="onConnectionPlusClick" @duplicate="duplicateNodeById" @delete="deleteNodeById" /></template>
+          <template #node-SLEEP_UNTIL="props"><DurableWaitNode v-bind="props" @connection-plus-click="onConnectionPlusClick" @duplicate="duplicateNodeById" @delete="deleteNodeById" /></template>
           <template #node-VARIABLE_ASSIGNER="props">
             <VariableAssignerNode
               v-bind="props"

@@ -15,6 +15,7 @@ import { provideBackend, type BackendAdapter } from './adapter/backend';
 import nodeCatalog from './workflow/utils/node_config';
 import nodeCardForm from './workflow/utils/node_card_form';
 import workflowUtils from './workflow/utils/workflow_utils';
+import { validateWorkflowGraph } from './workflow/utils/graph_validator';
 
 export {
   FlowDesigner,
@@ -30,7 +31,9 @@ export {
   nodeCatalog,
   nodeCardForm,
   workflowUtils,
+  validateWorkflowGraph,
 };
+export type { WorkflowGraphIssue } from './workflow/utils/graph_validator';
 
 export type { BackendAdapter } from './adapter/backend';
 export type {

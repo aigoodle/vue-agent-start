@@ -35,6 +35,7 @@ import type {
   ParsedDocument,
   RecallHit,
   RecentQuery,
+  KnowledgeGraph,
 } from '../types';
 import type { DocumentWire, SegmentWire } from '../../client';
 
@@ -76,6 +77,8 @@ export interface SpringAgentStartAdapterOptions {
    */
   timeoutMs?: number;
   uploadTimeoutMs?: number;
+  /** Host observability hook; receives every knowledge/model HTTP completion. */
+  onRequestCompleted?: import('../../client/core').AgentStartClientOptions['onRequestCompleted'];
 }
 
 // -- wire → view mapping helpers (unchanged from the pre-client adapter) ----
@@ -142,6 +145,7 @@ export function createSpringAgentStartAdapter(
     onSuccess: opts.onSuccess,
     timeoutMs: opts.timeoutMs,
     uploadTimeoutMs: opts.uploadTimeoutMs,
+    onRequestCompleted: opts.onRequestCompleted,
   });
 
   const api: KnowledgeHubApi = {
@@ -176,6 +180,8 @@ export function createSpringAgentStartAdapter(
     uploadDocument: (datasetId, file) => client.knowledge.uploadDocument(datasetId, file),
     deleteDocument: (datasetId, docId) =>
       client.knowledge.deleteDocument(datasetId, docId),
+    setDocumentEnabled: (datasetId, docId, enabled) =>
+      client.knowledge.setDocumentEnabled(datasetId, docId, enabled).then(() => undefined),
     getParsedDocument: (datasetId, docId) =>
       client.knowledge.getParsedDocument(datasetId, docId) as Promise<ParsedDocument>,
     reparseDocument: (datasetId, docId) =>
@@ -245,6 +251,13 @@ export function createSpringAgentStartAdapter(
           content: r.content,
           position: r.position,
           score: r.score ?? 0,
+          documentId: (r.documentId as string | undefined) ?? undefined,
+          documentName: extractMetaValue(r.metadata, 'documentName') as string | undefined,
+          blockType: extractMetaValue(r.metadata, 'blockType') as string | undefined,
+          heading: extractMetaValue(r.metadata, 'heading') as string | undefined,
+          vectorScore: safeNumber(r.vectorScore),
+          keywordScore: safeNumber(r.keywordScore),
+          metadata: normalizeMetadata(r.metadata),
         })),
       ),
     listRecallHistory: (datasetId, limit) =>
@@ -257,6 +270,14 @@ export function createSpringAgentStartAdapter(
           at: r.createdAt ?? '',
         })),
       ),
+    getKnowledgeGraph: (datasetId) =>
+      client.knowledge.getKnowledgeGraph(datasetId).then((graph) => graph as unknown as KnowledgeGraph),
+    listIndexVersions: (datasetId) => client.knowledge.listIndexVersions(datasetId),
+    beginIndexVersion: (datasetId, request) => client.knowledge.beginIndexVersion(datasetId, request),
+    activateIndexVersion: (datasetId, versionId) => client.knowledge.activateIndexVersion(datasetId, versionId),
+    evaluateRetrieval: (datasetId, request) => client.knowledge.evaluate(datasetId, request),
+    listPoisonedIngestionJobs: (datasetId) => client.knowledge.listPoisonedIngestionJobs(datasetId),
+    replayIngestionJob: (datasetId, documentId) => client.knowledge.replayIngestionJob(datasetId, documentId),
 
     // ---- models
     listEmbeddingModels: async () => {
@@ -314,4 +335,19 @@ export function createSpringAgentStartAdapter(
   };
 
   return api;
+}
+
+function extractMetaValue(raw: unknown, key: string): string | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const value = (raw as Record<string, unknown>)[key];
+  if (typeof value === 'string') return value;
+  return undefined;
+}
+
+function normalizeMetadata(raw: unknown): Record<string, unknown> | undefined {
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : undefined;
+}
+
+function safeNumber(raw: unknown): number | undefined {
+  return typeof raw === 'number' ? raw : undefined;
 }

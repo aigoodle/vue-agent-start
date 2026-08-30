@@ -96,11 +96,23 @@ export interface StudioLlmCallRecord {
   createdAt?: string;
 }
 
+export type StudioLlmTrendRange = 'HOUR' | 'DAY' | 'WEEK';
+
+/** One zero-filled time bucket returned by the LLMOps monitoring API. */
+export interface StudioLlmTrendPoint {
+  bucketStart: string;
+  calls: number;
+  errors: number;
+  totalTokens: number;
+  costMicros: number;
+  avgLatencyMs: number;
+}
+
 /**
  * One row in the "API 密钥" table under the 访问 API tab. Matches the shape
  * exposed by the backend {@code /api/agent-start/apps/{appId}/api-tokens} endpoints —
- * the full token value is included so the frontend can render both the masked
- * preview (`app...xxxx`) and a one-shot "已复制" toast on create.
+ * List responses contain only a masked token. The create response contains the
+ * full value exactly once so the caller can copy and store it securely.
  */
 export interface StudioApiKey {
   id: string;
@@ -108,7 +120,7 @@ export interface StudioApiKey {
   name?: string;
   /** {@code app} / {@code dataset} — narrow it later if we support dataset keys. */
   type?: string;
-  /** Full opaque token value (e.g. {@code app-xyz...}). Sensitive. */
+  /** Full opaque value only on create; masked (`app-...xxxx`) on subsequent reads. */
   token: string;
   createdAt?: string;
   lastUsedAt?: string;
@@ -142,6 +154,10 @@ export interface AppStudioApi {
     payload: Record<string, unknown>,
     opts?: { signal?: AbortSignal },
   ) => Promise<Response | null>;
+  cancelWorkflowRun?: (runId: string, reason?: string) => Promise<unknown>;
+  pauseWorkflowRun?: (runId: string, reason?: string) => Promise<unknown>;
+  resumeWorkflowRun?: (runId: string) => Promise<unknown>;
+  signalWorkflowRun?: (runId: string, request: Record<string, unknown>) => Promise<unknown>;
   /** Published workflow applications visible to the current tenant. */
   listPublishedWorkflowOptions?: () => Promise<StudioWorkflowAppOption[]>;
   // ── Conversation history / logs tab ────────────────────────────────────
@@ -169,6 +185,7 @@ export interface AppStudioApi {
   fetchAppMetrics?: (appId: string) => Promise<StudioAppMetrics>;
   fetchLlmUsage?: () => Promise<StudioLlmUsageStats>;
   fetchRecentLlmCalls?: (limit?: number) => Promise<StudioLlmCallRecord[]>;
+  fetchLlmTrend?: (range: StudioLlmTrendRange) => Promise<StudioLlmTrendPoint[]>;
 
   // ── 访问 API tab — API-key management ─────────────────────────────────
   /**

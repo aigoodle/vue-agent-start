@@ -7,7 +7,7 @@
  *   const client = createAgentStartClient({
  *     baseUrl: '/api',                          // host proxy prefix
  *     getAccessToken: () => accessStore.token,  // → Authorization: Bearer …
- *     getTenant: () => accessStore.tenantId,    // → X-Tenant-Id + ?tenantId= fallbacks
+ *     getTenant: () => accessStore.tenantId,    // optional catalog hint; not an auth boundary
  *     onUnauthorized: () => router.push('/login'),
  *   });
  *
@@ -38,6 +38,7 @@ import {
   type HttpCore,
   type MaybePromise,
   type UnauthorizedInfo,
+  type RequestCompletedEvent,
 } from './core';
 import {
   createKnowledgeNamespace,
@@ -117,6 +118,7 @@ export type {
   MaybePromise,
   SseEvent,
   UnauthorizedInfo,
+  RequestCompletedEvent,
 };
 export type { ConnectorsNamespace } from './connectors';
 export * from '../connector-hub/types';
@@ -129,6 +131,12 @@ export type {
   SegmentWire,
   RetrieveHitWire,
   RecallHistoryWire,
+  KnowledgeGraphWire,
+  KnowledgeGraphNodeWire,
+  KnowledgeGraphEdgeWire,
+  IndexVersionWire,
+  IngestionJobWire,
+  RetrievalEvaluationReportWire,
 } from './knowledge';
 export type { AgentsNamespace } from './agents';
 export type {

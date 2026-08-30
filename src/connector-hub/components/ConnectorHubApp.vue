@@ -1,31 +1,979 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+
 import { createAgentStartClient, type AgentStartClient } from '../../client';
 import { useAgentStartClient } from '../../client/vue';
-import { mergeAgentStartHeaders, type AgentStartHeaders, useAgentStartConfig } from '../../config';
-import type { ConnectorAction, ConnectorConnection, ConnectorDefinition, ConnectorInstallation } from '../types';
+import {
+  mergeAgentStartHeaders,
+  type AgentStartHeaders,
+  useAgentStartConfig,
+} from '../../config';
+import type {
+  ConnectorAction,
+  ConnectorConnection,
+  ConnectorDefinition,
+  ConnectorExecutionRecord,
+  ChannelAuditRecord,
+  ChannelEvent,
+  ConnectorInstallation,
+} from '../types';
 import ConnectorActionTestDrawer from './ConnectorActionTestDrawer.vue';
 import ConnectorConnectionModal from './ConnectorConnectionModal.vue';
 import ConnectorDetailDrawer from './ConnectorDetailDrawer.vue';
-import OpenClawPluginPanel from './OpenClawPluginPanel.vue';
-const props=withDefaults(defineProps<{apiBase?:string;headers?:AgentStartHeaders;tenantId?:string;client?:AgentStartClient}>(),{tenantId:'default'});
-const global=useAgentStartConfig();const injected=useAgentStartClient();const client=props.client??injected??createAgentStartClient({baseUrl:props.apiBase??global.apiBase??'/api',getTenant:()=>props.tenantId,headers:()=>mergeAgentStartHeaders(global.headers,props.headers)});
-const tab=ref<'connectors'|'plugins'|'executions'>('connectors');const connectors=ref<ConnectorDefinition[]>([]);const installations=ref<ConnectorInstallation[]>([]);const connections=ref<ConnectorConnection[]>([]);const executions=ref<any[]>([]);const loading=ref(false);const error=ref('');const search=ref('');const source=ref('全部');
-const selected=ref<ConnectorDefinition>();const action=ref<ConnectorAction>();const testing=ref(false);const connectionOpen=ref(false);const detailsOpen=ref(false);const editingConnection=ref<ConnectorConnection>();
-const installation=computed(()=>installations.value.find(i=>i.provider===selected.value?.key.provider&&i.connectorId===selected.value?.key.connectorId));
-const connectorConnections=computed(()=>connections.value.filter(c=>c.installationId===installation.value?.id));
-const filtered=computed(()=>connectors.value.filter(c=>(source.value==='全部'||c.key.provider===source.value)&&(!search.value||`${c.name} ${c.description??''} ${c.key.connectorId}`.toLowerCase().includes(search.value.toLowerCase()))));
-const sources=computed(()=>['全部',...new Set(connectors.value.map(c=>c.key.provider))]);
-async function load(){loading.value=true;error.value='';try{[connectors.value,installations.value,connections.value]=await Promise.all([client.connectors.list(),client.connectors.listInstallations(props.tenantId),client.connectors.listConnections(props.tenantId)]);if(connectors.value.length&&installations.value.length===0)installations.value=await client.connectors.synchronize(props.tenantId)}catch(e:any){error.value=e?.message??'加载失败'}finally{loading.value=false}}
-async function refresh(){await client.connectors.refresh();await client.connectors.synchronize(props.tenantId);await load()}
-async function toggle(c:ConnectorDefinition){const i=installations.value.find(x=>x.provider===c.key.provider&&x.connectorId===c.key.connectorId);if(!i){await client.connectors.synchronize(props.tenantId);return load()}await client.connectors.setInstallationEnabled(i.id,!i.enabled,props.tenantId);await load()}
-async function openConnection(c:ConnectorDefinition,connection?:ConnectorConnection){selected.value=c;editingConnection.value=connection;if(!installations.value.some(i=>i.provider===c.key.provider&&i.connectorId===c.key.connectorId))installations.value=await client.connectors.synchronize(props.tenantId);connectionOpen.value=true}function test(c:ConnectorDefinition,a:ConnectorAction){selected.value=c;action.value=a;testing.value=true}function details(c:ConnectorDefinition){selected.value=c;detailsOpen.value=true}
-async function loadExecutions(){try{executions.value=await client.connectors.listExecutions({tenantId:props.tenantId,limit:100})}catch(e:any){error.value=e?.message??'加载审计失败'}}
+import ChannelConnectionPanel from './ChannelConnectionPanel.vue';
+import RuntimeExtensionPanel from './RuntimeExtensionPanel.vue';
+
+type HubTab = 'connectors' | 'channels' | 'extensions' | 'executions';
+
+const props = defineProps<{
+    apiBase?: string;
+    headers?: AgentStartHeaders;
+    tenantId?: string;
+    client?: AgentStartClient;
+  }>();
+
+const global = useAgentStartConfig();
+const injected = useAgentStartClient();
+const client =
+  props.client ??
+  injected ??
+  createAgentStartClient({
+    baseUrl: props.apiBase ?? global.apiBase ?? '/api',
+    getTenant: () => props.tenantId,
+    headers: () => mergeAgentStartHeaders(global.headers, props.headers),
+  });
+
+// -------- state
+const tab = ref<HubTab>('connectors');
+const connectors = ref<ConnectorDefinition[]>([]);
+const installations = ref<ConnectorInstallation[]>([]);
+const connections = ref<ConnectorConnection[]>([]);
+const executions = ref<ConnectorExecutionRecord[]>([]);
+const channelAudits = ref<ChannelAuditRecord[]>([]);
+const auditView = ref<'channels' | 'connectors' | 'deadLetters'>('channels');
+const auditFilters = ref({ action: '', resourceType: '', resourceId: '', actorId: '', outcome: '' });
+const auditLoading = ref(false);
+const deadLetters = ref<ChannelEvent[]>([]);
+const selectedDeadLetters = ref<string[]>([]);
+const replaying = ref(false);
+const loading = ref(false);
+const error = ref('');
+const search = ref('');
+const source = ref('全部');
+
+const selected = ref<ConnectorDefinition>();
+const action = ref<ConnectorAction>();
+const testing = ref(false);
+const connectionOpen = ref(false);
+const detailsOpen = ref(false);
+const editingConnection = ref<ConnectorConnection>();
+
+// -------- computed
+const installation = computed(() =>
+  selected.value ? installationOf(selected.value) : undefined,
+);
+const connectorConnections = computed(() =>
+  connections.value.filter((c) => c.installationId === installation.value?.id),
+);
+const filtered = computed(() =>
+  connectors.value.filter(
+    (c) =>
+      (source.value === '全部' || c.key.provider === source.value) &&
+      (!search.value ||
+        `${c.name} ${c.description ?? ''} ${c.key.connectorId}`
+          .toLowerCase()
+          .includes(search.value.toLowerCase())),
+  ),
+);
+const sources = computed(() => [
+  '全部',
+  ...new Set(connectors.value.map((c) => c.key.provider)),
+]);
+
+// -------- helpers
+function installationOf(c: ConnectorDefinition) {
+  return installations.value.find(
+    (i) =>
+      i.provider === c.key.provider && i.connectorId === c.key.connectorId,
+  );
+}
+function riskClass(level?: string) {
+  switch ((level ?? '').toUpperCase()) {
+    case 'READ':
+      return 'is-read';
+    case 'DESTRUCTIVE':
+      return 'is-destructive';
+    default:
+      return 'is-write';
+  }
+}
+function statusClass(status?: string) {
+  const s = (status ?? '').toLowerCase();
+  if (s.includes('success') || s === 'ok') return 'is-success';
+  if (s.includes('fail') || s.includes('error')) return 'is-danger';
+  return 'is-neutral';
+}
+
+// -------- data loading
+async function load() {
+  loading.value = true;
+  error.value = '';
+  try {
+    [connectors.value, installations.value, connections.value] =
+      await Promise.all([
+        client.connectors.list(),
+        client.connectors.listInstallations(props.tenantId),
+        client.connectors.listConnections(props.tenantId),
+      ]);
+    if (connectors.value.length && installations.value.length === 0) {
+      installations.value = await client.connectors.synchronize(
+        props.tenantId,
+      );
+    }
+  } catch (e: any) {
+    error.value = e?.message ?? '加载失败';
+  } finally {
+    loading.value = false;
+  }
+}
+async function refresh() {
+  await client.connectors.refresh();
+  await client.connectors.synchronize(props.tenantId);
+  await load();
+}
+async function toggle(c: ConnectorDefinition) {
+  const i = installationOf(c);
+  if (!i) {
+    await client.connectors.synchronize(props.tenantId);
+    return load();
+  }
+  await client.connectors.setInstallationEnabled(i.id, !i.enabled, props.tenantId);
+  await load();
+}
+async function openConnection(
+  c: ConnectorDefinition,
+  connection?: ConnectorConnection,
+) {
+  selected.value = c;
+  editingConnection.value = connection;
+  if (!installationOf(c)) {
+    installations.value = await client.connectors.synchronize(props.tenantId);
+  }
+  connectionOpen.value = true;
+}
+function test(c: ConnectorDefinition, a: ConnectorAction) {
+  selected.value = c;
+  action.value = a;
+  testing.value = true;
+}
+function details(c: ConnectorDefinition) {
+  selected.value = c;
+  detailsOpen.value = true;
+}
+async function loadExecutions() {
+  try {
+    executions.value = await client.connectors.listExecutions({
+      tenantId: props.tenantId,
+      limit: 100,
+    });
+  } catch (e: any) {
+    error.value = e?.message ?? '加载审计失败';
+  }
+}
+async function loadChannelAudits() {
+  auditLoading.value = true;
+  error.value = '';
+  try {
+    channelAudits.value = await client.connectors.listChannelAudits({
+      ...auditFilters.value,
+      limit: 100,
+    });
+  } catch (e: any) {
+    error.value = e?.message ?? '加载渠道审计失败';
+  } finally {
+    auditLoading.value = false;
+  }
+}
+async function openAudits() {
+  tab.value = 'executions';
+  await loadChannelAudits();
+}
+function auditDetails(details?: Record<string, unknown>) {
+  if (!details || Object.keys(details).length === 0) return '-';
+  return Object.entries(details).map(([key, value]) => `${key}: ${String(value)}`).join(' · ');
+}
+async function loadDeadLetters() {
+  auditLoading.value = true; error.value = '';
+  try {
+    deadLetters.value = await client.connectors.listChannelDeadLetters(100);
+    selectedDeadLetters.value = selectedDeadLetters.value.filter((id) => deadLetters.value.some((e) => e.id === id));
+  } catch (e: any) { error.value = e?.message ?? '加载消息死信失败'; }
+  finally { auditLoading.value = false; }
+}
+async function replayDeadLetters() {
+  if (selectedDeadLetters.value.length === 0) return;
+  replaying.value = true; error.value = '';
+  try {
+    await client.connectors.replayChannelDeadLetters(selectedDeadLetters.value);
+    selectedDeadLetters.value = [];
+    await loadDeadLetters();
+  } catch (e: any) { error.value = e?.message ?? '重放消息死信失败'; }
+  finally { replaying.value = false; }
+}
+
 onMounted(load);
 </script>
-<template><div class="hub"><header class="hero"><div><h2>Connector 中心</h2><p>统一管理自有连接器与 OpenClaw 插件生态</p></div><button @click="refresh">刷新并同步</button></header><nav><button :class="{active:tab==='connectors'}" @click="tab='connectors'">连接器</button><button :class="{active:tab==='plugins'}" @click="tab='plugins'">OpenClaw 插件</button><button :class="{active:tab==='executions'}" @click="tab='executions';loadExecutions()">执行审计</button></nav><div v-if="error" class="error">{{error}}</div>
-<template v-if="tab==='connectors'"><div class="filters"><input v-model="search" placeholder="搜索连接器、描述或 ID"/><select v-model="source"><option v-for="s in sources" :key="s">{{s}}</option></select><span>{{filtered.length}} 个连接器</span></div><div v-if="loading">加载中…</div><div class="grid"><article v-for="c in filtered" :key="`${c.key.provider}:${c.key.connectorId}`"><div class="card-head"><span class="icon">{{c.icon||'🔌'}}</span><div><b>{{c.name}}</b><small>{{c.key.provider}} · {{c.version}}</small></div><span class="state" :class="installations.find(i=>i.provider===c.key.provider&&i.connectorId===c.key.connectorId)?.enabled?'on':'off'">{{installations.find(i=>i.provider===c.key.provider&&i.connectorId===c.key.connectorId)?.enabled?'已启用':'已禁用'}}</span></div><p>{{c.description}}</p><div class="badges"><span>{{c.category||'其他'}}</span><span>{{c.trustLevel||'UNTRUSTED'}}</span><span>{{c.actions.length}} Actions</span></div><div class="action-list"><button v-for="a in c.actions.slice(0,4)" :key="a.id" @click="test(c,a)"><span>{{a.name}}</span><small>{{a.riskLevel||'WRITE'}}</small></button></div><footer><button @click="details(c)">查看详情</button><button @click="openConnection(c)">+ 新建连接</button><button @click="toggle(c)">{{installations.find(i=>i.provider===c.key.provider&&i.connectorId===c.key.connectorId)?.enabled?'禁用':'启用'}}</button></footer></article></div></template>
-<OpenClawPluginPanel v-else-if="tab==='plugins'" :client="client" @changed="refresh"/>
-<div v-else class="audit"><table><thead><tr><th>时间</th><th>连接器 / Action</th><th>来源</th><th>状态</th><th>耗时</th><th>错误</th></tr></thead><tbody><tr v-for="e in executions" :key="e.id"><td>{{e.createdAt||'-'}}</td><td>{{e.connectorId}} / {{e.actionId}}</td><td>{{e.agentId?'Agent':e.workflowId?'Workflow':'API'}}</td><td>{{e.status}}</td><td>{{e.durationMs??'-'}} ms</td><td>{{e.errorMessage||'-'}}</td></tr></tbody></table></div>
-<ConnectorDetailDrawer v-model:open="detailsOpen" :connector="selected" :installation="installation" :connections="connectorConnections" @test="a=>selected&&test(selected,a)" @connection="c=>selected&&openConnection(selected,c)" @toggle="selected&&toggle(selected)"/><ConnectorActionTestDrawer v-model:open="testing" :client="client" :connector="selected" :action="action" :tenant-id="tenantId"/><ConnectorConnectionModal v-model:open="connectionOpen" :client="client" :connector="selected" :installation="installation" :connection="editingConnection" :tenant-id="tenantId" @saved="load"/></div></template>
-<style scoped>.hub{color:#111827;display:grid;gap:18px}.hero{display:flex;justify-content:space-between;align-items:center}.hero h2{margin:0}.hero p{margin:5px 0;color:#6b7280}.hero button,nav button,.filters input,.filters select,article button{border:1px solid #d1d5db;background:#fff;border-radius:7px;padding:8px 12px}.hero button{background:#4f46e5;color:white;border-color:#4f46e5}nav{display:flex;border-bottom:1px solid #e5e7eb;gap:4px}nav button{border:0;border-radius:0;background:none}nav .active{color:#4f46e5;border-bottom:2px solid #4f46e5}.filters{display:flex;gap:10px;align-items:center}.filters input{min-width:280px}.filters span{margin-left:auto;color:#6b7280}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}.grid article{border:1px solid #e5e7eb;border-radius:12px;padding:16px;display:grid;gap:13px}.card-head{display:flex;gap:10px;align-items:center}.card-head>div{display:grid;flex:1}.card-head small{color:#6b7280}.icon{font-size:25px}.state{font-size:12px}.on{color:#15803d}.off{color:#6b7280}article p{margin:0;color:#6b7280;min-height:40px}.badges{display:flex;gap:6px}.badges span{font-size:11px;background:#f3f4f6;border-radius:10px;padding:3px 7px}.action-list{display:grid;gap:6px}.action-list button{display:flex;justify-content:space-between;text-align:left}.action-list small{color:#6b7280}article footer{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #eee;padding-top:12px}.audit{overflow:auto}.audit table{width:100%;border-collapse:collapse}.audit th,.audit td{text-align:left;border-bottom:1px solid #e5e7eb;padding:10px}.error{color:#dc2626}:global(.dark) .hub{color:#eee}:global(.dark) .grid article{border-color:#3f3f46}:global(.dark) .hero button,:global(.dark) article button,:global(.dark) .filters input,:global(.dark) .filters select{background:#27272a;color:#eee;border-color:#52525b}</style>
+
+<template>
+  <div class="ch-root">
+    <!-- 页面头部工具栏 -->
+    <header class="ch-toolbar">
+      <div class="ch-toolbar-head">
+        <div class="ch-toolbar-logo">🔌</div>
+        <div class="ch-toolbar-text">
+          <h2 class="ch-toolbar-title">Connector 中心</h2>
+          <p class="ch-toolbar-subtitle">
+            统一管理消息平台、业务连接器与 OpenClaw / Hermes 运行时生态
+          </p>
+        </div>
+      </div>
+      <button class="ch-btn ch-btn-primary" @click="refresh">
+        刷新并同步
+      </button>
+    </header>
+
+    <!-- 页签 -->
+    <nav class="ch-tabs">
+      <button
+        class="ch-tab"
+        :class="{ 'is-active': tab === 'channels' }"
+        @click="tab = 'channels'"
+      >
+        消息渠道
+      </button>
+      <button
+        class="ch-tab"
+        :class="{ 'is-active': tab === 'connectors' }"
+        @click="tab = 'connectors'"
+      >
+        业务连接器
+      </button>
+      <button
+        class="ch-tab"
+        :class="{ 'is-active': tab === 'extensions' }"
+        @click="tab = 'extensions'"
+      >
+        运行时扩展
+      </button>
+      <button
+        class="ch-tab"
+        :class="{ 'is-active': tab === 'executions' }"
+        @click="openAudits"
+      >
+        执行审计
+      </button>
+    </nav>
+
+    <div v-if="error" class="ch-alert">{{ error }}</div>
+
+    <!-- 连接器目录 -->
+    <template v-if="tab === 'connectors'">
+      <div class="ch-filters">
+        <input
+          v-model="search"
+          class="ch-input ch-search"
+          placeholder="搜索连接器、描述或 ID"
+        />
+        <select v-model="source" class="ch-input ch-select">
+          <option v-for="s in sources" :key="s">{{ s }}</option>
+        </select>
+        <span class="ch-count">{{ filtered.length }} 个连接器</span>
+      </div>
+
+      <div v-if="loading" class="ch-state">加载中…</div>
+      <div v-else-if="filtered.length === 0" class="ch-state">
+        没有匹配的连接器
+      </div>
+      <div v-else class="ch-grid">
+        <article
+          v-for="c in filtered"
+          :key="`${c.key.provider}:${c.key.connectorId}`"
+          class="ch-card"
+        >
+          <div class="ch-card-head">
+            <span class="ch-icon">{{ c.icon || '🔌' }}</span>
+            <div class="ch-card-title">
+              <b>{{ c.name }}</b>
+              <small>{{ c.key.provider }} · {{ c.version }}</small>
+            </div>
+            <span
+              class="ch-pill"
+              :class="installationOf(c)?.enabled ? 'is-on' : 'is-off'"
+            >
+              {{ installationOf(c)?.enabled ? '已启用' : '已禁用' }}
+            </span>
+          </div>
+
+          <p class="ch-desc">{{ c.description }}</p>
+
+          <div class="ch-badges">
+            <span>{{ c.category || '其他' }}</span>
+            <span>{{ c.trustLevel || 'UNTRUSTED' }}</span>
+            <span>{{ c.actions.length }} Actions</span>
+          </div>
+
+          <div class="ch-action-list">
+            <button
+              v-for="a in c.actions.slice(0, 4)"
+              :key="a.id"
+              class="ch-action"
+              @click="test(c, a)"
+            >
+              <span>{{ a.name }}</span>
+              <small :class="['ch-risk', riskClass(a.riskLevel)]">
+                {{ a.riskLevel || 'WRITE' }}
+              </small>
+            </button>
+          </div>
+
+          <footer class="ch-card-footer">
+            <button class="ch-btn" @click="details(c)">查看详情</button>
+            <button class="ch-btn" @click="openConnection(c)">
+              + 新建连接
+            </button>
+            <button class="ch-btn" @click="toggle(c)">
+              {{ installationOf(c)?.enabled ? '禁用' : '启用' }}
+            </button>
+          </footer>
+        </article>
+      </div>
+    </template>
+
+    <ChannelConnectionPanel
+      v-else-if="tab === 'channels'"
+      :client="client"
+      :tenant-id="tenantId"
+    />
+
+    <RuntimeExtensionPanel
+      v-else-if="tab === 'extensions'"
+      :client="client"
+      @changed="refresh"
+    />
+
+    <!-- 执行审计 -->
+    <div v-else class="ch-audit">
+      <div class="ch-audit-toolbar">
+        <div class="ch-audit-switch">
+          <button class="ch-btn" :class="{ 'ch-btn-primary': auditView === 'channels' }" @click="auditView = 'channels'; loadChannelAudits()">渠道操作</button>
+          <button class="ch-btn" :class="{ 'ch-btn-primary': auditView === 'connectors' }" @click="auditView = 'connectors'; loadExecutions()">Connector 执行</button>
+          <button class="ch-btn" :class="{ 'ch-btn-primary': auditView === 'deadLetters' }" @click="auditView = 'deadLetters'; loadDeadLetters()">消息死信</button>
+        </div>
+        <form v-if="auditView === 'channels'" class="ch-audit-filters" @submit.prevent="loadChannelAudits">
+          <input v-model.trim="auditFilters.action" class="ch-input" placeholder="动作" />
+          <input v-model.trim="auditFilters.resourceType" class="ch-input" placeholder="资源类型" />
+          <input v-model.trim="auditFilters.resourceId" class="ch-input" placeholder="资源 ID" />
+          <input v-model.trim="auditFilters.actorId" class="ch-input" placeholder="操作者 ID" />
+          <select v-model="auditFilters.outcome" class="ch-input ch-select">
+            <option value="">全部结果</option><option value="SUCCESS">成功</option><option value="FAILURE">失败</option>
+          </select>
+          <button class="ch-btn ch-btn-primary" type="submit">查询</button>
+        </form>
+        <div v-else-if="auditView === 'deadLetters'" class="ch-audit-filters">
+          <span class="ch-count">已选择 {{ selectedDeadLetters.length }} / {{ deadLetters.length }}</span>
+          <button class="ch-btn ch-btn-primary" :disabled="selectedDeadLetters.length === 0 || replaying" @click="replayDeadLetters">
+            {{ replaying ? '正在重放…' : '重放所选' }}
+          </button>
+          <button class="ch-btn" @click="loadDeadLetters">刷新</button>
+        </div>
+      </div>
+      <div v-if="auditView === 'channels' && auditLoading" class="ch-state">正在加载审计记录…</div>
+      <div v-else-if="auditView === 'channels' && channelAudits.length === 0" class="ch-state">暂无渠道操作记录</div>
+      <table v-else-if="auditView === 'channels'">
+        <thead><tr><th>时间</th><th>动作</th><th>资源</th><th>操作者</th><th>结果</th><th>详情</th></tr></thead>
+        <tbody><tr v-for="a in channelAudits" :key="a.id">
+          <td>{{ a.createdAt || '-' }}</td><td>{{ a.action }}</td>
+          <td>{{ a.resourceType }} / {{ a.resourceId }}</td>
+          <td>{{ a.actorName || a.actorId || '-' }}<div class="ch-muted">{{ a.principalType || '-' }}</div></td>
+          <td><span class="ch-pill" :class="statusClass(a.outcome)">{{ a.outcome }}</span></td>
+          <td class="ch-audit-details">{{ auditDetails(a.details) }}</td>
+        </tr></tbody>
+      </table>
+      <div v-else-if="auditView === 'deadLetters' && auditLoading" class="ch-state">正在加载消息死信…</div>
+      <div v-else-if="auditView === 'deadLetters' && deadLetters.length === 0" class="ch-state">暂无消息死信</div>
+      <table v-else-if="auditView === 'deadLetters'">
+        <thead><tr><th>选择</th><th>时间</th><th>渠道 / 会话</th><th>发送人</th><th>尝试次数</th><th>失败原因</th></tr></thead>
+        <tbody><tr v-for="e in deadLetters" :key="e.id">
+          <td><input v-model="selectedDeadLetters" type="checkbox" :value="e.id" :aria-label="`选择死信 ${e.id}`" /></td>
+          <td>{{ e.createdAt || '-' }}</td><td>{{ e.provider }} / {{ e.channelId }}<div class="ch-muted">{{ e.conversationId }}</div></td>
+          <td>{{ e.senderType || '-' }}<div class="ch-muted">{{ e.senderActorId || '-' }}</div></td>
+          <td>{{ e.attempts ?? '-' }}</td><td class="ch-error-cell">{{ e.errorMessage || '-' }}</td>
+        </tr></tbody>
+      </table>
+      <div v-else-if="executions.length === 0" class="ch-state">暂无 Connector 执行记录</div>
+      <table v-else>
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>连接器 / Action</th>
+            <th>来源</th>
+            <th>状态</th>
+            <th>耗时</th>
+            <th>错误</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="e in executions" :key="e.id">
+            <td>{{ e.createdAt || '-' }}</td>
+            <td>{{ e.connectorId }} / {{ e.actionId }}</td>
+            <td>{{ e.agentId ? 'Agent' : e.workflowId ? 'Workflow' : 'API' }}</td>
+            <td>
+              <span class="ch-pill" :class="statusClass(e.status)">
+                {{ e.status }}
+              </span>
+            </td>
+            <td>{{ e.durationMs ?? '-' }} ms</td>
+            <td :class="{ 'ch-error-cell': e.errorMessage }">
+              {{ e.errorMessage || '-' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ConnectorDetailDrawer
+      v-model:open="detailsOpen"
+      :connector="selected"
+      :installation="installation"
+      :connections="connectorConnections"
+      @test="(a) => selected && test(selected, a)"
+      @connection="(c) => selected && openConnection(selected, c)"
+      @toggle="selected && toggle(selected)"
+    />
+    <ConnectorActionTestDrawer
+      v-model:open="testing"
+      :client="client"
+      :connector="selected"
+      :action="action"
+      :tenant-id="tenantId"
+    />
+    <ConnectorConnectionModal
+      v-model:open="connectionOpen"
+      :client="client"
+      :connector="selected"
+      :installation="installation"
+      :connection="editingConnection"
+      :tenant-id="tenantId"
+      @saved="load"
+    />
+  </div>
+</template>
+
+<style scoped>
+/* -------- 页面骨架（对齐 ProviderHubShell 的全页布局语言） -------- */
+.ch-root {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+  padding: 20px 24px;
+  color: #111827;
+}
+@media (max-width: 640px) {
+  .ch-root {
+    padding: 12px 16px;
+  }
+}
+:global(.dark) .ch-root {
+  color: #f3f4f6;
+}
+
+/* -------- 头部工具栏卡片 -------- */
+.ch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.ch-toolbar-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ch-toolbar-logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #fff;
+  font-size: 22px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+.ch-toolbar-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.3;
+  color: #111827;
+}
+.ch-toolbar-subtitle {
+  margin: 3px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+:global(.dark) .ch-toolbar {
+  background: #1f1f1f;
+  border-color: #2d2d2d;
+}
+:global(.dark) .ch-toolbar-logo {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+}
+:global(.dark) .ch-toolbar-title {
+  color: #f3f4f6;
+}
+:global(.dark) .ch-toolbar-subtitle {
+  color: #9ca3af;
+}
+
+/* -------- 页签 -------- */
+.ch-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.ch-tab {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.ch-tab:hover {
+  color: #111827;
+}
+.ch-tab.is-active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+:global(.dark) .ch-tabs {
+  border-bottom-color: #2d2d2d;
+}
+:global(.dark) .ch-tab {
+  color: #9ca3af;
+}
+:global(.dark) .ch-tab:hover {
+  color: #f3f4f6;
+}
+:global(.dark) .ch-tab.is-active {
+  color: #818cf8;
+  border-bottom-color: #818cf8;
+}
+
+/* -------- 错误提示条 -------- */
+.ch-alert {
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+:global(.dark) .ch-alert {
+  color: #fca5a5;
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+/* -------- 过滤栏 -------- */
+.ch-filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ch-input {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.ch-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.ch-search {
+  width: 280px;
+  max-width: 100%;
+}
+.ch-search::placeholder {
+  color: #9ca3af;
+}
+.ch-select {
+  cursor: pointer;
+}
+.ch-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: #6b7280;
+}
+:global(.dark) .ch-input {
+  background: #2d2d2d;
+  border-color: #3d3d3d;
+  color: #f3f4f6;
+}
+:global(.dark) .ch-count {
+  color: #9ca3af;
+}
+
+/* -------- 加载中 / 空状态 -------- */
+.ch-state {
+  padding: 48px 0;
+  text-align: center;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* -------- 连接器卡片网格 -------- */
+.ch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+.ch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease,
+    border-color 0.15s ease;
+}
+.ch-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-color: #a5b4fc;
+  transform: translateY(-1px);
+}
+:global(.dark) .ch-card {
+  background: #1f1f1f;
+  border-color: #2d2d2d;
+}
+:global(.dark) .ch-card:hover {
+  border-color: #6366f1;
+}
+
+.ch-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ch-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  background: #eef2ff;
+  border-radius: 10px;
+}
+:global(.dark) .ch-icon {
+  background: rgba(99, 102, 241, 0.15);
+}
+.ch-card-title {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.ch-card-title b {
+  font-size: 14px;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ch-card-title small {
+  font-size: 12px;
+  color: #9ca3af;
+}
+:global(.dark) .ch-card-title b {
+  color: #f3f4f6;
+}
+
+.ch-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+  min-height: 40px;
+}
+:global(.dark) .ch-desc {
+  color: #9ca3af;
+}
+
+.ch-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.ch-badges span {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #374151;
+}
+:global(.dark) .ch-badges span {
+  background: #2d2d2d;
+  color: #d1d5db;
+}
+
+/* -------- Action 快捷测试列表 -------- */
+.ch-action-list {
+  display: grid;
+  gap: 6px;
+}
+.ch-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  text-align: left;
+  color: #111827;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.ch-action:hover {
+  border-color: #a5b4fc;
+  background: #eef2ff;
+}
+:global(.dark) .ch-action {
+  background: #191919;
+  border-color: #2d2d2d;
+  color: #f3f4f6;
+}
+:global(.dark) .ch-action:hover {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.12);
+}
+.ch-risk {
+  font-size: 11px;
+  font-weight: 600;
+}
+.ch-risk.is-read {
+  color: #059669;
+}
+.ch-risk.is-write {
+  color: #b45309;
+}
+.ch-risk.is-destructive {
+  color: #dc2626;
+}
+:global(.dark) .ch-risk.is-read {
+  color: #34d399;
+}
+:global(.dark) .ch-risk.is-write {
+  color: #fbbf24;
+}
+:global(.dark) .ch-risk.is-destructive {
+  color: #f87171;
+}
+
+.ch-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+:global(.dark) .ch-card-footer {
+  border-top-color: #2d2d2d;
+}
+
+/* -------- 按钮 -------- */
+.ch-btn {
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.ch-btn:hover {
+  background: #f3f4f6;
+}
+.ch-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ch-btn-primary {
+  color: #fff;
+  background: #6366f1;
+  border-color: #6366f1;
+}
+.ch-btn-primary:hover {
+  background: #4f46e5;
+}
+:global(.dark) .ch-btn {
+  background: #2d2d2d;
+  border-color: #3d3d3d;
+  color: #f3f4f6;
+}
+:global(.dark) .ch-btn:hover {
+  background: #3d3d3d;
+}
+:global(.dark) .ch-btn-primary {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+:global(.dark) .ch-btn-primary:hover {
+  background: #818cf8;
+}
+
+/* -------- 状态徽章 -------- */
+.ch-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.ch-pill.is-on,
+.ch-pill.is-success {
+  color: #059669;
+  background: #ecfdf5;
+}
+.ch-pill.is-off,
+.ch-pill.is-neutral {
+  color: #6b7280;
+  background: #f3f4f6;
+}
+.ch-pill.is-danger {
+  color: #dc2626;
+  background: #fef2f2;
+}
+:global(.dark) .ch-pill.is-on,
+:global(.dark) .ch-pill.is-success {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+}
+:global(.dark) .ch-pill.is-off,
+:global(.dark) .ch-pill.is-neutral {
+  color: #9ca3af;
+  background: #2d2d2d;
+}
+:global(.dark) .ch-pill.is-danger {
+  color: #f87171;
+  background: rgba(220, 38, 38, 0.15);
+}
+
+/* -------- 执行审计表格 -------- */
+.ch-audit {
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+.ch-audit-toolbar { padding: 12px; border-bottom: 1px solid #e5e7eb; }
+.ch-audit-switch, .ch-audit-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.ch-audit-filters { margin-top: 10px; }
+.ch-audit-filters .ch-input { min-width: 120px; flex: 1; }
+.ch-audit-details { min-width: 220px; max-width: 420px; overflow-wrap: anywhere; }
+.ch-muted { margin-top: 3px; color: #9ca3af; font-size: 11px; }
+.ch-audit table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ch-audit th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+}
+.ch-audit td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  vertical-align: top;
+}
+.ch-audit tbody tr:last-child td {
+  border-bottom: 0;
+}
+.ch-audit tbody tr:hover td {
+  background: #f9fafb;
+}
+.ch-error-cell {
+  color: #dc2626;
+  max-width: 260px;
+}
+:global(.dark) .ch-audit {
+  background: #1f1f1f;
+  border-color: #2d2d2d;
+}
+:global(.dark) .ch-audit th {
+  background: #191919;
+  border-bottom-color: #2d2d2d;
+  color: #9ca3af;
+}
+:global(.dark) .ch-audit td {
+  border-bottom-color: #2d2d2d;
+  color: #d1d5db;
+}
+:global(.dark) .ch-audit tbody tr:hover td {
+  background: #191919;
+}
+:global(.dark) .ch-error-cell {
+  color: #f87171;
+}
+</style>
