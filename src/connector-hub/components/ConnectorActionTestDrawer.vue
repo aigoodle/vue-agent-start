@@ -74,7 +74,7 @@ async function run() {
         </header>
 
         <main class="catd-main">
-          <JsonSchemaForm v-model="args" :schema="action?.inputSchema" />
+          <JsonSchemaForm v-model="args" :schema="action?.inputSchema" :ui-schema="action?.metadata?.uiSchema" />
           <button
             class="catd-run"
             :disabled="running"

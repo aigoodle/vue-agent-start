@@ -316,8 +316,9 @@ onMounted(load);
 
           <p class="ch-desc">{{ c.description }}</p>
 
-          <div class="ch-badges">
-            <span>{{ c.category || '其他' }}</span>
+            <div class="ch-badges">
+              <span v-if="c.metadata?.kind === 'PLUGIN'">{{ c.metadata.runtime === 'JAVA' ? 'Java 插件' : '独立服务插件' }}</span>
+              <span>{{ c.category || '其他' }}</span>
             <span>{{ c.trustLevel || 'UNTRUSTED' }}</span>
             <span>{{ c.actions.length }} Actions</span>
           </div>

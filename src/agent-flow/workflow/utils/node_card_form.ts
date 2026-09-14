@@ -48,6 +48,8 @@ const nodeCardForm: any = {
     answer: '',
   },
   AGENT: {
+    runtimeType: 'NATIVE',
+    runtimeRef: '',
     modelId: '',
     context: '',
     system: '',
@@ -262,6 +264,16 @@ const nodeCardForm: any = {
       { type: 'number', name: 'status', value: 0, label: '响应状态码' },
       { type: 'string', name: 'body', value: '', label: '响应体' },
     ],
+  },
+  VIDEO_GENERATION: {
+    label: '视频生成', model: {}, prompt: '', parameters: {}, taskTimeoutSeconds: 3600,
+    output: [{ type: 'object', name: 'result', value: {}, label: '生成结果', children: [
+      { type: 'object', name: 'data', value: {}, label: '视频', children: [
+        { type: 'string', name: 'videoUrl', value: '', label: '视频地址' },
+        { type: 'string', name: 'taskId', value: '', label: '任务编号' },
+        { type: 'string', name: 'status', value: '', label: '状态' },
+      ] },
+    ] }],
   },
   CONNECTOR: {
     label: '连接器', provider: '', connectorId: '', connectorName: '',

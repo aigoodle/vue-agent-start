@@ -65,6 +65,14 @@ import type { AgentEntity, AgentStrategy, AppType } from '../types';
 
 import AppDesignDrawer from './AppDesignDrawer.vue';
 import CreateAppModal from './CreateAppModal.vue';
+import AppPermissionsModal from './AppPermissionsModal.vue';
+
+const permissionsApp = ref<AgentEntity | null>(null);
+const permissionsOpen = ref(false);
+function openPermissions(app: AgentEntity) {
+  permissionsApp.value = app;
+  permissionsOpen.value = true;
+}
 
 // ---------------------------------------------------------------------------
 // Props
@@ -1293,6 +1301,7 @@ onBeforeUnmount(closeTransientUi);
                   <MenuItem key="edit" @click="openEdit(a)">
                     编辑基本信息
                   </MenuItem>
+                  <MenuItem key="permissions" @click="openPermissions(a)">数据权限</MenuItem>
                   <MenuItem key="share" @click="openShare(a)">
                     分享嵌入
                   </MenuItem>
@@ -1421,6 +1430,8 @@ onBeforeUnmount(closeTransientUi);
          left, big preview on the right. Chatflow is a first-class primary
          tile alongside workflow — same DAG canvas, but the runtime keeps
          per-conversation memory + streams via ANSWER nodes. -->
+    <AppPermissionsModal v-if="permissionsApp" v-model:open="permissionsOpen"
+      :app-id="permissionsApp.id" :app-name="permissionsApp.name" :api="client().agents" @saved="refresh" />
     <CreateAppModal
       v-model:open="showTypePicker"
       :allow="['chatbot', 'agent', 'workflow', 'chatflow', 'text-generator']"

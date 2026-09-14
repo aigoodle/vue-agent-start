@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
 import type {
@@ -8,6 +8,8 @@ import type {
   ConnectorInstallation,
 } from '../types';
 import JsonSchemaForm from './JsonSchemaForm.vue';
+import { parseJsonSchema } from '../types';
+import { splitPluginConfiguration } from '../schema-ui';
 
 const props = defineProps<{
   open: boolean;
@@ -30,6 +32,8 @@ const saving = ref(false);
 const testing = ref(false);
 const testMessage = ref('');
 const error = ref('');
+const isPlugin = computed(() => props.connector?.metadata?.kind === 'PLUGIN');
+const pluginSchemas = computed(() => splitPluginConfiguration(parseJsonSchema(props.connector?.configurationSchema)));
 
 watch(
   () => [props.open, props.connection?.id],
@@ -122,13 +126,16 @@ async function remove() {
             <p>已保存的密码不会回显；留空不会覆盖原凭证。</p>
             <JsonSchemaForm
               v-model="credentials"
-              :schema="connector?.configurationSchema"
+              :schema="isPlugin ? pluginSchemas.credentials : connector?.configurationSchema"
+              :allow-advanced="!isPlugin"
+              :ui-schema="connector?.metadata?.configurationUiSchema"
             />
           </div>
 
           <div class="ccm-group">
             <h4>附加配置（可选）</h4>
-            <JsonSchemaForm v-model="config" />
+            <JsonSchemaForm v-model="config" :schema="isPlugin ? pluginSchemas.configuration : undefined"
+              :allow-advanced="!isPlugin" :ui-schema="connector?.metadata?.configurationUiSchema" />
           </div>
 
           <p v-if="testMessage" class="ccm-note is-success">

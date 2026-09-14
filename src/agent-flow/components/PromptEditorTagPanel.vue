@@ -35,9 +35,11 @@ const emit = defineEmits(['close', 'select']);
 
 const panelRef = ref<HTMLElement | null>(null);
 const panelPos = ref({ top: '0px', left: '0px' });
-const nodeList = ref<any[]>([]);
 const expandedKeys = ref<Set<string>>(new Set());
 const workflowStore = useWorkflowStore();
+const nodeList = computed<any[]>(() => props.nodeId
+  ? workflowStore.getParentNodeList(props.nodeId)
+  : []);
 
 /** ---------- 定位 ---------- */
 function updatePosition() {
@@ -62,15 +64,6 @@ function updatePosition() {
   if (left + panelW > vw) left = Math.max(10, vw - panelW - 10);
 
   panelPos.value = { top: `${top}px`, left: `${left}px` };
-}
-
-/** ---------- 上游节点列表 ---------- */
-function refreshNodeList() {
-  if (!props.nodeId) {
-    nodeList.value = [];
-    return;
-  }
-  nodeList.value = workflowStore.getParentNodeList(props.nodeId) || [];
 }
 
 /** ---------- 搜索/展开 ---------- */
@@ -157,7 +150,6 @@ onMounted(() => {
   document.addEventListener('keydown', onDocKeyDown, true);
   window.addEventListener('scroll', updatePosition, true);
   window.addEventListener('resize', updatePosition);
-  refreshNodeList();
 });
 
 onUnmounted(() => {
@@ -171,14 +163,12 @@ watch(
   () => [props.show, props.targetElement],
   () => {
     if (props.show) {
-      refreshNodeList();
       nextTick(updatePosition);
     }
   },
   { immediate: true },
 );
 
-watch(() => props.nodeId, refreshNodeList);
 watch(() => props.position, updatePosition);
 
 /** 判断当前 selectedIndex 对应的项是否命中，给项加 active */

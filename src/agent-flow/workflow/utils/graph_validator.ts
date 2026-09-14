@@ -83,6 +83,13 @@ export function validateWorkflowGraph(graph: any): WorkflowGraphIssue[] {
   for (const node of nodes) {
     const data = node?.data ?? {};
     const nodeId = String(node?.id ?? '');
+    if (node.type === 'VIDEO_GENERATION') {
+      const model = data.model ?? {};
+      if (!text(model.modelId) && !(text(model.providerName) && text(model.modelName)))
+        issues.push({ code: 'video_model_required', nodeId, message: `视频生成节点「${data.label || nodeId}」需要选择视频模型` });
+      if (!text(data.prompt))
+        issues.push({ code: 'video_prompt_required', nodeId, message: `视频生成节点「${data.label || nodeId}」需要填写提示词` });
+    }
     if (node.type === 'WAIT_EVENT' && !text(data.correlationKey)) {
       issues.push({ code: 'correlation_key_required', nodeId, message: `等待事件节点「${data.label || nodeId}」缺少 correlationKey` });
     }

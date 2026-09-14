@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { onMounted, ref } from 'vue';
+import { createAgentStartClient } from '../../../client';
+import { useAgentStartClient } from '../../../client/vue';
+import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
 import MemoryWindow from '@/components/MemoryWindow.vue';
 import PromptEditor from '@/components/PromptEditor.vue';
 import ToolItemCard from '@/components/ToolItemCard.vue';
@@ -9,6 +13,15 @@ import workflow_utils from '@/workflow/utils/workflow_utils';
 defineProps<{ nodeId?: string }>();
 
 const formState: any = defineModel();
+formState.value.runtimeType ??= 'NATIVE';
+const runtimeTypes = ref(['NATIVE']);
+const runtimeError = ref('');
+const config = useAgentStartConfig();
+const client = useAgentStartClient() ?? createAgentStartClient({ baseUrl: config.apiBase ?? '/api', headers: () => mergeAgentStartHeaders(config.headers) });
+onMounted(async () => {
+  try { runtimeTypes.value = (await client.agents.listRuntimes()).map(item => item.type); }
+  catch { runtimeError.value = '无法加载运行方式，请确认后台已启动。'; }
+});
 
 const OUTPUT_DEFAULTS = [
   { name: 'text', type: 'String', label: '生成内容' },
@@ -19,6 +32,15 @@ const OUTPUT_DEFAULTS = [
 
 <template>
   <div class="wf-config-section">
+    <WfField title="运行方式" required>
+      <a-select v-model:value="formState.runtimeType" :options="runtimeTypes.map(value => ({ value, label: value === 'NATIVE' ? '内置 Agent' : value === 'PLUGIN' ? '插件 Agent' : value }))" style="width: 100%" />
+      <small v-if="runtimeError">{{ runtimeError }}</small>
+    </WfField>
+    <WfField v-if="formState.runtimeType !== 'NATIVE'" title="运行资源" required>
+      <a-input v-model:value="formState.runtimeRef" placeholder="插件 ID/动作 ID，例如 acme.video/plan" />
+    </WfField>
+  </div>
+  <div v-if="formState.runtimeType === 'NATIVE'" class="wf-config-section">
     <WfField title="Agent 策略" required>
       <template #tooltip>
         推理循环的实现方式。ReAct 用观察-思考-行动多轮；FunctionCalling 由模型直接触发工具。
@@ -40,7 +62,7 @@ const OUTPUT_DEFAULTS = [
     </WfField>
   </div>
 
-  <div class="wf-config-section">
+  <div v-if="formState.runtimeType === 'NATIVE'" class="wf-config-section">
     <WfField title="工具">
       <template #tooltip>
         Agent 可调用的工具集合，运行时按模型返回决定调用哪个。
@@ -61,6 +83,7 @@ const OUTPUT_DEFAULTS = [
   </div>
 
   <PromptEditor
+    v-if="formState.runtimeType === 'NATIVE'"
     class="wf-config-prompt"
     title="SYSTEM"
     :node-id="nodeId"

@@ -171,14 +171,11 @@ const emit = defineEmits<{
     },
   ): void;
   /**
-   * Publish the current draft as an immutable snapshot (workflow / chatflow
-   * only). Host implements `POST /apps/{appId}/workflow/publish` — the drawer
-   * doesn't send a graph payload because the backend reads the persisted
-   * draft directly.
+   * Host receives the full draft and must await its save before publishing.
    */
   (
     e: 'publish',
-    payload: { appId: string },
+    payload: NonNullable<ReturnType<typeof collectSavePayload>>,
   ): void;
   /** Restore one selected immutable snapshot into the mutable draft. */
   (e: 'restore', payload: { appId: string; snapshotId: string }): void;
@@ -423,8 +420,7 @@ async function submitPublish() {
     // Persist the current draft first so the snapshot captures what the user
     // sees on screen. Host is responsible for awaiting the save before firing
     // the publish (see /agent/list.vue::onDrawerSave + onDrawerPublish).
-    emit('save', payload);
-    emit('publish', { appId: payload.appId });
+    emit('publish', payload);
   } finally {
     publishing.value = false;
   }

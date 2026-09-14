@@ -3,7 +3,9 @@ import { computed, ref, watch } from 'vue';
 
 import type { JsonSchema } from '../types';
 import { parseJsonSchema } from '../types';
+import { parseSchemaUi, visibleSchemaFields } from '../schema-ui';
 import VarInsertField from '../../agent-flow/workflow/VarInsertField.vue';
+import ModelPickerPopover from '../../provider-hub/components/ModelPickerPopover.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -13,6 +15,7 @@ const props = withDefaults(
     allowAdvanced?: boolean;
     emptyText?: string;
     nodeId?: string;
+    uiSchema?: unknown;
   }>(),
   { modelValue: () => ({}), secretFields: () => [], allowAdvanced: true, emptyText: '该操作没有需要填写的参数' },
 );
@@ -27,7 +30,8 @@ const jsonText = ref('{}');
 const jsonError = ref('');
 
 const parsed = computed(() => parseJsonSchema(props.schema));
-const fields = computed(() => Object.entries(parsed.value.properties ?? {}));
+const ui = computed(() => parseSchemaUi(props.uiSchema));
+const fields = computed(() => visibleSchemaFields(parsed.value, ui.value, value.value));
 const isOpen = computed(
   () => fields.value.length === 0 && parsed.value.additionalProperties !== false,
 );
@@ -70,7 +74,7 @@ function applyJson() {
 }
 
 function inputType(name: string, schema: JsonSchema) {
-  if (props.secretFields.includes(name) || schema.format === 'password') {
+  if (props.secretFields.includes(name) || schema.format === 'password' || schema.writeOnly || ui.value.fields?.[name]?.widget === 'password') {
     return 'password';
   }
   if (schema.type === 'number' || schema.type === 'integer') return 'number';
@@ -87,8 +91,16 @@ function inputType(name: string, schema: JsonSchema) {
           <b v-if="parsed.required?.includes(name)">*</b>
         </span>
         <small v-if="field.description">{{ field.description }}</small>
+        <ModelPickerPopover
+          v-if="ui.fields?.[name]?.widget === 'model-selector'"
+          :model-value="(value[name] ?? {}) as any"
+          :model-type="ui.fields?.[name]?.modelType ?? 'LLM'"
+          :show-params="false"
+          :auto-load-default="false"
+          @update:model-value="setField(name, field, $event)"
+        />
         <select
-          v-if="field.enum"
+          v-else-if="field.enum"
           :value="value[name]"
           @change="
             setField(name, field, ($event.target as HTMLSelectElement).value)
@@ -109,7 +121,7 @@ function inputType(name: string, schema: JsonSchema) {
         />
         <textarea
           v-else-if="
-            field.format === 'textarea' ||
+            ui.fields?.[name]?.widget === 'textarea' || field.format === 'textarea' ||
             field.type === 'object' ||
             field.type === 'array'
           "
@@ -123,15 +135,16 @@ function inputType(name: string, schema: JsonSchema) {
           "
         />
         <VarInsertField
-          v-else-if="['string', 'number', 'integer'].includes(field.type || 'string') && nodeId && !secretFields.includes(name) && field.format !== 'password'"
+          v-else-if="['string', 'number', 'integer'].includes(field.type || 'string') && nodeId && ui.fields?.[name]?.allowVariable !== false && inputType(name, field) !== 'password'"
           :model-value="String(value[name] ?? '')"
           :node-id="nodeId"
-          :placeholder="field.description || `输入${field.title || name}，或选择上游参数`"
+          :placeholder="ui.fields?.[name]?.placeholder || field.description || `输入${field.title || name}，或选择上游参数`"
           @update:model-value="setField(name, field, $event)"
         />
         <input
           v-else
           :type="inputType(name, field)"
+          :placeholder="ui.fields?.[name]?.placeholder"
           :min="field.minimum"
           :max="field.maximum"
           :value="value[name] as any"

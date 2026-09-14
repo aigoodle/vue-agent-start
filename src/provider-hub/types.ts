@@ -4,6 +4,7 @@
  */
 
 export type ModelType =
+  | 'VIDEO'
   | 'IMAGE'
   | 'LLM'
   | 'MODERATION'

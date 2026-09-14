@@ -249,6 +249,7 @@ export function modelTypeLabel(t: ModelType | string): string {
   if (t === 'TTS') return 'TTS';
   if (t === 'MODERATION') return 'MODERATION';
   if (t === 'IMAGE') return 'IMAGE';
+  if (t === 'VIDEO') return '视频生成';
   return String(t);
 }
 
@@ -256,6 +257,7 @@ export function modelTypeColor(t: ModelType | string): string {
   if (t === 'LLM') return 'blue';
   if (t === 'TEXT_EMBEDDING') return 'green';
   if (t === 'RERANK') return 'orange';
+  if (t === 'VIDEO') return 'purple';
   if (t === 'SPEECH2TEXT' || t === 'TTS') return 'purple';
   return 'default';
 }

@@ -40,6 +40,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   types: () => [
     { modelType: 'LLM', desc: '系统推理模型' },
+    { modelType: 'VIDEO', desc: '视频生成模型' },
     { modelType: 'TEXT_EMBEDDING', desc: 'Embedding 模型' },
     { modelType: 'RERANK', desc: 'Rerank 模型' },
     { modelType: 'SPEECH2TEXT', desc: '语音转文本模型' },

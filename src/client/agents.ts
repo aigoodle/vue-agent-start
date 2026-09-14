@@ -27,7 +27,14 @@ import type {
 } from '../agent-studio/adapters/types';
 import { qs, type HttpCore } from './core';
 
+export interface AppPermissionSettings {
+  mode: 'ALL' | 'RESTRICTED';
+  grants: Array<{ type: 'USER' | 'ROLE' | 'DEPARTMENT'; subjectId: string; includeDescendants: boolean }>;
+}
+
 export interface AgentsNamespace {
+  getPermissions(id: string): Promise<AppPermissionSettings>;
+  updatePermissions(id: string, settings: AppPermissionSettings): Promise<AppPermissionSettings>;
   // ---- agent CRUD
   list(): Promise<AgentEntity[]>;
   /** GET /apps/selectors/workflows — published workflow apps for target selectors. */
@@ -134,6 +141,10 @@ export function createAgentsNamespace(core: HttpCore): AgentsNamespace {
   }
 
   return {
+    getPermissions: (id) => core.request<AppPermissionSettings>(`/apps/${encodeURIComponent(id)}/permissions`),
+    updatePermissions: (id, settings) => core.request<AppPermissionSettings>(`/apps/${encodeURIComponent(id)}/permissions`, {
+      method: 'PUT', body: JSON.stringify(settings),
+    }),
     list: () => core.request<AgentEntity[]>('/agents'),
     listPublishedWorkflowOptions: () =>
       core.request<WorkflowAppOption[]>('/apps/selectors/workflows'),

@@ -7,6 +7,7 @@ import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
 import JsonSchemaForm from '../../../connector-hub/components/JsonSchemaForm.vue';
 import type { ConnectorConnection, ConnectorDefinition, ConnectorInstallation, JsonSchema } from '../../../connector-hub/types';
 import { parseJsonSchema } from '../../../connector-hub/types';
+import { schemaOutputFields } from '../../../connector-hub/schema-ui';
 import VarInsertField from '@/workflow/VarInsertField.vue';
 import VarSelectField from '@/workflow/VarSelectField.vue';
 import PromptEditor from '@/components/PromptEditor.vue';
@@ -56,6 +57,11 @@ const connector = computed(() => connectors.value.find((item) =>
   item.key.provider === form.value.provider && item.key.connectorId === form.value.connectorId));
 const action = computed(() => connector.value?.actions.find((item) => item.id === form.value.actionId));
 const actionSchema = computed(() => parseJsonSchema(action.value?.inputSchema));
+watch(() => action.value?.outputSchema, (schema) => {
+  form.value.output[0].children = connectorOutputChildren.map(field => field.name === 'data'
+    ? { ...field, type: parseJsonSchema(schema).type ?? 'object', children: schemaOutputFields(parseJsonSchema(schema)) }
+    : field);
+}, { immediate: true });
 const hasActionFields = computed(() => Object.keys(actionSchema.value.properties ?? {}).length > 0);
 const actionConnectors = computed(() => connectors.value.filter((item) =>
   !item.capabilities?.length || item.capabilities.includes('ACTION')));
@@ -134,6 +140,7 @@ onMounted(load);
           {{ item.name }}（{{ item.key.provider }}）
         </option>
       </select>
+      <small v-if="connector?.metadata?.kind === 'PLUGIN'">{{ connector.metadata.runtime === 'JAVA' ? 'Java 插件' : '独立服务插件' }} · {{ connector.version }}</small>
     </label>
     <label>Action
       <select v-model="form.actionId" :disabled="!connector">
@@ -165,6 +172,7 @@ onMounted(load);
       <JsonSchemaForm
         v-model="form.inputs"
         :schema="action.inputSchema"
+        :ui-schema="action.metadata?.uiSchema"
         :allow-advanced="false"
         empty-text="此 Action 未提供可渲染的输入字段，请由连接器提供方补充 inputSchema.properties。"
         :node-id="nodeId || ''"

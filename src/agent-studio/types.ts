@@ -25,6 +25,7 @@ export type AppType =
   | 'workflow';
 
 export interface AgentEntity {
+  dataAccessMode?: 'ALL' | 'RESTRICTED';
   id: string;
   tenantId: string;
   /** Stable code used by internal SaaS chat integrations. */

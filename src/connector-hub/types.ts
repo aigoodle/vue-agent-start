@@ -162,6 +162,7 @@ export interface MyRobot extends ChannelConnection {
 }
 
 export interface JsonSchema {
+  writeOnly?: boolean;
   type?: string; title?: string; description?: string; format?: string;
   properties?: Record<string, JsonSchema>; required?: string[]; enum?: unknown[];
   default?: unknown; items?: JsonSchema; additionalProperties?: boolean | JsonSchema;

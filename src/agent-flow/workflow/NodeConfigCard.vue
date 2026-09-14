@@ -30,6 +30,7 @@ import LLMNodeCard from './nodeCard/LLMNodeCard.vue';
 import ParameterExtractorCard from './nodeCard/ParameterExtractorCard.vue';
 import ServiceApiNodeCard from './nodeCard/ServiceApiNodeCard.vue';
 import ConnectorNodeCard from './nodeCard/ConnectorNodeCard.vue';
+import VideoGenerationNodeCard from './nodeCard/VideoGenerationNodeCard.vue';
 import ScheduleTriggerNodeCard from './nodeCard/ScheduleTriggerNodeCard.vue';
 import StartNodeCard from './nodeCard/StartNodeCard.vue';
 import VariableAssignerCard from './nodeCard/VariableAssignerCard.vue';
@@ -95,6 +96,7 @@ const nodeTypeTheme: Record<string, { icon: string; accent: string }> = {
   START: { icon: 'start', accent: '#10b981' },
   END: { icon: 'end', accent: '#ef4444' },
   LLM: { icon: 'llm', accent: '#6366f1' },
+  VIDEO_GENERATION: { icon: 'llm', accent: '#8b5cf6' },
   AGENT: { icon: 'agent', accent: '#8b5cf6' },
   KNOWLEDGE_RETRIEVAL: { icon: 'knowledge', accent: '#14b8a6' },
   QUESTION_CLASSIFIER: { icon: 'classifier', accent: '#7c3aed' },
@@ -379,6 +381,7 @@ watch(() => props.selectNode, panelInit);
         v-model="formData"
         :node-id="selectNode.id"
       />
+      <VideoGenerationNodeCard v-else-if="selectNode.type === 'VIDEO_GENERATION'" v-model="formData" :node-id="selectNode.id" />
       <ConnectorNodeCard
         v-else-if="selectNode.type === 'CONNECTOR'"
         v-model="formData"

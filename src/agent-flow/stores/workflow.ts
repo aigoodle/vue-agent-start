@@ -38,7 +38,7 @@ export const useWorkflowStore = defineStore('workflow', {
       return items;
     },
     getNodeById(id: string) {
-      const nodes = this.graph.nodes;
+      const nodes = this.graph.nodes || [];
       for (const node of nodes) {
         if (node.id === id) {
           return node;
@@ -52,7 +52,7 @@ export const useWorkflowStore = defineStore('workflow', {
       parentEdges.forEach((edge: any) => {
         const parentNode = this.getNodeById(edge.source);
         if (
-          parentNode &&
+          parentNode?.id &&
           !items.some((item: any) => item.id === parentNode.id)
         ) {
           items.unshift(parentNode);

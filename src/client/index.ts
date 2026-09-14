@@ -138,7 +138,7 @@ export type {
   IngestionJobWire,
   RetrievalEvaluationReportWire,
 } from './knowledge';
-export type { AgentsNamespace } from './agents';
+export type { AgentsNamespace, AppPermissionSettings } from './agents';
 export type {
   WorkflowsNamespace,
   WorkflowEntityWire,

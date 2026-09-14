@@ -12,6 +12,7 @@ import langUtils from '@/utils/langUtils';
 import nodeCardForm from '@/workflow/utils/node_card_form';
 import workflow_utils from '@/workflow/utils/workflow_utils';
 import { validateWorkflowGraph } from '@/workflow/utils/graph_validator';
+import { useWorkflowGraph } from './composables/useWorkflowGraph';
 
 import CustomEdge from './CustomEdge.vue';
 import Icon from './Icon.vue';
@@ -33,6 +34,7 @@ import LoopNode from './nodes/LoopNode.vue';
 import ParameterExtractorNode from './nodes/ParameterExtractorNode.vue';
 import ServiceApiNode from './nodes/ServiceApiNode.vue';
 import ConnectorNode from './nodes/ConnectorNode.vue';
+import VideoGenerationNode from './nodes/VideoGenerationNode.vue';
 import ScheduleTriggerNode from './nodes/ScheduleTriggerNode.vue';
 import StartNode from './nodes/StartNode.vue';
 import TemplateNode from './nodes/TemplateNode.vue';
@@ -134,6 +136,7 @@ const maxHistorySize = 50;
 const canUndo = computed(() => historyIndex.value > 0);
 const canRedo = computed(() => historyIndex.value < history.value.length - 1);
 const workflowStore = useWorkflowStore();
+useWorkflowGraph(getNodes, getEdges);
 
 // 节点类型配置 —— 每个 `type` 字符串与 backend `NodeType` 枚举（UPPER_SNAKE）
 // 保持一致，同时也是 FlowDesigner 里 `<template #node-{type}>` 注册的 slot 名。
@@ -474,8 +477,7 @@ function initGraph() {
     edges.value = edgesList;
     nodeCounter.value = nodeList.length;
     setViewport(defaultViewport);
-    const graph = { nodes: nodeList, edges: edgesList };
-    workflowStore.setGraph(graph);
+    resetGraph();
     // When FlowDesigner mounts inside a drawer / modal, vue-flow's
     // fit-view-on-init sees the initial (empty) nodes list and never re-fits
     // once we push the 3 defaults. Force a fitView so the canonical seed is
@@ -491,7 +493,7 @@ function initGraph() {
 }
 
 function resetGraph() {
-  const graph = { nodes: nodes.value, edges: edges.value };
+  const graph = { nodes: getNodes.value, edges: getEdges.value };
   workflowStore.setGraph(graph);
 }
 
@@ -516,7 +518,7 @@ function reloadGraph(graph: any) {
     // fall back to a full {x,y,zoom} shape so vue-flow's setViewport doesn't
     // dereference `undefined.x`.
     const persistedViewport = graph.viewport;
-    workflowStore.setGraph(graph);
+    resetGraph();
     // Restore the exact saved pan + zoom after VueFlow has rendered the nodes.
     // Only legacy graphs without viewport metadata should be auto-fitted.
     setTimeout(() => {
@@ -604,6 +606,7 @@ function getDefaultLabel(type) {
     HTTP_REQUEST: 'HTTP 请求',
     SERVICE_API: '服务接口',
     CONNECTOR: '连接器',
+    VIDEO_GENERATION: '视频生成',
     SCHEDULE_TRIGGER: '定时任务',
     CODE: '代码执行',
     TEMPLATE_TRANSFORM: '模板转换',
@@ -637,6 +640,7 @@ function getDefaultDescription(type) {
     HTTP_REQUEST: 'HTTP 请求节点',
     SERVICE_API: '调用内部服务接口（免鉴权）',
     CONNECTOR: '调用 OpenClaw 或自有 Connector',
+    VIDEO_GENERATION: '选择视频模型，持久化等待生成结果',
     SCHEDULE_TRIGGER: '按指定时间创建任务并触发目标工作流',
     CODE: '代码执行节点',
     TEMPLATE_TRANSFORM: '模板转换节点',
@@ -668,6 +672,12 @@ function onEdgesChange(_changes) {
 }
 
 function onConnect(params) {
+  // Edge IDs differ between imported graphs and new connections. Compare the
+  // executable route, preserving different branch handles to the same target.
+  if (getEdges.value.some((edge) =>
+    edge.source === params.source && edge.target === params.target &&
+    (edge.sourceHandle ?? '') === (params.sourceHandle ?? ''),
+  )) return;
   const newEdge = {
     id: `e${params.source}-${params.target}-${Date.now()}`,
     source: params.source,
@@ -1715,6 +1725,9 @@ defineExpose({
               @duplicate="duplicateNodeById"
               @delete="deleteNodeById"
             />
+          </template>
+          <template #node-VIDEO_GENERATION="props">
+            <VideoGenerationNode v-bind="props" @connection-plus-click="onConnectionPlusClick" @duplicate="duplicateNodeById" @delete="deleteNodeById" />
           </template>
           <template #node-SCHEDULE_TRIGGER="props">
             <ScheduleTriggerNode

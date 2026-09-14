@@ -33,6 +33,7 @@ const nodeItems: NodeCatalogItem[] = [
   { type: 'FILE_UPLOAD', name: '文件上传', icon: 'file', category: '输入' },
 
   // AI 模型
+  { type: 'VIDEO_GENERATION', name: '视频生成', icon: 'llm', category: 'AI 模型', description: '选择视频模型，异步生成视频' },
   { type: 'LLM', name: 'LLM', icon: 'llm', category: 'AI 模型' },
   { type: 'AGENT', name: 'Agent', icon: 'agent', category: 'AI 模型' },
   { type: 'KNOWLEDGE_RETRIEVAL', name: '知识检索', icon: 'knowledge', category: 'AI 模型' },

@@ -15,6 +15,7 @@ export type AppMode =
   | 'workflow';
 
 export interface AgentEntity {
+  dataAccessMode?: 'ALL' | 'RESTRICTED';
   id: string;
   tenantId?: string;
   appCode?: string;
