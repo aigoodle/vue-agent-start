@@ -115,10 +115,12 @@
   "devDependencies": {
     "@ant-design/icons-vue": "^7.0.1",
     "@changesets/cli": "^2.31.1",
+    "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-vue": "^5.2.4",
     "@vue/test-utils": "^2.4.11",
     "happy-dom": "^17.6.3",
     "pinia": "^3.0.3",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vite": "^6.4.3",
     "vite-plugin-dts": "^4.5.4",
