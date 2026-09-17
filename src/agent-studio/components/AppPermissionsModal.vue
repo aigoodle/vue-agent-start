@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { Button, Checkbox, Form, FormItem, Input, Modal, Select, Spin, message } from 'ant-design-vue';
+import { Button, Checkbox, Form, FormItem, Input, Modal, Select, Spin, message } from '../../ui';
 import type { AgentsNamespace, AppPermissionSettings } from '../../client/agents';
 
 const props = defineProps<{ open: boolean; appId: string; appName: string; api: AgentsNamespace }>();

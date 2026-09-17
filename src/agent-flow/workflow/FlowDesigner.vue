@@ -639,7 +639,7 @@ function getDefaultDescription(type) {
     SLEEP_UNTIL: '持久化等待并在指定时间恢复',
     HTTP_REQUEST: 'HTTP 请求节点',
     SERVICE_API: '调用内部服务接口（免鉴权）',
-    CONNECTOR: '调用 OpenClaw 或自有 Connector',
+    CONNECTOR: '调用消息通道或自定义 Connector',
     VIDEO_GENERATION: '选择视频模型，持久化等待生成结果',
     SCHEDULE_TRIGGER: '按指定时间创建任务并触发目标工作流',
     CODE: '代码执行节点',

@@ -21,9 +21,8 @@ import ConnectorActionTestDrawer from './ConnectorActionTestDrawer.vue';
 import ConnectorConnectionModal from './ConnectorConnectionModal.vue';
 import ConnectorDetailDrawer from './ConnectorDetailDrawer.vue';
 import ChannelConnectionPanel from './ChannelConnectionPanel.vue';
-import RuntimeExtensionPanel from './RuntimeExtensionPanel.vue';
 
-type HubTab = 'connectors' | 'channels' | 'extensions' | 'executions';
+type HubTab = 'connectors' | 'channels' | 'executions';
 
 const props = defineProps<{
     apiBase?: string;
@@ -233,7 +232,7 @@ onMounted(load);
         <div class="ch-toolbar-text">
           <h2 class="ch-toolbar-title">Connector 中心</h2>
           <p class="ch-toolbar-subtitle">
-            统一管理消息平台、业务连接器与 OpenClaw / Hermes 运行时生态
+            统一管理 QQ、飞书、钉钉、企业微信、邮件与 Webhook 消息通道
           </p>
         </div>
       </div>
@@ -257,13 +256,6 @@ onMounted(load);
         @click="tab = 'connectors'"
       >
         业务连接器
-      </button>
-      <button
-        class="ch-tab"
-        :class="{ 'is-active': tab === 'extensions' }"
-        @click="tab = 'extensions'"
-      >
-        运行时扩展
       </button>
       <button
         class="ch-tab"
@@ -354,12 +346,6 @@ onMounted(load);
       v-else-if="tab === 'channels'"
       :client="client"
       :tenant-id="tenantId"
-    />
-
-    <RuntimeExtensionPanel
-      v-else-if="tab === 'extensions'"
-      :client="client"
-      @changed="refresh"
     />
 
     <!-- 执行审计 -->

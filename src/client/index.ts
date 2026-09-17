@@ -49,6 +49,7 @@ import { createProvidersNamespace, type ProvidersNamespace } from './providers';
 import { createRunsNamespace, type RunsNamespace } from './runs';
 import { createWorkflowsNamespace, type WorkflowsNamespace } from './workflows';
 import { createTriggersNamespace, type TriggersNamespace } from './triggers';
+import { createToolsNamespace, type ToolsNamespace } from './tools';
 import { createConnectorsNamespace, type ConnectorsNamespace } from './connectors';
 import { readSseEvents, type SseEvent } from './sse';
 
@@ -79,6 +80,7 @@ export interface AgentStartClient {
   readonly runs: RunsNamespace;
   readonly triggers: TriggersNamespace;
   readonly connectors: ConnectorsNamespace;
+  readonly tools: ToolsNamespace;
 }
 
 export function createAgentStartClient(
@@ -102,6 +104,7 @@ export function createAgentStartClient(
     runs: createRunsNamespace(core),
     triggers: createTriggersNamespace(core),
     connectors: createConnectorsNamespace(core),
+    tools: createToolsNamespace(core),
   };
 }
 
@@ -121,6 +124,11 @@ export type {
   RequestCompletedEvent,
 };
 export type { ConnectorsNamespace } from './connectors';
+export type {
+  McpServerCatalogItem,
+  ToolCatalogItem,
+  ToolsNamespace,
+} from './tools';
 export * from '../connector-hub/types';
 export type { ModelsNamespace, ListModelsOptions } from './models';
 export type { ProvidersNamespace, PredefinedModelPayload } from './providers';

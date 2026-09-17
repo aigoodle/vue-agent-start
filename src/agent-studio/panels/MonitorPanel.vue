@@ -30,7 +30,7 @@ import {
   SwapOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons-vue';
-import { Button, Empty, Segmented, Skeleton, Table, Tag, message } from 'ant-design-vue';
+import { Button, Empty, Segmented, Skeleton, Table, Tag, message } from '../../ui';
 
 import SparkChart from '../components/SparkChart.vue';
 

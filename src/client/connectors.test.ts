@@ -12,13 +12,11 @@ describe('connectors namespace', () => {
     );
   });
 
-  it('uses explicit lifecycle endpoints', async () => {
+  it('uses explicit installation lifecycle endpoints', async () => {
     const request = vi.fn().mockResolvedValue(undefined);
     const api = createConnectorsNamespace({ request } as any);
     await api.setInstallationEnabled('install/1', false, 'acme');
-    await api.setPluginEnabled('plugin/1', true);
     expect(request.mock.calls[0][0]).toBe('/connector-installations/install%2F1/disable');
-    expect(request.mock.calls[1][0]).toBe('/openclaw/plugins/plugin%2F1/enable');
   });
 
   it('uses trusted current-tenant binding endpoints when the host omits tenantId', async () => {
@@ -40,11 +38,11 @@ describe('connectors namespace', () => {
     const api = createConnectorsNamespace({ request } as any);
 
     await api.pageChannelConversations({
-      provider: 'openclaw', channelId: 'qqbot', cursor: 'cursor+/=', limit: 50,
+      provider: 'native', channelId: 'qqbot', cursor: 'cursor+/=', limit: 50,
     });
 
     expect(request.mock.calls[0][0]).toBe(
-      '/channel-conversations/page?provider=openclaw&channelId=qqbot&cursor=cursor%2B%2F%3D&limit=50',
+      '/channel-conversations/page?provider=native&channelId=qqbot&cursor=cursor%2B%2F%3D&limit=50',
     );
   });
 
@@ -73,24 +71,4 @@ describe('connectors namespace', () => {
     }]);
   });
 
-  it('streams OpenClaw plugin installation progress and returns the installed plugin', async () => {
-    const raw = vi.fn().mockResolvedValue(new Response(
-      'event: progress\ndata: {"percent":35,"stage":"INSTALLING","message":"正在安装"}\n\n' +
-      'event: result\ndata: {"id":"email","name":"Email","enabled":true}\n\n',
-      { headers: { 'Content-Type': 'text/event-stream' } },
-    ));
-    const api = createConnectorsNamespace({ raw } as any);
-    const onProgress = vi.fn();
-
-    const plugin = await api.installPluginStream(
-      { sourceType: 'clawhub', source: 'clawhub:email' }, onProgress,
-    );
-
-    expect(raw).toHaveBeenCalledWith('/openclaw/plugins/install/stream', {
-      method: 'POST', headers: { Accept: 'text/event-stream' },
-      body: JSON.stringify({ sourceType: 'clawhub', source: 'clawhub:email' }),
-    }, { timeoutMs: 300_000 });
-    expect(onProgress).toHaveBeenCalledWith({ percent: 35, stage: 'INSTALLING', message: '正在安装' });
-    expect(plugin).toMatchObject({ id: 'email', enabled: true });
-  });
 });

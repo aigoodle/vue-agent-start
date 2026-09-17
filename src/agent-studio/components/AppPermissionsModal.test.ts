@@ -2,7 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import AppPermissionsModal from './AppPermissionsModal.vue';
 
-vi.mock('ant-design-vue', () => ({
+vi.mock('../../ui', () => ({
   Modal: { props: ['open', 'okButtonProps'], emits: ['ok'], template: '<div><slot /><button :disabled="okButtonProps.disabled" @click="$emit(\'ok\')">save</button></div>' },
   Spin: { template: '<div><slot /></div>' },
   Form: { template: '<div><slot /></div>' },

@@ -11,18 +11,13 @@ import ToolChooser from '@/components/stubs/ToolChooser.vue';
 
 const formState: any = defineModel();
 const toolChooserRef = ref();
-const toolItems: any = ref([]);
 
-const toolChooserSubmit = (data: any) => {
-  if (!Array.isArray(formState.value.tools)) formState.value.tools = [];
-  if (!data.id) {
-    data.id = Date.now();
-    formState.value.tools.push(data);
-  }
+const toolChooserSubmit = (tools: any[]) => {
+  formState.value.tools = tools.map(tool => ({ ...tool, enabled: true }));
 };
 
 function openChooser() {
-  toolChooserRef.value?.showModal?.();
+  toolChooserRef.value?.showModal?.(formState.value.tools || []);
 }
 
 function removeTool(index: number) {
@@ -79,7 +74,6 @@ function removeTool(index: number) {
 
     <ToolChooser
       ref="toolChooserRef"
-      :main-data="toolItems"
       @form-submit="toolChooserSubmit"
     />
   </div>

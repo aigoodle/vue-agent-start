@@ -5,7 +5,7 @@
  * Give it an `api-base` (default `/api`) and it wires everything for you:
  *   • card grid + create wizard drawer + detail drawer + chunks browser
  *   • the "先注册 Embedding 模型" empty-state nudge
- *   • toasts via ant-design-vue's `message` (or your own via slots/events)
+ *   • toasts via the built-in UI `message` service (or your own via slots/events)
  *   • dataset URL copy via navigator.clipboard
  *
  * Zero adapter wiring on the host side:
@@ -19,7 +19,7 @@
  */
 import { computed } from 'vue';
 
-import { message } from 'ant-design-vue';
+import { message } from '../../ui';
 
 import {
   mergeAgentStartHeaders,

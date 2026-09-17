@@ -21,7 +21,7 @@
  * CSS in source, and subpath consumers are told to import
  * `vue-agent-start/style.css` explicitly, so styles are never duplicated.
  *
- * All runtime peers (vue, vue-router, pinia, ant-design-vue, icons,
+ * All runtime peers (vue, vue-router, pinia, icons,
  * @vue-flow/*, vue-draggable-next) stay external — the host supplies them so
  * there is exactly one Vue/pinia instance per app (see .npmrc).
  */
@@ -36,7 +36,6 @@ const EXTERNALS = [
   'vue',
   'vue-router',
   'pinia',
-  'ant-design-vue',
   '@ant-design/icons-vue',
   'vue-draggable-next',
   '@vue-flow/core',
@@ -82,6 +81,8 @@ export default defineConfig({
         'agent-studio/index': fileURLToPath(new URL('./src/agent-studio/index.ts', import.meta.url)),
         'agent-flow/index': fileURLToPath(new URL('./src/agent-flow/index.ts', import.meta.url)),
         'connector-hub/index': fileURLToPath(new URL('./src/connector-hub/index.ts', import.meta.url)),
+        'plugin-hub/index': fileURLToPath(new URL('./src/plugin-hub/index.ts', import.meta.url)),
+        'mcp-hub/index': fileURLToPath(new URL('./src/mcp-hub/index.ts', import.meta.url)),
       },
       formats: ['es', 'cjs'],
       // Emit a single collected stylesheet as dist/style.css (matches the

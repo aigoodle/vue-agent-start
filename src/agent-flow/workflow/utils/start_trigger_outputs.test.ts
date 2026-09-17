@@ -6,7 +6,7 @@ describe('START message connector outputs', () => {
   it('exposes triggers account fields to downstream variable selectors before opening config', () => {
     const nodeData: any = {
       triggersEnabled: true,
-      triggers: { type: 'connector', provider: 'openclaw', channelId: 'qqbot' },
+      triggers: { type: 'connector', provider: 'native', channelId: 'qqbot' },
       output: [{ name: 'query', type: 'string' }],
       structOutput: {
         data: [{ name: 'triggers', type: 'object', children: [{ name: 'type', type: 'string' }] }],

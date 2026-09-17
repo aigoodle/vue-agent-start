@@ -1,11 +1,9 @@
 import { qs, type HttpCore } from './core';
 import type {
   ConnectorConnection, ConnectorConnectionTestResult, ConnectorDefinition, ConnectorExecutionRecord, ChannelAuditRecord, ChannelDeadLetterReplayResult,
-  ChannelAccount, ChannelAttachment, ChannelConnection, ChannelConversation, ChannelConversationPage, ChannelConversationSummary, ChannelDefinition, ChannelEvent, ChannelEventPage, ChannelIdentity, ChannelRuntimeNodes, EmployeeAgentBinding, TenantAgentBinding, ConnectorInstallation, ConnectorResult, InstallOpenClawPluginRequest,
-  OpenClawPlugin, OpenClawRuntime, OpenClawTool, OpenClawPluginInstallProgress, SaveConnectorConnection,
+  ChannelAccount, ChannelAttachment, ChannelConnection, ChannelConversation, ChannelConversationPage, ChannelConversationSummary, ChannelDefinition, ChannelEvent, ChannelEventPage, ChannelIdentity, ChannelRuntimeNodes, EmployeeAgentBinding, TenantAgentBinding, ConnectorInstallation, ConnectorResult, SaveConnectorConnection,
   SaveChannelConnection,
 } from '../connector-hub/types';
-import { readSseEvents } from './sse';
 
 const enc = encodeURIComponent;
 export interface ConnectorsNamespace {
@@ -25,15 +23,6 @@ export interface ConnectorsNamespace {
   listChannelAudits(params?: { action?: string; resourceType?: string; resourceId?: string; actorId?: string; outcome?: string; limit?: number }): Promise<ChannelAuditRecord[]>;
   listChannelDeadLetters(limit?: number): Promise<ChannelEvent[]>;
   replayChannelDeadLetters(eventIds: string[]): Promise<ChannelDeadLetterReplayResult>;
-  runtime(): Promise<OpenClawRuntime>;
-  plugins(): Promise<OpenClawPlugin[]>;
-  openClawTools(): Promise<OpenClawTool[]>;
-  installPlugin(request: InstallOpenClawPluginRequest): Promise<OpenClawPlugin>;
-  installPluginStream(request: InstallOpenClawPluginRequest,
-    onProgress: (progress: OpenClawPluginInstallProgress) => void): Promise<OpenClawPlugin>;
-  configurePlugin(pluginId: string, config: Record<string, unknown>): Promise<OpenClawPlugin>;
-  setPluginEnabled(pluginId: string, enabled: boolean): Promise<void>;
-  uninstallPlugin(pluginId: string): Promise<void>;
   listChannels(refresh?: boolean, runtimeNodeId?: string): Promise<ChannelDefinition[]>;
   listChannelRuntimeNodes(): Promise<ChannelRuntimeNodes>;
   /** Deployment-scoped diagnostics. Requires PLATFORM_ADMIN/SYSTEM_ADMIN/DEPLOYMENT_ADMIN by default. */
@@ -91,27 +80,6 @@ export function createConnectorsNamespace(core: HttpCore): ConnectorsNamespace {
     replayChannelDeadLetters: (eventIds) => core.request('/channel-dead-letters/replay', {
       method: 'POST', body: JSON.stringify({ eventIds }),
     }),
-    runtime: () => core.request('/openclaw/runtime'),
-    plugins: () => core.request('/openclaw/plugins'),
-    openClawTools: () => core.request('/openclaw/tools'),
-    installPlugin: (request) => core.request('/openclaw/plugins/install', { method: 'POST', body: JSON.stringify(request) }),
-    installPluginStream: async (request, onProgress) => {
-      const response = await core.raw('/openclaw/plugins/install/stream', {
-        method: 'POST', headers: { Accept: 'text/event-stream' }, body: JSON.stringify(request),
-      }, { timeoutMs: 300_000 });
-      let installed: OpenClawPlugin | undefined;
-      for await (const event of readSseEvents(response)) {
-        const data = event.data ? JSON.parse(event.data) : {};
-        if (event.event === 'progress') onProgress(data as OpenClawPluginInstallProgress);
-        else if (event.event === 'result') installed = data as OpenClawPlugin;
-        else if (event.event === 'error') throw new Error(String(data?.message ?? '插件安装失败'));
-      }
-      if (!installed) throw new Error('安装流程已结束，但未收到插件信息');
-      return installed;
-    },
-    configurePlugin: (id, config) => core.request(`/openclaw/plugins/${enc(id)}/config`, { method: 'PUT', body: JSON.stringify(config) }),
-    setPluginEnabled: (id, enabled) => core.request(`/openclaw/plugins/${enc(id)}/${enabled ? 'enable' : 'disable'}`, { method: 'POST' }),
-    uninstallPlugin: (id) => core.request(`/openclaw/plugins/${enc(id)}`, { method: 'DELETE' }),
     listChannels: (refresh = false, runtimeNodeId) => core.request(`/channels${qs({ refresh: refresh ? 'true' : undefined, runtimeNodeId })}`),
     listChannelRuntimeNodes: () => core.request('/channels/runtime-nodes'),
     listChannelAccounts: (provider, channelId) => core.request(`/channels/${enc(provider)}/${enc(channelId)}/accounts`),

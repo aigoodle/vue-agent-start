@@ -12,7 +12,7 @@
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { KeyOutlined } from '@ant-design/icons-vue';
-import { message, Modal } from 'ant-design-vue';
+import { message, Modal } from '../../ui';
 
 import type { AppStudioApi, StudioApiKey } from '../api/types';
 

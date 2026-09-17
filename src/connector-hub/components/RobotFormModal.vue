@@ -12,14 +12,11 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
-import type { AgentEntity } from '../../agent-studio/adapters/types';
 import type {
   ChannelConnection,
   ChannelDefinition,
   RobotUser,
 } from '../types';
-import { parseJsonSchema } from '../types';
-import AgentVersionSelect from './AgentVersionSelect.vue';
 import JsonSchemaForm from './JsonSchemaForm.vue';
 
 const props = defineProps<{
@@ -27,7 +24,6 @@ const props = defineProps<{
   client: AgentStartClient;
   /** 已安装的消息渠道(父级已过滤)。 */
   channels: ChannelDefinition[];
-  agents: AgentEntity[];
   /** 传入时为编辑模式,回填已有连接。 */
   robot?: ChannelConnection;
   /** 宿主业务系统注入的当前人员信息;仅用于保存时注入 ownerId。 */
@@ -43,9 +39,6 @@ const emit = defineEmits<{
 const channelKey = ref('');
 const form = ref({
   name: '',
-  agentId: '',
-  agentVersionId: '',
-  bindingScope: 'EMPLOYEE',
   enabled: true,
 });
 const credentials = ref<Record<string, unknown>>({});
@@ -58,12 +51,6 @@ const selectedChannel = computed(() =>
     (c) => `${c.provider}:${c.channelId}` === channelKey.value,
   ),
 );
-// 凭证字段一律按密文处理,与 ChannelAccountDrawer 保持一致
-const credentialFields = computed(() =>
-  Object.keys(
-    parseJsonSchema(selectedChannel.value?.credentialSchema).properties ?? {},
-  ),
-);
 
 function blankForm() {
   channelKey.value = props.robot
@@ -71,38 +58,15 @@ function blankForm() {
     : '';
   form.value = {
     name: '',
-    agentId: '',
-    agentVersionId: '',
-    bindingScope: 'EMPLOYEE',
     enabled: true,
   };
   credentials.value = {};
   channelConfig.value = {};
 }
 
-async function fillFrom(row: ChannelConnection) {
-  let employeeAgentId = '';
-  let employeeAgentVersionId = '';
-  if (!row.agentId) {
-    try {
-      const binding = await props.client.connectors.getEmployeeAgentBinding(
-        row.ownerId,
-        props.tenantId,
-      );
-      employeeAgentId = binding?.agentId ?? '';
-      employeeAgentVersionId = binding?.agentVersionId ?? '';
-    } catch {
-      employeeAgentId = '';
-      employeeAgentVersionId = '';
-    }
-  }
+function fillFrom(row: ChannelConnection) {
   form.value = {
     name: row.name,
-    agentId: row.agentId ?? employeeAgentId,
-    agentVersionId: row.agentId
-      ? (row.agentVersionId ?? '')
-      : employeeAgentVersionId,
-    bindingScope: row.agentId ? 'CONNECTION' : 'EMPLOYEE',
     enabled: row.desiredStatus === 'ACTIVE',
   };
   // 凭证不回显:留空表示不覆盖
@@ -116,7 +80,7 @@ watch(
     if (!props.open) return;
     error.value = '';
     blankForm();
-    if (props.robot) await fillFrom(props.robot);
+    if (props.robot) fillFrom(props.robot);
   },
   { immediate: true },
 );
@@ -160,23 +124,7 @@ async function save() {
         ? channelConfig.value
         : undefined,
       enabled: form.value.enabled,
-      agentId:
-        form.value.bindingScope === 'CONNECTION'
-          ? form.value.agentId || undefined
-          : undefined,
-      agentVersionId:
-        form.value.bindingScope === 'CONNECTION'
-          ? form.value.agentVersionId || undefined
-          : undefined,
     });
-    if (form.value.bindingScope === 'EMPLOYEE' && form.value.agentId) {
-      await props.client.connectors.saveEmployeeAgentBinding(
-        props.user.userId,
-        form.value.agentId,
-        props.tenantId,
-        form.value.agentVersionId || undefined,
-      );
-    }
     emit('saved');
     emit('update:open', false);
   } catch (e: any) {
@@ -233,34 +181,6 @@ async function save() {
             />
           </label>
 
-          <div class="rfm-row">
-            <label class="rfm-field rfm-field-grow">
-              <span>绑定层级</span>
-              <select v-model="form.bindingScope" class="rfm-input">
-                <option value="EMPLOYEE">员工专属 Agent</option>
-                <option value="CONNECTION">仅此连接</option>
-              </select>
-            </label>
-            <label class="rfm-field rfm-field-grow">
-              <span>选择 Agent</span>
-              <select v-model="form.agentId" class="rfm-input">
-                <option value="">使用租户默认 Agent</option>
-                <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-                  {{ agent.name }}
-                </option>
-              </select>
-            </label>
-          </div>
-
-          <label class="rfm-field">
-            <span>Agent 版本</span>
-            <AgentVersionSelect
-              v-model="form.agentVersionId"
-              :client="client"
-              :agent-id="form.agentId"
-            />
-          </label>
-
           <template v-if="selectedChannel">
             <fieldset class="rfm-group">
               <legend>账号凭证</legend>
@@ -268,7 +188,6 @@ async function save() {
               <JsonSchemaForm
                 v-model="credentials"
                 :schema="selectedChannel.credentialSchema"
-                :secret-fields="credentialFields"
               />
             </fieldset>
 

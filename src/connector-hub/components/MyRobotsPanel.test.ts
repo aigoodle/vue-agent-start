@@ -10,7 +10,7 @@ afterEach(() => {
 const ROBOT = {
   id: 'robot-1',
   tenantId: 'tenant-a',
-  ownerId: 'u-7', ownerType: 'USER', provider: 'openclaw', channelId: 'qqbot',
+  ownerId: 'u-7', ownerType: 'USER', provider: 'native', channelId: 'qqbot',
   desiredStatus: 'ACTIVE', runtimeStatus: 'ONLINE', runtimeAccountId: 'qq-1',
   credentialsConfigured: true, configVersion: 1,
   name: '售后小助手',
@@ -29,7 +29,7 @@ function makeClient(overrides: Record<string, any> = {}) {
     connectors: {
       listChannelConnections: vi.fn().mockResolvedValue([{ ...ROBOT }]),
       listChannels: vi.fn().mockResolvedValue([{
-        provider: 'openclaw', channelId: 'qqbot', name: 'QQBot', installed: true,
+        provider: 'native', channelId: 'qqbot', name: 'QQBot', installed: true,
         enabled: true, runtimeStatus: 'UP', credentialSchema: '{"type":"object"}',
       }]),
       saveChannelConnection: vi.fn().mockResolvedValue({ ...ROBOT }),
@@ -61,7 +61,7 @@ describe('MyRobotsPanel', () => {
     expect(client.connectors.listChannelConnections).toHaveBeenCalledWith('tenant-a', 'u-7');
     expect(wrapper.text()).toContain('售后小助手');
     expect(wrapper.text()).toContain('处理售后咨询');
-    expect(wrapper.text()).toContain('客服 Agent');
+    expect(wrapper.text()).toContain('qqbot · 员工账号');
     expect(wrapper.text()).toContain('张三');
     // 归属与租户字段只参与请求,绝不出现在界面上
     expect(wrapper.text()).not.toContain('u-7');
@@ -86,7 +86,7 @@ describe('MyRobotsPanel', () => {
     expect(labels.join(' ')).not.toContain('userId');
     expect(wrapper.find('input[name="tenantId"]').exists()).toBe(false);
 
-    await wrapper.find('select.rfm-input').setValue('openclaw:qqbot');
+    await wrapper.find('select.rfm-input').setValue('native:qqbot');
     await wrapper.find('input.rfm-input').setValue('售前导购');
     await wrapper
       .findAll('button')

@@ -2,19 +2,16 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
-import type { AgentEntity } from '../../agent-studio/adapters/types';
 import type { ChannelConnection, ChannelDefinition } from '../types';
-import { parseJsonSchema } from '../types';
 import ChannelIcon from './ChannelIcon.vue';
-import AgentVersionSelect from './AgentVersionSelect.vue';
 import JsonSchemaForm from './JsonSchemaForm.vue';
+import NativeChannelSetupGuide from './NativeChannelSetupGuide.vue';
 
 const props = defineProps<{
     open: boolean;
     channel?: ChannelDefinition;
     /** 当前通道下已配置的账号（父级已按通道过滤） */
     connections: ChannelConnection[];
-    agents: AgentEntity[];
     client: AgentStartClient;
     tenantId?: string;
   }>();
@@ -27,9 +24,6 @@ const emit = defineEmits<{
 const form = ref({
   ownerId: '',
   name: '',
-  agentId: '',
-  agentVersionId: '',
-  bindingScope: 'EMPLOYEE',
   enabled: true,
 });
 const credentials = ref<Record<string, unknown>>({});
@@ -41,9 +35,6 @@ const installing = ref(false);
 const error = ref('');
 const notice = ref('');
 
-const credentialFields = computed(() =>
-  Object.keys(parseJsonSchema(props.channel?.credentialSchema).properties ?? {}),
-);
 const platformKey = computed(() =>
   String(props.channel?.metadata?.platformId ?? props.channel?.channelId ?? '').toLowerCase(),
 );
@@ -54,7 +45,7 @@ function linkOf(field: 'homepageUrl' | 'sourceUrl') {
 }
 
 function blankForm() {
-  form.value = { ownerId: '', name: '', agentId: '', agentVersionId: '', bindingScope: 'EMPLOYEE', enabled: true };
+  form.value = { ownerId: '', name: '', enabled: true };
   credentials.value = {};
   channelConfig.value = {};
   editingId.value = undefined;
@@ -75,24 +66,9 @@ function closeForm() {
 async function fillFrom(row: ChannelConnection) {
   formOpen.value = true;
   editingId.value = row.id;
-  let employeeAgentId = '';
-  let employeeAgentVersionId = '';
-  if (!row.agentId) {
-    try {
-      const employeeBinding = await props.client.connectors.getEmployeeAgentBinding(row.ownerId, props.tenantId);
-      employeeAgentId = employeeBinding?.agentId ?? '';
-      employeeAgentVersionId = employeeBinding?.agentVersionId ?? '';
-    } catch {
-      employeeAgentId = '';
-      employeeAgentVersionId = '';
-    }
-  }
   form.value = {
     ownerId: row.ownerId,
     name: row.name,
-    agentId: row.agentId ?? employeeAgentId,
-    agentVersionId: row.agentId ? row.agentVersionId ?? '' : employeeAgentVersionId,
-    bindingScope: row.agentId ? 'CONNECTION' : 'EMPLOYEE',
     enabled: row.desiredStatus === 'ACTIVE',
   };
   credentials.value = {};
@@ -129,19 +105,7 @@ async function save() {
       credentials: Object.keys(credentials.value).length ? credentials.value : undefined,
       config: Object.keys(channelConfig.value).length ? channelConfig.value : undefined,
       enabled: form.value.enabled,
-      agentId:
-        form.value.bindingScope === 'CONNECTION' ? form.value.agentId || undefined : undefined,
-      agentVersionId:
-        form.value.bindingScope === 'CONNECTION' ? form.value.agentVersionId || undefined : undefined,
     });
-    if (form.value.bindingScope === 'EMPLOYEE' && form.value.agentId) {
-      await props.client.connectors.saveEmployeeAgentBinding(
-        form.value.ownerId,
-        form.value.agentId,
-        props.tenantId,
-        form.value.agentVersionId || undefined,
-      );
-    }
     emit('saved');
     formOpen.value = false;
   } catch (e: any) {
@@ -171,42 +135,45 @@ async function remove(row: ChannelConnection) {
 async function install() {
   const channel = props.channel;
   if (!channel) return;
-  if (channel.provider !== 'openclaw') {
-    error.value = `${channel.provider} 适配器由对应运行时管理，无需在 OpenClaw 中安装`;
-    return;
-  }
-  const packageSpec = String(channel.metadata?.packageSpec ?? '');
-  if (!packageSpec) {
-    error.value = `通道 ${channel.name} 未声明安装包`;
-    return;
-  }
-  installing.value = true;
-  error.value = '';
-  try {
-    await props.client.connectors.installPlugin({ sourceType: 'npm', source: packageSpec });
-    emit('saved');
-  } catch (e: any) {
-    error.value = e?.message ?? `安装 ${channel.name} 失败`;
-  } finally {
-    installing.value = false;
-  }
+  error.value = `请在后端引入 ${channel.channelId} 原生 Connector Starter 后重启服务`;
 }
 
-// Hermes 适配器的入站回调异常不影响链路本身的在线状态，单独降级展示
 const callbackIssueOf = (row: ChannelConnection) =>
-  row.provider === 'hermes' && row.runtimeMetadata?.callbackWorkerRunning === false;
+  row.runtimeMetadata?.callbackWorkerRunning === false;
 const callbackBacklogOf = (row: ChannelConnection) => {
   const value = Number(row.runtimeMetadata?.pendingInboundCallbacks ?? 0);
   return Number.isFinite(value) && value > 0 ? value : 0;
 };
+const rowNeedsCallback = (row: ChannelConnection) =>
+  ['wecom', 'webhook'].includes(props.channel?.channelId ?? '')
+  || String(row.runtimeMetadata?.transport ?? '').toLowerCase() === 'webhook';
+const webhookReady = (row: ChannelConnection) =>
+  rowNeedsCallback(row)
+  && row.desiredStatus === 'ACTIVE'
+  && ['RUNNING', 'ONLINE'].includes(row.runtimeStatus)
+  && !callbackIssueOf(row);
 const operationalStatusOf = (row: ChannelConnection) =>
   callbackIssueOf(row)
     ? `${row.runtimeStatus} · 入站回调异常`
     : row.lastError
       ? `${row.runtimeStatus} · ${row.lastError}`
-      : row.runtimeStatus;
+      : webhookReady(row)
+        ? '已就绪 · 等待平台回调'
+        : row.runtimeStatus;
 const accountOnline = (row: ChannelConnection) =>
-  row.runtimeStatus === 'ONLINE' && !callbackIssueOf(row);
+  (row.runtimeStatus === 'ONLINE' || webhookReady(row)) && !callbackIssueOf(row);
+const callbackPathOf = (row: ChannelConnection) =>
+  `${props.client.rootUrl}/channel-events/native/${props.channel?.channelId}/${row.runtimeAccountId || row.id}`;
+
+async function copyCallbackPath(row: ChannelConnection) {
+  const path = callbackPathOf(row);
+  try {
+    await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+    notice.value = `已复制账号「${row.name}」的完整回调地址`;
+  } catch {
+    notice.value = `回调路径：${path}`;
+  }
+}
 </script>
 
 <template>
@@ -240,19 +207,14 @@ const accountOnline = (row: ChannelConnection) =>
           <template v-if="!channel?.installed">
             <p class="cad-desc">{{ channel?.description }}</p>
             <div class="cad-install">
-              <template v-if="channel?.provider === 'openclaw'">
-                <p>该通道尚未安装，安装后即可配置账号并接收消息。</p>
-                <button
-                  class="cad-btn cad-btn-primary"
-                  :disabled="installing"
-                  @click="install"
-                >
-                  {{ installing ? '安装中…' : '安装通道插件' }}
-                </button>
-              </template>
-              <p v-else class="cad-hint">
-                {{ channel?.provider }} 适配器由对应运行时管理（如 Hermes 按 profile 配置），无需在此安装。
-              </p>
+              <p>该原生通道 Starter 尚未启用，引入后即可在此配置账号并接收消息。</p>
+              <button
+                class="cad-btn cad-btn-primary"
+                :disabled="installing"
+                @click="install"
+              >
+                {{ installing ? '检查中…' : '查看启用方式' }}
+              </button>
               <div class="cad-links">
                 <a
                   v-if="linkOf('homepageUrl')"
@@ -300,11 +262,15 @@ const accountOnline = (row: ChannelConnection) =>
                 <span v-if="callbackBacklogOf(row)" class="cad-tag is-warn">
                   待回调 {{ callbackBacklogOf(row) }}
                 </span>
-                <span class="cad-tag">{{ row.agentId ? '显式 Agent' : '默认路由' }}</span>
+                <span class="cad-tag">员工账号</span>
                 <span :class="['cad-tag', { 'is-warn': !row.credentialsConfigured }]">
                   {{ row.credentialsConfigured ? '凭证已配置' : '缺少凭证' }}
                 </span>
+                <code v-if="rowNeedsCallback(row)" class="cad-callback">
+                  {{ callbackPathOf(row) }}
+                </code>
                 <div class="cad-row-actions">
+                  <button v-if="rowNeedsCallback(row)" class="cad-link" @click="copyCallbackPath(row)">复制回调地址</button>
                   <button class="cad-link" @click="fillFrom(row)">编辑</button>
                   <button class="cad-link" @click="test(row)">测试</button>
                   <button class="cad-link is-danger" @click="remove(row)">删除</button>
@@ -321,6 +287,10 @@ const accountOnline = (row: ChannelConnection) =>
                   </header>
                   <div class="cad-form-body">
                     <div v-if="error" class="cad-alert">{{ error }}</div>
+                    <NativeChannelSetupGuide
+                      :channel-id="channel?.channelId"
+                      :account-id="editingId"
+                    />
                     <div class="cad-fields">
                 <label>
                   员工 / 所有者 ID
@@ -334,30 +304,6 @@ const accountOnline = (row: ChannelConnection) =>
                     :placeholder="`例如 ${channel?.name} 工作账号`"
                   />
                 </label>
-                <label>
-                  绑定层级
-                  <select v-model="form.bindingScope">
-                    <option value="EMPLOYEE">员工专属 Agent</option>
-                    <option value="CONNECTION">仅此连接</option>
-                  </select>
-                </label>
-                <label>
-                  选择 Agent
-                  <select v-model="form.agentId">
-                    <option value="">使用租户默认 Agent</option>
-                    <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-                      {{ agent.name }}
-                    </option>
-                  </select>
-                </label>
-                <label>
-                  Agent 版本
-                  <AgentVersionSelect
-                    v-model="form.agentVersionId"
-                    :client="client"
-                    :agent-id="form.agentId"
-                  />
-                </label>
                     </div>
 
                     <fieldset>
@@ -366,7 +312,6 @@ const accountOnline = (row: ChannelConnection) =>
                 <JsonSchemaForm
                   v-model="credentials"
                   :schema="channel?.credentialSchema"
-                  :secret-fields="credentialFields"
                 />
                     </fieldset>
 
@@ -652,6 +597,15 @@ const accountOnline = (row: ChannelConnection) =>
   font-size: 12px;
   color: #9ca3af;
 }
+.cad-callback {
+  flex-basis: 100%;
+  padding: 5px 8px;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: #475569;
+  background: #f8fafc;
+  border-radius: 5px;
+}
 .cad-row-actions {
   margin-left: auto;
   display: flex;
@@ -680,6 +634,10 @@ const accountOnline = (row: ChannelConnection) =>
 }
 :global(.dark) .cad-row-main b {
   color: #f3f4f6;
+}
+:global(.dark) .cad-callback {
+  color: #cbd5e1;
+  background: #242424;
 }
 :global(.dark) .cad-link {
   color: #818cf8;

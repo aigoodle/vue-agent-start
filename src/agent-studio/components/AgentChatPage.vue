@@ -20,7 +20,7 @@ import {
   MenuItem,
   message,
   Tag,
-} from 'ant-design-vue';
+} from '../../ui';
 
 import { readSseEvents } from '../../client';
 import {

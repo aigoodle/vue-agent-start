@@ -31,7 +31,7 @@ import {
   Tag,
   Textarea,
   message,
-} from 'ant-design-vue';
+} from '../../ui';
 
 import type {
   AppStudioApi,

@@ -1,7 +1,7 @@
 import { createVNode } from 'vue';
 
 import { ExclamationCircleOutlined } from '@ant-design/icons-vue';
-import { message, Modal } from 'ant-design-vue';
+import { message, Modal } from '../../ui';
 
 const config = { hostname: '' };
 

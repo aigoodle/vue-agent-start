@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 
-import { Input } from 'ant-design-vue';
+import { Input } from '../../ui';
 
 interface Parameter {
   name: string;

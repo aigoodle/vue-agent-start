@@ -40,7 +40,7 @@
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
-import { Popover, Segmented, Spin } from 'ant-design-vue';
+import { Popover, Segmented, Spin } from '../../ui';
 import {
   CheckOutlined,
   CloseOutlined,
@@ -86,7 +86,7 @@ interface Props {
   width?: number | string;
   /** 二级"模型下拉"高度上限。 */
   bodyMaxHeight?: number | string;
-  /** ant-design-vue Popover placement 透传。 */
+  /** Popover placement passthrough. */
   placement?:
     | 'bottom'
     | 'bottomLeft'

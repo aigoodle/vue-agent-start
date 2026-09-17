@@ -1,6 +1,7 @@
 import { inject, type InjectionKey } from 'vue';
 
 import type { MaybePromise } from './client';
+import { AgentStartUi } from './ui';
 
 export type AgentStartHeaders =
   | Record<string, string>
@@ -20,9 +21,10 @@ const AgentStartConfigKey: InjectionKey<AgentStartPluginOptions> = Symbol(
 /** Global Vue plugin used with `app.use(AgentStartPlugin, options)`. */
 export const AgentStartPlugin = {
   install(
-    app: { provide<T>(key: InjectionKey<T>, value: T): unknown },
+    app: import('vue').App,
     options: AgentStartPluginOptions = {},
   ) {
+    app.use(AgentStartUi);
     app.provide(AgentStartConfigKey, options);
   },
 };

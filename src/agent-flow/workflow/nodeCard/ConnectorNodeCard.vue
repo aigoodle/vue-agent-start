@@ -127,7 +127,7 @@ onMounted(load);
           <strong>消息连接器</strong><span>向 QQ Bot、企业微信等渠道发送消息</span>
         </button>
         <button type="button" class="connector-kind-card" :class="{ active: form.connectorMode === 'CONNECTOR_ACTION' }" @click="form.connectorMode = 'CONNECTOR_ACTION'">
-          <strong>插件连接器</strong><span>调用邮件、日历、OpenClaw 插件等 Action</span>
+          <strong>插件连接器</strong><span>调用邮件、日历或自定义插件 Action</span>
         </button>
       </div>
       <p>{{ form.connectorMode === 'CHANNEL_MESSAGE' ? '消息接收由开始节点触发器负责；当前节点只负责发送。' : '插件能力和消息账号相互独立，参数由插件 Action Schema 决定。' }}</p>

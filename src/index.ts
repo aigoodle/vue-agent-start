@@ -17,6 +17,9 @@
 // Style tokens — the only side-effect import.
 // -----------------------------------------------------------------------------
 import './knowledge-hub/styles/index.css';
+import './ui/style.css';
+
+export * from './ui';
 
 export {
   AgentStartPlugin,
@@ -90,6 +93,8 @@ export * from './provider-hub/types';
 export type { HeadersLike } from './provider-hub/composables/useProviderHub';
 
 export * from './connector-hub';
+export * from './plugin-hub';
+export * from './mcp-hub';
 
 // -----------------------------------------------------------------------------
 // knowledge-hub — dataset UI kit
@@ -177,6 +182,7 @@ import { provideBackend, type BackendAdapter } from './agent-flow/adapter/backen
 import nodeCatalog from './agent-flow/workflow/utils/node_config';
 import nodeCardForm from './agent-flow/workflow/utils/node_card_form';
 import workflowUtils from './agent-flow/workflow/utils/workflow_utils';
+import { AgentStartUi } from './ui';
 
 export {
   FlowDesigner,
@@ -202,6 +208,7 @@ export interface AgentFlowInstallOptions {
 /** Vue plugin install for the workflow designer. */
 export const AgentFlowPlugin = {
   install(app: import('vue').App, options: AgentFlowInstallOptions = {}) {
+    app.use(AgentStartUi);
     if (options.backend) {
       provideBackend(app, options.backend);
     }

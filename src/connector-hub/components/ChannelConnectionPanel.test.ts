@@ -8,7 +8,7 @@ function createClient() {
     connectors: {
       listChannels: vi.fn().mockResolvedValue([
         {
-          provider: 'openclaw',
+          provider: 'native',
           channelId: 'dingtalk',
           name: '钉钉',
           description: '钉钉消息通道',
@@ -38,16 +38,16 @@ describe('ChannelConnectionPanel', () => {
     wrapper.unmount();
   });
 
-  it('shows Hermes callback degradation inside the channel account drawer', async () => {
+  it('shows native callback degradation inside the channel account drawer', async () => {
     const client = createClient();
     client.connectors.listChannels.mockResolvedValue([{
-      provider: 'hermes', channelId: 'qqbot', name: 'QQ', description: 'QQ 消息通道',
+      provider: 'native', channelId: 'qqbot', name: 'QQ', description: 'QQ 消息通道',
       version: '1.0', installed: true, enabled: true, runtimeStatus: 'ONLINE',
       metadata: { platformId: 'qqbot' },
     }]);
     client.connectors.listChannelConnections.mockResolvedValue([{
-      id: 'hermes-1', tenantId: 'default', ownerType: 'USER', ownerId: 'employee-7',
-      provider: 'hermes', channelId: 'qqbot', name: 'Hermes QQ', desiredStatus: 'ACTIVE',
+      id: 'native-1', tenantId: 'default', ownerType: 'USER', ownerId: 'employee-7',
+      provider: 'native', channelId: 'qqbot', name: 'QQ 客服', desiredStatus: 'ACTIVE',
       runtimeStatus: 'ONLINE', runtimeAccountId: 'profile-7', credentialsConfigured: true,
       configVersion: 1, runtimeMetadata: { callbackWorkerRunning: false,
         callbackWorkerFailures: 2, callbackWorkerError: 'database is locked',
@@ -71,7 +71,7 @@ describe('ChannelConnectionPanel', () => {
     const client = createClient();
     client.connectors.listChannelConnections.mockResolvedValue([{
       id: 'conn-1', tenantId: 'default', ownerType: 'USER', ownerId: 'employee-1',
-      provider: 'openclaw', channelId: 'dingtalk', name: '客服一号', desiredStatus: 'ACTIVE',
+      provider: 'native', channelId: 'dingtalk', name: '客服一号', desiredStatus: 'ACTIVE',
       runtimeStatus: 'ONLINE', runtimeAccountId: 'bot-001', credentialsConfigured: true,
       configVersion: 1,
     }]);
@@ -90,20 +90,20 @@ describe('ChannelConnectionPanel', () => {
     expect(wrapper.text()).toContain('已配置账号');
     expect(wrapper.text()).toContain('客服一号');
     expect(wrapper.text()).toContain('bot-001');
-    expect(wrapper.text()).toContain('默认路由');
+    expect(wrapper.text()).toContain('员工账号');
     expect(wrapper.text()).toContain('凭证已配置');
     wrapper.unmount();
   });
 
-  it('does not treat a disabled built-in Hermes adapter as an installed channel', async () => {
+  it('does not treat a disabled fallback adapter as an installed channel', async () => {
     const client = createClient();
     client.connectors.listChannels.mockResolvedValue([
       {
-        provider: 'hermes', channelId: 'mattermost', name: 'Mattermost', installed: true,
+        provider: 'native', channelId: 'mattermost', name: 'Mattermost', installed: true,
         enabled: false, runtimeStatus: 'DISABLED', metadata: { platformId: 'mattermost' },
       },
       {
-        provider: 'openclaw', channelId: 'mattermost', name: 'Mattermost', installed: false,
+        provider: 'remote', channelId: 'mattermost', name: 'Mattermost', installed: false,
         enabled: false, runtimeStatus: 'NOT_INSTALLED', metadata: { platformId: 'mattermost' },
       },
     ]);
@@ -149,7 +149,7 @@ describe('ChannelConnectionPanel', () => {
       total: 2, waitingHuman: 0, humanActive: 0, slaBreached: 0, unread: 0,
     });
     const conversation = (id: string, preview: string) => ({
-      id, tenantId: 'default', connectionId: 'connection-1', provider: 'openclaw',
+      id, tenantId: 'default', connectionId: 'connection-1', provider: 'native',
       channelId: 'dingtalk', accountId: 'account-1', conversationId: id,
       routingPolicyVersion: 1, status: 'BOT_ACTIVE', agentPaused: false,
       lastMessagePreview: preview, unreadCount: 0, slaBreached: false, lockVersion: 1,
@@ -177,13 +177,13 @@ describe('ChannelConnectionPanel', () => {
     const client = createClient();
     const conversation = {
       id: 'conversation-row-1', tenantId: 'default', connectionId: 'connection-1',
-      provider: 'openclaw', channelId: 'dingtalk', accountId: 'account-1',
+      provider: 'native', channelId: 'dingtalk', accountId: 'account-1',
       conversationId: 'conversation-1', routingPolicyVersion: 1, status: 'BOT_ACTIVE',
       agentPaused: false, lastMessagePreview: '最新消息', unreadCount: 0,
       slaBreached: false, lockVersion: 1,
     };
     const event = (id: string, content: string) => ({
-      id, tenantId: 'default', connectionId: 'connection-1', provider: 'openclaw',
+      id, tenantId: 'default', connectionId: 'connection-1', provider: 'native',
       channelId: 'dingtalk', accountId: 'account-1', conversationId: 'conversation-1',
       direction: 'INBOUND', content, handled: true, status: 'HANDLED',
     });
@@ -225,13 +225,13 @@ describe('ChannelConnectionPanel', () => {
     const client = createClient();
     const conversation = (id: string) => ({
       id: `row-${id}`, tenantId: 'default', connectionId: 'connection-1',
-      provider: 'openclaw', channelId: 'dingtalk', accountId: 'account-1',
+      provider: 'native', channelId: 'dingtalk', accountId: 'account-1',
       conversationId: id, routingPolicyVersion: 1, status: 'BOT_ACTIVE',
       agentPaused: false, lastMessagePreview: id, unreadCount: 0,
       slaBreached: false, lockVersion: 1,
     });
     const event = (id: string, conversationId: string, content: string) => ({
-      id, tenantId: 'default', connectionId: 'connection-1', provider: 'openclaw',
+      id, tenantId: 'default', connectionId: 'connection-1', provider: 'native',
       channelId: 'dingtalk', accountId: 'account-1', conversationId,
       direction: 'INBOUND', content, handled: true, status: 'HANDLED',
     });

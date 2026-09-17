@@ -33,23 +33,6 @@ export interface ConnectorResult {
   metadata?: Record<string, unknown>;
 }
 export interface ConnectorConnectionTestResult { success: boolean; code: string; message: string }
-export interface OpenClawRuntime {
-  status: string; version?: string; bridgeVersion?: string; startedAt?: string;
-  inbound?: {
-    observed?: number; callbackAttempts?: number; callbackSucceeded?: number; callbackFailed?: number;
-    lastObservedAt?: string; lastCallbackSucceededAt?: string; lastCallbackFailedAt?: string;
-    lastCallbackError?: string;
-  };
-  capabilities?: string[];
-}
-export interface OpenClawPlugin {
-  id: string; name: string; version?: string; description?: string; enabled: boolean;
-  license?: string; configSchema?: string; metadata?: Record<string, unknown>;
-}
-export interface OpenClawTool {
-  pluginId: string; name: string; label?: string; description?: string;
-  inputSchema?: string; risk?: string; tags?: string[]; metadata?: Record<string, unknown>;
-}
 export interface ChannelDefinition {
   provider: string; channelId: string; name: string; description?: string; version?: string;
   installed: boolean; enabled: boolean; runtimeStatus: string;
@@ -117,12 +100,6 @@ export interface EmployeeAgentBinding { id: string; tenantId: string; employeeId
 export interface ChannelIdentity {
   id: string; tenantId: string; provider: string; channelId: string; accountId: string;
   externalUserId: string; enterpriseUserId: string; verificationStatus: string; enabled: boolean;
-}
-export interface InstallOpenClawPluginRequest {
-  sourceType: string; source: string; version?: string;
-}
-export interface OpenClawPluginInstallProgress {
-  percent: number; stage: string; message: string;
 }
 export interface ConnectorExecutionRecord {
   id: string; tenantId: string; provider: string; connectorId: string; actionId: string;

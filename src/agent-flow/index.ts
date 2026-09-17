@@ -16,6 +16,8 @@ import nodeCatalog from './workflow/utils/node_config';
 import nodeCardForm from './workflow/utils/node_card_form';
 import workflowUtils from './workflow/utils/workflow_utils';
 import { validateWorkflowGraph } from './workflow/utils/graph_validator';
+import { AgentStartUi } from '../ui';
+import '../ui/style.css';
 
 export {
   FlowDesigner,
@@ -67,6 +69,7 @@ export interface AgentFlowInstallOptions {
  */
 export default {
   install(app: App, options: AgentFlowInstallOptions = {}) {
+    app.use(AgentStartUi);
     if (options.backend) {
       provideBackend(app, options.backend);
     }

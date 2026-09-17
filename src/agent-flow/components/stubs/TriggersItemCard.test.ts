@@ -25,16 +25,14 @@ describe('TriggersItemCard', () => {
   it('loads message connectors and persists the selected channel trigger', async () => {
     const connectors = {
       listChannels: vi.fn().mockResolvedValue([
-        { provider: 'openclaw', channelId: 'wechat', name: '企业微信', enabled: true },
-        { provider: 'openclaw', channelId: 'telegram', name: 'Telegram', enabled: true },
-        { provider: 'openclaw', channelId: 'disabled', name: '已停用渠道', enabled: true },
-      ]),
-      listChannelConnections: vi.fn().mockResolvedValue([
-        { id: 'conn-1', provider: 'openclaw', channelId: 'wechat', name: '客服号', runtimeStatus: 'ONLINE' },
-        { id: 'conn-2', provider: 'openclaw', channelId: 'disabled', name: '停用账号', desiredStatus: 'DISABLED', runtimeStatus: 'OFFLINE' },
+        { provider: 'native', channelId: 'wecom', name: '企业微信', enabled: true },
+        { provider: 'native', channelId: 'qqbot', name: 'QQBot', enabled: true },
+        { provider: 'native', channelId: 'disabled', name: '已停用渠道', enabled: true, runtimeStatus: 'DISABLED' },
       ]),
     };
-    const model = { triggersEnabled: true, triggers: { type: 'connector' } };
+    const model = { triggersEnabled: true, triggers: {
+      type: 'connector', connectionId: 'legacy-employee-account', connectionName: '旧员工账号',
+    } };
     const wrapper = mount(TriggersItemCard, {
       props: { modelValue: model, 'onUpdate:modelValue': () => undefined },
       global: {
@@ -60,13 +58,14 @@ describe('TriggersItemCard', () => {
     expect(wrapper.text()).not.toContain('Telegram');
     expect(wrapper.text()).not.toContain('已停用渠道');
 
-    await wrapper.findAll('select')[0].setValue('openclaw:wechat');
+    await wrapper.findAll('select')[0].setValue('native:wecom');
     await flushPromises();
     expect(model.triggers).toMatchObject({
       type: 'connector',
-      provider: 'openclaw',
-      channelId: 'wechat',
+      provider: 'native',
+      channelId: 'wecom',
       channelName: '企业微信',
     });
+    expect(model.triggers).not.toHaveProperty('connectionId');
   });
 });

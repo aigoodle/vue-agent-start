@@ -9,7 +9,7 @@
  */
 import { onMounted, ref } from 'vue';
 
-import { message, Modal, Spin, Switch } from 'ant-design-vue';
+import { message, Modal, Spin, Switch } from '../../ui';
 
 import {
   mergeAgentStartHeaders,

@@ -7,7 +7,7 @@
  */
 import { onMounted, ref } from 'vue';
 
-import { message } from 'ant-design-vue';
+import { message } from '../../ui';
 
 import { createAgentStartClient, type AgentStartClient } from '../../client';
 import { useAgentStartClient } from '../../client/vue';
@@ -18,7 +18,6 @@ import {
 } from '../../config';
 import type { MyRobot, RobotUser } from '../types';
 import type { ChannelDefinition } from '../types';
-import type { AgentEntity } from '../../agent-studio/adapters/types';
 import RobotFormModal from './RobotFormModal.vue';
 
 const props = defineProps<{
@@ -30,7 +29,6 @@ const props = defineProps<{
   user?: RobotUser;
   /** 宿主可预加载目录；未提供时组件通过统一 SDK 获取。 */
   channels?: ChannelDefinition[];
-  agents?: AgentEntity[];
 }>();
 
 const global = useAgentStartConfig();
@@ -51,7 +49,6 @@ const error = ref('');
 const formOpen = ref(false);
 const editing = ref<MyRobot>();
 const availableChannels = ref<ChannelDefinition[]>(props.channels ?? []);
-const availableAgents = ref<AgentEntity[]>(props.agents ?? []);
 
 async function load() {
   if (!props.user?.userId) {
@@ -61,14 +58,12 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [connections, channels, agents] = await Promise.all([
+    const [connections, channels] = await Promise.all([
       client.connectors.listChannelConnections(props.tenantId, props.user.userId),
       props.channels ? Promise.resolve(props.channels) : client.connectors.listChannels(),
-      props.agents ? Promise.resolve(props.agents) : client.agents.list(),
     ]);
     robots.value = connections as MyRobot[];
     availableChannels.value = channels.filter((channel) => channel.installed);
-    availableAgents.value = agents;
   } catch (e: any) {
     error.value = e?.message ?? '加载机器人列表失败';
   } finally {
@@ -113,7 +108,7 @@ onMounted(load);
         <div class="mr-toolbar-text">
           <h2 class="mr-toolbar-title">我的机器人</h2>
           <p class="mr-toolbar-subtitle">
-            定义专属机器人并绑定 Agent 应用,随时编辑或删除。
+            绑定并维护你自己的消息通道账号；应用工作流在设计器中统一选择通道。
           </p>
         </div>
       </div>
@@ -143,7 +138,7 @@ onMounted(load);
           </span>
           <div class="mr-card-title">
             <b>{{ robot.name }}</b>
-            <small v-if="robot.agentName">绑定:{{ robot.agentName }}</small>
+            <small>{{ robot.channelId }} · 员工账号</small>
           </div>
         </div>
 
@@ -176,7 +171,6 @@ onMounted(load);
       :user="user"
       :tenant-id="tenantId"
       :channels="availableChannels"
-      :agents="availableAgents"
       @saved="load"
     />
   </div>

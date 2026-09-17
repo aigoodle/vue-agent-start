@@ -32,7 +32,7 @@ import {
   Spin,
   Table,
   Tooltip,
-} from 'ant-design-vue';
+} from '../../ui';
 
 import type { StudioApiKey } from '../api/types';
 

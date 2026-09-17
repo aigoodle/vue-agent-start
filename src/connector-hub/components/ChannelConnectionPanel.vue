@@ -9,17 +9,15 @@ import {
   MessageOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue';
-import { Card, Tag } from 'ant-design-vue';
+import { Card, Tag } from '../../ui';
 
 import type { AgentStartClient } from '../../client';
-import type { AgentEntity } from '../../agent-studio/adapters/types';
 import type {
   ChannelConnection,
   ChannelDefinition,
   ChannelEvent,
 } from '../types';
 import ChannelAccountDrawer from './ChannelAccountDrawer.vue';
-import AgentVersionSelect from './AgentVersionSelect.vue';
 import ChannelIcon from './ChannelIcon.vue';
 import ChannelMonitorDrawer from './ChannelMonitorDrawer.vue';
 
@@ -28,19 +26,11 @@ const props = defineProps<{ client: AgentStartClient; tenantId?: string }>();
 // -------- state
 const catalog = ref<ChannelDefinition[]>([]);
 const rows = ref<ChannelConnection[]>([]);
-const agents = ref<AgentEntity[]>([]);
 const events = ref<ChannelEvent[]>([]);
 const loading = ref(false);
 const error = ref('');
 const installing = ref('');
 const autoRefresh = ref(true);
-const tenantDefaults = ref({
-  defaultAgentId: '',
-  defaultAgentVersionId: '',
-  fallbackAgentId: '',
-  fallbackAgentVersionId: '',
-  enabled: true,
-});
 
 // 抽屉状态：账号接入（左）与消息观察（右）各自记住对应通道
 const accountOpen = ref(false);
@@ -88,14 +78,14 @@ const channelSections = computed(() => [
   {
     key: 'installed',
     title: '已接入渠道',
-    description: 'OpenClaw 插件已安装，或 Hermes 平台已完成配置并启用。',
+    description: '原生适配器已启用，员工可创建并维护自己的通道账号。',
     groups: platformGroups.value.filter(groupInstalled),
     compact: false,
   },
   {
     key: 'available',
     title: '可接入渠道',
-    description: 'OpenClaw 渠道可安装插件；Hermes 渠道可直接配置对应平台。',
+    description: '项目中尚未启用的消息通道适配器。',
     groups: platformGroups.value.filter((group) => !groupInstalled(group)),
     compact: true,
   },
@@ -127,14 +117,9 @@ const monitorConnections = computed(() =>
 
 function primaryOf(group: { adapters: ChannelDefinition[] }) {
   return group.adapters.find(adapterReady)
-    ?? group.adapters.find((channel) => channel.provider === 'openclaw')
     ?? group.adapters[0];
 }
 function adapterReady(channel: ChannelDefinition) {
-  if (channel.provider === 'openclaw') return channel.installed;
-  if (channel.provider === 'hermes') {
-    return channel.enabled || ['ONLINE', 'RUNNING', 'OFFLINE'].includes(channel.runtimeStatus);
-  }
   return channel.installed && channel.runtimeStatus !== 'DISABLED';
 }
 function groupInstalled(group: { adapters: ChannelDefinition[] }) {
@@ -172,22 +157,12 @@ async function load(forceRefresh = false) {
   loading.value = true;
   error.value = '';
   try {
-    const [channels, connections, agentList, tenantBinding] = await Promise.all([
+    const [channels, connections] = await Promise.all([
       props.client.connectors.listChannels(forceRefresh),
       props.client.connectors.listChannelConnections(props.tenantId),
-      props.client.agents.list(),
-      props.client.connectors.getTenantAgentBinding(props.tenantId),
     ]);
     catalog.value = channels;
     rows.value = connections;
-    agents.value = agentList;
-    tenantDefaults.value = {
-      defaultAgentId: tenantBinding?.defaultAgentId ?? '',
-      defaultAgentVersionId: tenantBinding?.defaultAgentVersionId ?? '',
-      fallbackAgentId: tenantBinding?.fallbackAgentId ?? '',
-      fallbackAgentVersionId: tenantBinding?.fallbackAgentVersionId ?? '',
-      enabled: tenantBinding?.enabled ?? true,
-    };
   } catch (e: any) {
     error.value = e?.message ?? '加载消息通道失败';
   } finally {
@@ -206,37 +181,8 @@ async function loadEvents() {
 }
 
 // -------- row / form actions
-async function saveTenantDefaults() {
-  if (!tenantDefaults.value.defaultAgentId) {
-    error.value = '请选择租户默认 Agent';
-    return;
-  }
-  await props.client.connectors.saveTenantAgentBinding(props.tenantId, tenantDefaults.value);
-  await load();
-}
 async function installChannel(channel: ChannelDefinition) {
-  if (installing.value) return;
-  if (channel.provider !== 'openclaw') {
-    error.value = `${channel.provider} 适配器由对应运行时管理，无需在 OpenClaw 中安装`;
-    return;
-  }
-  const packageSpec = String(channel.metadata?.packageSpec ?? '');
-  if (!packageSpec) {
-    error.value = `通道 ${channel.name} 未声明安装包`;
-    return;
-  }
-  installing.value = keyOf(channel);
-  error.value = '';
-  try {
-    await props.client.connectors.installPlugin({ sourceType: 'npm', source: packageSpec });
-    await load(true);
-    const installed = catalog.value.find((item) => keyOf(item) === keyOf(channel));
-    if (installed?.installed) openAccount(installed);
-  } catch (e: any) {
-    error.value = e?.message ?? `安装 ${channel.name} 失败`;
-  } finally {
-    installing.value = '';
-  }
+  error.value = `请在应用中引入 ${channel.channelId} 原生 Connector Starter 后重启服务`;
 }
 
 // -------- drawer events
@@ -265,47 +211,12 @@ onUnmounted(() => {
     <header class="cc-intro">
       <div>
         <h3>消息渠道</h3>
-        <p>统一接入 OpenClaw、Hermes 等运行时适配器；账号归属于租户和员工，并路由到指定 Agent。</p>
+        <p>统一接入 QQBot、飞书、钉钉、企业微信、Email 和 Webhook；每个账号只归属于一个员工，不在这里关联应用或工作流。</p>
       </div>
       <button class="cc-btn" @click="load(true)">强制刷新目录</button>
     </header>
 
     <div v-if="error" class="cc-alert">{{ error }}</div>
-
-    <!-- 租户默认 Agent -->
-    <section class="cc-tenant">
-      <div class="cc-tenant-text">
-        <h3>租户默认 Agent</h3>
-        <p>员工没有专属 Agent 时使用，绝不回退到 OpenClaw 默认模型。</p>
-      </div>
-      <div class="cc-tenant-fields">
-        <select v-model="tenantDefaults.defaultAgentId">
-          <option value="">请选择默认 Agent</option>
-          <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-            {{ agent.name }}
-          </option>
-        </select>
-        <AgentVersionSelect
-          v-model="tenantDefaults.defaultAgentVersionId"
-          :client="client"
-          :agent-id="tenantDefaults.defaultAgentId"
-          follow-label="默认 Agent 跟随当前发布版本"
-        />
-        <select v-model="tenantDefaults.fallbackAgentId">
-          <option value="">无备用 Agent</option>
-          <option v-for="agent in agents" :key="agent.id" :value="agent.id">
-            {{ agent.name }}
-          </option>
-        </select>
-        <AgentVersionSelect
-          v-model="tenantDefaults.fallbackAgentVersionId"
-          :client="client"
-          :agent-id="tenantDefaults.fallbackAgentId"
-          follow-label="备用 Agent 跟随当前发布版本"
-        />
-        <button class="cc-btn cc-btn-primary" @click="saveTenantDefaults">保存</button>
-      </div>
-    </section>
 
     <!-- 通道目录卡片 -->
     <div v-if="loading && !catalog.length" class="cc-state">加载中…</div>
@@ -394,7 +305,7 @@ onUnmounted(() => {
                 <span class="cc-adapter-ops">
                   <button class="cc-mini" @click.stop="openMonitor(channel)">消息</button>
                   <button
-                    v-if="!channel.installed && channel.provider === 'openclaw'"
+                    v-if="!channel.installed"
                     class="cc-mini is-primary"
                     :disabled="!!installing"
                     @click.stop="installChannel(channel)"
@@ -415,7 +326,7 @@ onUnmounted(() => {
                 <SettingOutlined />账号接入
               </span>
               <span
-                v-else-if="primaryOf(group).provider === 'openclaw'"
+                v-else-if="!primaryOf(group).installed"
                 :class="['cc-act', 'is-primary', { 'is-disabled': !!installing }]"
                 @click.stop="installChannel(primaryOf(group))"
               >
@@ -477,7 +388,6 @@ onUnmounted(() => {
       v-model:open="accountOpen"
       :channel="selectedChannel"
       :connections="channelAccounts"
-      :agents="agents"
       :client="client"
       :tenant-id="tenantId"
       @saved="handleAccountSaved"
@@ -553,59 +463,6 @@ onUnmounted(() => {
   color: #fca5a5;
   background: rgba(220, 38, 38, 0.15);
   border-color: rgba(220, 38, 38, 0.35);
-}
-
-/* -------- 租户默认 Agent -------- */
-.cc-tenant {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-  padding: 16px 18px;
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
-  border-radius: 12px;
-}
-.cc-tenant h3 {
-  margin: 0 0 4px;
-  font-size: 14px;
-  color: #111827;
-}
-.cc-tenant p {
-  margin: 0;
-  font-size: 12px;
-  color: #6b7280;
-}
-.cc-tenant-fields {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.cc-tenant-fields select {
-  padding: 8px 10px;
-  font-size: 13px;
-  border: 1px solid #bfdbfe;
-  border-radius: 7px;
-  background: #fff;
-  color: #111827;
-  cursor: pointer;
-}
-:global(.dark) .cc-tenant {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.3);
-}
-:global(.dark) .cc-tenant h3 {
-  color: #f3f4f6;
-}
-:global(.dark) .cc-tenant p {
-  color: #9ca3af;
-}
-:global(.dark) .cc-tenant-fields select {
-  background: #2d2d2d;
-  border-color: #3d3d3d;
-  color: #f3f4f6;
 }
 
 /* -------- 空 / 加载状态 -------- */
@@ -1072,11 +929,4 @@ a.cc-act-link {
   color: #fff;
 }
 
-/* -------- 响应式 -------- */
-@media (max-width: 900px) {
-  .cc-tenant {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
 </style>

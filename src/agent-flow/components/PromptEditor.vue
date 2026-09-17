@@ -7,7 +7,7 @@ import {
   FullscreenOutlined,
   PlusOutlined,
 } from '@ant-design/icons-vue';
-import { message } from 'ant-design-vue';
+import { message } from '../../ui';
 
 import { useWorkflowStore } from '@/stores/workflow';
 import workflow_utils from '@/workflow/utils/workflow_utils';

@@ -5,7 +5,7 @@ import { ApiOutlined, ClockCircleOutlined, MessageOutlined, ThunderboltOutlined 
 import { createAgentStartClient } from '../../../client';
 import { useAgentStartClient } from '../../../client/vue';
 import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
-import type { ChannelConnection, ChannelDefinition } from '../../../connector-hub/types';
+import type { ChannelDefinition } from '../../../connector-hub/types';
 
 const formState: any = defineModel();
 const global = useAgentStartConfig();
@@ -14,7 +14,6 @@ const client = useAgentStartClient() ?? createAgentStartClient({
   headers: () => mergeAgentStartHeaders(global.headers),
 });
 const channels = ref<ChannelDefinition[]>([]);
-const channelConnections = ref<ChannelConnection[]>([]);
 const connectorLoading = ref(false);
 const connectorError = ref('');
 
@@ -46,9 +45,8 @@ function ensureTrigger() {
   trigger.provider ??= '';
   trigger.channelId ??= '';
   trigger.channelName ??= '';
-  trigger.connectionId ??= '';
-  trigger.connectionName ??= '';
   trigger.messageTypes ??= [];
+  trigger.replyMode ??= 'ASYNC';
   return trigger;
 }
 
@@ -79,36 +77,24 @@ const schedulePreview = computed(() => {
   return `Cron：${generatedCron()}（${trigger.timeZone}）`;
 });
 
-const installedChannels = computed(() => channels.value.filter((channel) => channel.enabled
-  && channelConnections.value.some((connection) => connection.provider === channel.provider
-    && connection.channelId === channel.channelId && connection.desiredStatus !== 'DISABLED')));
+const installedChannels = computed(() => channels.value.filter((channel) =>
+  channel.enabled && channel.runtimeStatus !== 'DISABLED'));
 const selectedChannel = computed(() => installedChannels.value.find((channel) =>
   channel.provider === ensureTrigger().provider && channel.channelId === ensureTrigger().channelId));
-const availableConnections = computed(() => channelConnections.value.filter((connection) =>
-  connection.provider === ensureTrigger().provider && connection.channelId === ensureTrigger().channelId
-    && connection.desiredStatus !== 'DISABLED'));
-
 watch(() => [ensureTrigger().provider, ensureTrigger().channelId], () => {
   const trigger = ensureTrigger();
   trigger.channelName = selectedChannel.value?.name ?? '';
-  if (!availableConnections.value.some((item) => item.id === trigger.connectionId)) {
-    trigger.connectionId = '';
-    trigger.connectionName = '';
-  }
-});
-
-watch(() => ensureTrigger().connectionId, (connectionId) => {
-  ensureTrigger().connectionName = channelConnections.value.find((item) => item.id === connectionId)?.name ?? '';
-});
+  // Legacy drafts may have pinned one employee's account. A workflow subscribes to
+  // the channel and is shared by every employee account, so never persist that pin.
+  delete trigger.connectionId;
+  delete trigger.connectionName;
+}, { immediate: true });
 
 async function loadMessageConnectors() {
   connectorLoading.value = true;
   connectorError.value = '';
   try {
-    [channels.value, channelConnections.value] = await Promise.all([
-      client.connectors.listChannels(),
-      client.connectors.listChannelConnections(),
-    ]);
+    channels.value = await client.connectors.listChannels();
   } catch (error: any) {
     connectorError.value = error?.message ?? '加载消息连接器失败';
   } finally {
@@ -216,31 +202,21 @@ onMounted(loadMessageConnectors);
         暂无已安装并启用的消息连接器，请先在连接器中心完成接入。
       </div>
 
-      <label>接收账号 / 连接
-        <a-select v-model:value="formState.triggers.connectionId" :disabled="!selectedChannel" placeholder="全部已配置账号">
-          <a-select-option value="">全部已配置账号</a-select-option>
-          <a-select-option
-            v-for="connection in availableConnections"
-            :key="connection.id"
-            :value="connection.id"
-            :disabled="connection.desiredStatus === 'DISABLED'"
-          >
-            {{ connection.name }} · {{ connection.runtimeStatus }}
-          </a-select-option>
-        </a-select>
-      </label>
-
       <label>接收的消息类型
         <a-select v-model:value="formState.triggers.messageTypes" mode="multiple" placeholder="全部消息类型">
           <a-select-option v-for="type in ['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'FILE', 'RICH_TEXT']" :key="type" :value="type">{{ type }}</a-select-option>
         </a-select>
       </label>
 
-      <div v-if="selectedChannel && availableConnections.length === 0" class="wf-connector-warning">
-        此连接器还没有可用账号，请先在连接器中心完成账号接入。
-      </div>
+      <label>工作流回复方式
+        <a-select v-model:value="formState.triggers.replyMode">
+          <a-select-option value="ASYNC">异步回复原会话（推荐）</a-select-option>
+          <a-select-option value="NONE">不自动回复</a-select-option>
+        </a-select>
+      </label>
+
       <div class="wf-connector-note">
-        收到入站消息后执行当前工作流；消息正文、发送者、会话 ID、附件和原始消息会作为开始节点的触发器输入。
+        当前工作流订阅整个消息通道，不绑定某个员工账号。任一员工绑定自己的账号后，入站消息会以该员工的可信身份执行此工作流；异步回复会返回原账号和原会话。
       </div>
     </div>
 

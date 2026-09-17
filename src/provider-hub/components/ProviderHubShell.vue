@@ -16,7 +16,7 @@
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
-import { Popover } from 'ant-design-vue';
+import { Popover } from '../../ui';
 
 import {
   modelTypeColor,

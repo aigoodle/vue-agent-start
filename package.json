@@ -58,6 +58,16 @@
       "import": "./dist/connector-hub/index.js",
       "require": "./dist/connector-hub/index.cjs"
     },
+    "./plugin-hub": {
+      "types": "./dist/plugin-hub/index.d.ts",
+      "import": "./dist/plugin-hub/index.js",
+      "require": "./dist/plugin-hub/index.cjs"
+    },
+    "./mcp-hub": {
+      "types": "./dist/mcp-hub/index.d.ts",
+      "import": "./dist/mcp-hub/index.js",
+      "require": "./dist/mcp-hub/index.cjs"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -82,7 +92,6 @@
   },
   "peerDependencies": {
     "@ant-design/icons-vue": "^7.0.0",
-    "ant-design-vue": "^4.2.6",
     "pinia": "^2.1.0 || ^3.0.0",
     "vue": "^3.4.0 || ^3.5.0",
     "vue-router": "^4.2.0"
@@ -108,7 +117,6 @@
     "@changesets/cli": "^2.31.1",
     "@vitejs/plugin-vue": "^5.2.4",
     "@vue/test-utils": "^2.4.11",
-    "ant-design-vue": "^4.2.6",
     "happy-dom": "^17.6.3",
     "pinia": "^3.0.3",
     "typescript": "^5.9.3",

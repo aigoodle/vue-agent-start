@@ -24,6 +24,23 @@ describe('JsonSchemaForm', () => {
     expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual({ retries: 3 });
   });
 
+  it('masks only fields explicitly marked write-only', () => {
+    const wrapper = mount(JsonSchemaForm, {
+      props: {
+        schema: {
+          type: 'object',
+          properties: {
+            appId: { type: 'string', title: 'App ID' },
+            clientSecret: { type: 'string', title: 'Client Secret', writeOnly: true },
+          },
+        },
+      },
+    });
+    const inputs = wrapper.findAll('input');
+    expect(inputs[0]?.attributes('type')).toBe('text');
+    expect(inputs[1]?.attributes('type')).toBe('password');
+  });
+
   it('does not force workflow users to edit raw JSON when no fields are declared', () => {
     const wrapper = mount(JsonSchemaForm, {
       props: {

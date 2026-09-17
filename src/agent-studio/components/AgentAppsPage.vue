@@ -8,7 +8,7 @@
  * 内部自动拼上。带鉴权的宿主用 :headers 注入 Authorization。
  *
  * 设计约束：
- *   - 组件只依赖 vue / vue-router / ant-design-vue / @ant-design/icons-vue，
+ *   - 组件只依赖 vue / vue-router / 内置 UI 基座 / @ant-design/icons-vue，
  *     以及本模块内的 AppDesignDrawer / CreateAppModal，绝不依赖 Vben 生态
  *     （@vben/*）；
  *   - 所有后端调用都走统一的 createAgentStartClient（props.apiBase 作为
@@ -44,7 +44,7 @@ import {
   Spin,
   Tag,
   Textarea,
-} from 'ant-design-vue';
+} from '../../ui';
 
 import type { ChatIframeConfig } from '../../agent-flow/components/chat-iframe-types';
 

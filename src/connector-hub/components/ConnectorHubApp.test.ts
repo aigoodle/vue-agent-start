@@ -5,11 +5,11 @@ import ConnectorHubApp from './ConnectorHubApp.vue';
 describe('ConnectorHubApp', () => {
   it('loads and renders the provider-neutral connector catalog', async () => {
     const connectors = {
-      list: vi.fn().mockResolvedValue([{ key: { provider: 'openclaw', connectorId: 'mail' }, name: '邮件', description: '发送邮件', version: '1.0', actions: [{ id: 'send', name: '发送', inputSchema: '{"type":"object"}', riskLevel: 'WRITE' }] }]),
-      listInstallations: vi.fn().mockResolvedValue([{ id: 'i1', tenantId: 'default', provider: 'openclaw', connectorId: 'mail', enabled: true }]),
+      list: vi.fn().mockResolvedValue([{ key: { provider: 'native', connectorId: 'email' }, name: '邮件', description: '发送邮件', version: '1.0', actions: [{ id: 'send', name: '发送', inputSchema: '{"type":"object"}', riskLevel: 'WRITE' }] }]),
+      listInstallations: vi.fn().mockResolvedValue([{ id: 'i1', tenantId: 'default', provider: 'native', connectorId: 'email', enabled: true }]),
       listConnections: vi.fn().mockResolvedValue([]),
     };
-    const wrapper = mount(ConnectorHubApp, { props: { client: { connectors } as any }, global: { stubs: { ConnectorActionTestDrawer: true, ConnectorConnectionModal: true, ConnectorDetailDrawer: true, OpenClawPluginPanel: true } } });
+    const wrapper = mount(ConnectorHubApp, { props: { client: { connectors } as any }, global: { stubs: { ConnectorActionTestDrawer: true, ConnectorConnectionModal: true, ConnectorDetailDrawer: true } } });
     await flushPromises();
     expect(wrapper.text()).toContain('邮件');
     expect(wrapper.text()).toContain('发送邮件');
@@ -23,7 +23,7 @@ describe('ConnectorHubApp', () => {
       listChannelAudits: vi.fn().mockResolvedValue([{
         id: 'audit-1', action: 'CHANNEL_MESSAGE_REPLY', resourceType: 'CHANNEL_EVENT',
         resourceId: 'event-1', actorId: 'employee-7', actorName: '张三', principalType: 'USER',
-        outcome: 'SUCCESS', details: { provider: 'openclaw', channelId: 'qqbot' },
+        outcome: 'SUCCESS', details: { provider: 'native', channelId: 'qqbot' },
         createdAt: '2026-08-20T10:00:00',
       }]),
     };
@@ -37,7 +37,7 @@ describe('ConnectorHubApp', () => {
     });
     expect(wrapper.text()).toContain('CHANNEL_MESSAGE_REPLY');
     expect(wrapper.text()).toContain('张三');
-    expect(wrapper.text()).toContain('provider: openclaw');
+    expect(wrapper.text()).toContain('provider: native');
     expect(wrapper.text()).not.toContain('tenantId');
   });
 
@@ -46,7 +46,7 @@ describe('ConnectorHubApp', () => {
       list: vi.fn().mockResolvedValue([]), listInstallations: vi.fn().mockResolvedValue([]),
       listConnections: vi.fn().mockResolvedValue([]), listChannelAudits: vi.fn().mockResolvedValue([]),
       listChannelDeadLetters: vi.fn().mockResolvedValueOnce([{
-        id: 'dead-1', provider: 'openclaw', channelId: 'qqbot', conversationId: 'c2c:user',
+        id: 'dead-1', provider: 'native', channelId: 'qqbot', conversationId: 'c2c:user',
         senderType: 'AGENT', senderActorId: 'agent-1', attempts: 8, status: 'FAILED',
         errorMessage: 'runtime unavailable', createdAt: '2026-08-20T10:00:00',
       }]).mockResolvedValueOnce([]),
