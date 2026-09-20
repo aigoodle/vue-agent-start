@@ -1,7 +1,7 @@
 import { qs, type HttpCore } from './core';
 import type {
   ConnectorConnection, ConnectorConnectionTestResult, ConnectorDefinition, ConnectorExecutionRecord, ChannelAuditRecord, ChannelDeadLetterReplayResult,
-  ChannelAccount, ChannelAttachment, ChannelConnection, ChannelConversation, ChannelConversationPage, ChannelConversationSummary, ChannelDefinition, ChannelEvent, ChannelEventPage, ChannelIdentity, ChannelRuntimeNodes, EmployeeAgentBinding, TenantAgentBinding, ConnectorInstallation, ConnectorResult, SaveConnectorConnection,
+  ChannelAccount, ChannelAttachment, ChannelConnection, ChannelConnectionEditConfiguration, ChannelConversation, ChannelConversationPage, ChannelConversationSummary, ChannelDefinition, ChannelEvent, ChannelEventPage, ChannelIdentity, ChannelRuntimeNodes, EmployeeAgentBinding, TenantAgentBinding, ConnectorInstallation, ConnectorResult, SaveConnectorConnection,
   SaveChannelConnection,
 } from '../connector-hub/types';
 
@@ -28,6 +28,7 @@ export interface ConnectorsNamespace {
   /** Deployment-scoped diagnostics. Requires PLATFORM_ADMIN/SYSTEM_ADMIN/DEPLOYMENT_ADMIN by default. */
   listChannelAccounts(provider: string, channelId: string): Promise<ChannelAccount[]>;
   listChannelConnections(tenantId?: string, ownerId?: string): Promise<ChannelConnection[]>;
+  getChannelConnectionConfiguration(id: string, tenantId?: string): Promise<ChannelConnectionEditConfiguration>;
   saveChannelConnection(request: SaveChannelConnection): Promise<ChannelConnection>;
   testChannelConnection(id: string, tenantId?: string): Promise<ChannelConnection>;
   deleteChannelConnection(id: string, tenantId?: string): Promise<void>;
@@ -84,6 +85,7 @@ export function createConnectorsNamespace(core: HttpCore): ConnectorsNamespace {
     listChannelRuntimeNodes: () => core.request('/channels/runtime-nodes'),
     listChannelAccounts: (provider, channelId) => core.request(`/channels/${enc(provider)}/${enc(channelId)}/accounts`),
     listChannelConnections: (_tenantId, ownerId) => core.request(`/channel-connections${qs({ ownerId })}`),
+    getChannelConnectionConfiguration: (id) => core.request(`/channel-connections/${enc(id)}/configuration`),
     saveChannelConnection: (request) => core.request('/channel-connections', { method: 'POST', body: JSON.stringify(request) }),
     testChannelConnection: (id) => core.request(`/channel-connections/${enc(id)}/test`, { method: 'POST' }),
     deleteChannelConnection: (id) => core.request(`/channel-connections/${enc(id)}`, { method: 'DELETE' }),

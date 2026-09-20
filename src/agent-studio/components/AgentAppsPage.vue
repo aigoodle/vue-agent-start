@@ -158,6 +158,7 @@ interface CreateAgentRequestFull {
   runtimeRef?: string;
   strategy?: AgentStrategy;
   toolNames?: string[];
+  skillIds?: string[];
   approvalRequiredTools?: string[];
   delegateAgentIds?: string[];
   maxIterations?: number;
@@ -814,6 +815,7 @@ interface DrawerSavePayload {
   runtimeRef?: string;
   modelSettings?: Record<string, unknown>;
   toolNames?: string[];
+  skillIds?: string[];
   datasetIds?: string[];
   retrievalConfigJson?: string;
 }
@@ -832,6 +834,7 @@ async function persistDrawerDraft(payload: DrawerSavePayload) {
       modelSettings: payload.modelSettings,
       strategy: (existing?.strategy as AgentStrategy) ?? 'REACT',
       toolNames: payload.toolNames ?? [],
+      skillIds: payload.skillIds ?? [],
       datasetIds: payload.datasetIds ?? [],
       retrievalConfig: parseRetrievalConfig(payload.retrievalConfigJson),
       maxIterations: existing?.maxIterations,
@@ -1032,6 +1035,9 @@ async function submitCreate() {
       strategy: (existing.strategy as AgentStrategy) ?? 'REACT',
       toolNames: existing.toolNamesJson
         ? safeParseArray(existing.toolNamesJson)
+        : [],
+      skillIds: existing.skillIdsJson
+        ? safeParseArray(existing.skillIdsJson)
         : [],
       datasetIds: existing.datasetIdsJson
         ? safeParseArray(existing.datasetIdsJson)
@@ -1291,22 +1297,31 @@ onBeforeUnmount(closeTransientUi);
                 ⋯
               </Button>
               <template #overlay>
-                <Menu>
-                  <MenuItem key="design" @click="openDesigner(a)">
-                    设计
+                <Menu class="dify-card-menu">
+                  <MenuItem key="design" class="dify-card-menu-item" @click="openDesigner(a)">
+                    <span class="dify-card-menu-icon" aria-hidden="true">✦</span>
+                    <span>设计应用</span>
                   </MenuItem>
-                  <MenuItem key="chat" @click="openChat(a)">
-                    独立对话
+                  <MenuItem key="chat" class="dify-card-menu-item" @click="openChat(a)">
+                    <span class="dify-card-menu-icon" aria-hidden="true">▷</span>
+                    <span>独立对话</span>
                   </MenuItem>
-                  <MenuItem key="edit" @click="openEdit(a)">
-                    编辑基本信息
+                  <MenuItem key="edit" class="dify-card-menu-item" @click="openEdit(a)">
+                    <span class="dify-card-menu-icon" aria-hidden="true">✎</span>
+                    <span>编辑基本信息</span>
                   </MenuItem>
-                  <MenuItem key="permissions" @click="openPermissions(a)">数据权限</MenuItem>
-                  <MenuItem key="share" @click="openShare(a)">
-                    分享嵌入
+                  <MenuItem key="permissions" class="dify-card-menu-item" @click="openPermissions(a)">
+                    <span class="dify-card-menu-icon" aria-hidden="true">◇</span>
+                    <span>数据权限</span>
                   </MenuItem>
-                  <MenuItem key="delete" danger @click="remove(a)">
-                    删除
+                  <MenuItem key="share" class="dify-card-menu-item" @click="openShare(a)">
+                    <span class="dify-card-menu-icon" aria-hidden="true">↗</span>
+                    <span>分享嵌入</span>
+                  </MenuItem>
+                  <div class="dify-card-menu-divider" />
+                  <MenuItem key="delete" danger class="dify-card-menu-item dify-card-menu-item--danger" @click="remove(a)">
+                    <span class="dify-card-menu-icon" aria-hidden="true">×</span>
+                    <span>删除</span>
                   </MenuItem>
                 </Menu>
               </template>
@@ -1579,13 +1594,16 @@ onBeforeUnmount(closeTransientUi);
     background 0.15s ease;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* The fallback Dropdown renders inside the card. It must be allowed to
+     escape the card boundary or its popup will be clipped. */
+  overflow: visible;
 }
 :global(.dark) .dify-card {
   background: #1f1f1f;
   border-color: #2d2d2d;
 }
 .dify-card:hover {
+  z-index: 20;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   transform: translateY(-1px);
 }
@@ -1658,6 +1676,12 @@ onBeforeUnmount(closeTransientUi);
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.dify-meta :deep(.as-tag) {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .dify-desc {
   margin-top: 10px;
@@ -1701,17 +1725,108 @@ onBeforeUnmount(closeTransientUi);
   position: absolute;
   top: 8px;
   right: 8px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.dify-card:hover .dify-more {
   opacity: 1;
+  z-index: 3;
 }
 .dify-more-btn {
-  font-size: 18px;
+  width: 30px;
+  min-width: 30px;
+  font-size: 20px;
+  font-weight: 600;
   line-height: 1;
-  padding: 0 6px;
-  height: 26px;
+  padding: 0;
+  height: 30px;
+  color: #64748b;
+  border-radius: 8px;
+}
+.dify-more-btn:hover,
+.dify-more-btn:focus-visible {
+  color: #334155;
+  background: #f1f5f9;
+}
+.dify-more :deep(.as-popover__panel) {
+  left: auto;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 190px;
+  min-width: 190px;
+  padding: 6px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14), 0 3px 10px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(12px);
+  transform-origin: top right;
+}
+.dify-more :deep(.dify-card-menu) {
+  min-width: 0;
+  padding: 0;
+}
+.dify-more :deep(.dify-card-menu-item) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 7px 10px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 20px;
+  border-radius: 8px;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.dify-more :deep(.dify-card-menu-item:hover),
+.dify-more :deep(.dify-card-menu-item:focus-visible) {
+  color: #3730a3;
+  background: #eef2ff;
+  outline: none;
+}
+.dify-more :deep(.dify-card-menu-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: #64748b;
+  font-size: 15px;
+}
+.dify-more :deep(.dify-card-menu-divider) {
+  height: 1px;
+  margin: 5px 4px;
+  background: #e2e8f0;
+}
+.dify-more :deep(.dify-card-menu-item--danger) {
+  color: #dc2626;
+}
+.dify-more :deep(.dify-card-menu-item--danger .dify-card-menu-icon) {
+  color: #dc2626;
+}
+.dify-more :deep(.dify-card-menu-item--danger:hover),
+.dify-more :deep(.dify-card-menu-item--danger:focus-visible) {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+:global(.dark) .dify-more-btn:hover,
+:global(.dark) .dify-more-btn:focus-visible {
+  color: #e2e8f0;
+  background: #334155;
+}
+:global(.dark) .dify-more :deep(.as-popover__panel) {
+  background: rgba(30, 41, 59, 0.98);
+  border-color: #475569;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+}
+:global(.dark) .dify-more :deep(.dify-card-menu-item) {
+  color: #e2e8f0;
+}
+:global(.dark) .dify-more :deep(.dify-card-menu-item:hover),
+:global(.dark) .dify-more :deep(.dify-card-menu-item:focus-visible) {
+  color: #c7d2fe;
+  background: rgba(99, 102, 241, 0.18);
+}
+:global(.dark) .dify-more :deep(.dify-card-menu-divider) {
+  background: #475569;
 }
 
 /* Emoji picker for the agent icon */

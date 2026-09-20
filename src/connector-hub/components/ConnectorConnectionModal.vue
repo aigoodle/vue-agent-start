@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
+import { Modal } from '../../ui';
 import type {
   ConnectorConnection,
   ConnectorDefinition,
@@ -101,20 +102,17 @@ async function remove() {
 </script>
 
 <template>
-  <Transition name="ccm">
-    <div
-      v-if="open"
-      class="ccm-backdrop"
-      @click.self="emit('update:open', false)"
-    >
-      <section class="ccm-modal">
-        <header class="ccm-header">
-          <b class="ccm-title">配置连接 · {{ connector?.name }}</b>
-          <button class="ccm-close" @click="emit('update:open', false)">
-            ✕
-          </button>
-        </header>
-
+  <Modal
+    :open="open"
+    class="ccm-modal"
+    centered
+    :width="620"
+    :title="`配置连接 · ${connector?.name ?? ''}`"
+    :mask-closable="!saving"
+    :keyboard="!saving"
+    :closable="!saving"
+    @cancel="emit('update:open', false)"
+  >
         <main class="ccm-main">
           <label class="ccm-field">
             <span>连接名称</span>
@@ -144,6 +142,7 @@ async function remove() {
           <p v-if="error" class="ccm-note is-danger">{{ error }}</p>
         </main>
 
+        <template #footer>
         <footer class="ccm-footer">
           <button
             v-if="connection"
@@ -172,9 +171,8 @@ async function remove() {
             {{ saving ? '保存中…' : '保存连接' }}
           </button>
         </footer>
-      </section>
-    </div>
-  </Transition>
+        </template>
+  </Modal>
 </template>
 
 <style scoped>
@@ -188,16 +186,7 @@ async function remove() {
   justify-content: center;
   z-index: 1200;
 }
-.ccm-modal {
-  width: 620px;
-  max-width: 92vw;
-  max-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.25);
-}
+.ccm-modal { max-height: 88vh; }
 :global(.dark) .ccm-modal {
   background: #1f1f1f;
 }

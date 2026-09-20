@@ -8,6 +8,39 @@ import PromptEditorTagPanel from './PromptEditorTagPanel.vue';
 import { useWorkflowGraph } from '../workflow/composables/useWorkflowGraph';
 
 describe('live workflow variables', () => {
+  it('positions the teleported panel at its trigger as soon as it opens', async () => {
+    const trigger = document.createElement('button');
+    trigger.getBoundingClientRect = () => ({
+      left: 240,
+      top: 120,
+      right: 280,
+      bottom: 150,
+      width: 40,
+      height: 30,
+      x: 240,
+      y: 120,
+      toJSON: () => ({}),
+    });
+    document.body.appendChild(trigger);
+
+    const wrapper = mount(PromptEditorTagPanel, {
+      props: { show: false, nodeId: 'http', targetElement: trigger },
+      global: { plugins: [createPinia()] },
+      attachTo: document.body,
+    });
+
+    await wrapper.setProps({ show: true });
+    await nextTick();
+
+    const panel = document.body.querySelector<HTMLElement>('.wf-tag-panel')!;
+    expect(panel.style.left).toBe('240px');
+    expect(panel.style.top).toBe('156px');
+    expect(panel.style.left).not.toBe('-9999px');
+
+    wrapper.unmount();
+    trigger.remove();
+  });
+
   it('updates an open picker after parameter edits, graph replacement, and connection changes', async () => {
     let flow!: ReturnType<typeof useVueFlow>;
     const wrapper = mount(defineComponent({

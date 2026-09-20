@@ -16,6 +16,7 @@
  * async methods). This keeps the component embeddable in any Vue 3 app.
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { Drawer } from '../../ui';
 
 import type {
   Chunk,
@@ -653,8 +654,15 @@ const sidebarData = computed(() => ({
 </script>
 
 <template>
-  <Teleport to="body" :disabled="!open">
-    <div v-if="open" class="kh-drawer-mask" @click.self="close">
+  <Drawer
+    :open="open"
+    class="kh-dataset-drawer"
+    placement="left"
+    width="88vw"
+    :closable="false"
+    :body-style="{ padding: '0', overflow: 'hidden' }"
+    @update:open="emit('update:open', $event)"
+  >
       <div class="kh-drawer-shell">
         <DatasetSidebar
           :dataset="sidebarData"
@@ -827,42 +835,18 @@ const sidebarData = computed(() => ({
           </div>
         </section>
       </div>
-    </div>
-  </Teleport>
+  </Drawer>
 </template>
 
 <style scoped>
-.kh-drawer-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 1040;
-  background: rgba(15, 23, 42, 0.35);
-  display: flex;
-  /* Slide-in from the left — user preference so the workspace tabs stay on the
-     right side and the detail view feels closer to a full-page take-over. */
-  justify-content: flex-start;
+.kh-dataset-drawer {
+  max-width: 1600px;
 }
 .kh-drawer-shell {
-  /* 88vw / max 1600 — much roomier than the previous ~1200px cap so the doc
-     table + right meta pane don't have to fight for horizontal space. */
-  width: 88vw;
-  max-width: 1600px;
-  min-width: 960px;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   background: #fff;
   display: flex;
-  box-shadow: 6px 0 22px rgba(15, 23, 42, 0.14);
-  animation: kh-drawer-in 0.2s ease-out;
-}
-@keyframes kh-drawer-in {
-  from {
-    transform: translateX(-20px);
-    opacity: 0.9;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
 }
 
 .kh-drawer-main {

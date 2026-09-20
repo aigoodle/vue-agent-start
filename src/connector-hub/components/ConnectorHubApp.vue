@@ -13,16 +13,13 @@ import type {
   ConnectorConnection,
   ConnectorDefinition,
   ConnectorExecutionRecord,
-  ChannelAuditRecord,
-  ChannelEvent,
   ConnectorInstallation,
 } from '../types';
 import ConnectorActionTestDrawer from './ConnectorActionTestDrawer.vue';
 import ConnectorConnectionModal from './ConnectorConnectionModal.vue';
 import ConnectorDetailDrawer from './ConnectorDetailDrawer.vue';
-import ChannelConnectionPanel from './ChannelConnectionPanel.vue';
 
-type HubTab = 'connectors' | 'channels' | 'executions';
+type HubTab = 'connectors' | 'executions';
 
 const props = defineProps<{
     apiBase?: string;
@@ -48,13 +45,6 @@ const connectors = ref<ConnectorDefinition[]>([]);
 const installations = ref<ConnectorInstallation[]>([]);
 const connections = ref<ConnectorConnection[]>([]);
 const executions = ref<ConnectorExecutionRecord[]>([]);
-const channelAudits = ref<ChannelAuditRecord[]>([]);
-const auditView = ref<'channels' | 'connectors' | 'deadLetters'>('channels');
-const auditFilters = ref({ action: '', resourceType: '', resourceId: '', actorId: '', outcome: '' });
-const auditLoading = ref(false);
-const deadLetters = ref<ChannelEvent[]>([]);
-const selectedDeadLetters = ref<string[]>([]);
-const replaying = ref(false);
 const loading = ref(false);
 const error = ref('');
 const search = ref('');
@@ -179,45 +169,9 @@ async function loadExecutions() {
     error.value = e?.message ?? '加载审计失败';
   }
 }
-async function loadChannelAudits() {
-  auditLoading.value = true;
-  error.value = '';
-  try {
-    channelAudits.value = await client.connectors.listChannelAudits({
-      ...auditFilters.value,
-      limit: 100,
-    });
-  } catch (e: any) {
-    error.value = e?.message ?? '加载渠道审计失败';
-  } finally {
-    auditLoading.value = false;
-  }
-}
 async function openAudits() {
   tab.value = 'executions';
-  await loadChannelAudits();
-}
-function auditDetails(details?: Record<string, unknown>) {
-  if (!details || Object.keys(details).length === 0) return '-';
-  return Object.entries(details).map(([key, value]) => `${key}: ${String(value)}`).join(' · ');
-}
-async function loadDeadLetters() {
-  auditLoading.value = true; error.value = '';
-  try {
-    deadLetters.value = await client.connectors.listChannelDeadLetters(100);
-    selectedDeadLetters.value = selectedDeadLetters.value.filter((id) => deadLetters.value.some((e) => e.id === id));
-  } catch (e: any) { error.value = e?.message ?? '加载消息死信失败'; }
-  finally { auditLoading.value = false; }
-}
-async function replayDeadLetters() {
-  if (selectedDeadLetters.value.length === 0) return;
-  replaying.value = true; error.value = '';
-  try {
-    await client.connectors.replayChannelDeadLetters(selectedDeadLetters.value);
-    selectedDeadLetters.value = [];
-    await loadDeadLetters();
-  } catch (e: any) { error.value = e?.message ?? '重放消息死信失败'; }
-  finally { replaying.value = false; }
+  await loadExecutions();
 }
 
 onMounted(load);
@@ -232,7 +186,7 @@ onMounted(load);
         <div class="ch-toolbar-text">
           <h2 class="ch-toolbar-title">Connector 中心</h2>
           <p class="ch-toolbar-subtitle">
-            统一管理 QQ、飞书、钉钉、企业微信、邮件与 Webhook 消息通道
+            管理供 Agent 与工作流调用的业务连接器、凭据和执行记录
           </p>
         </div>
       </div>
@@ -243,13 +197,6 @@ onMounted(load);
 
     <!-- 页签 -->
     <nav class="ch-tabs">
-      <button
-        class="ch-tab"
-        :class="{ 'is-active': tab === 'channels' }"
-        @click="tab = 'channels'"
-      >
-        消息渠道
-      </button>
       <button
         class="ch-tab"
         :class="{ 'is-active': tab === 'connectors' }"
@@ -342,62 +289,12 @@ onMounted(load);
       </div>
     </template>
 
-    <ChannelConnectionPanel
-      v-else-if="tab === 'channels'"
-      :client="client"
-      :tenant-id="tenantId"
-    />
-
     <!-- 执行审计 -->
     <div v-else class="ch-audit">
       <div class="ch-audit-toolbar">
-        <div class="ch-audit-switch">
-          <button class="ch-btn" :class="{ 'ch-btn-primary': auditView === 'channels' }" @click="auditView = 'channels'; loadChannelAudits()">渠道操作</button>
-          <button class="ch-btn" :class="{ 'ch-btn-primary': auditView === 'connectors' }" @click="auditView = 'connectors'; loadExecutions()">Connector 执行</button>
-          <button class="ch-btn" :class="{ 'ch-btn-primary': auditView === 'deadLetters' }" @click="auditView = 'deadLetters'; loadDeadLetters()">消息死信</button>
-        </div>
-        <form v-if="auditView === 'channels'" class="ch-audit-filters" @submit.prevent="loadChannelAudits">
-          <input v-model.trim="auditFilters.action" class="ch-input" placeholder="动作" />
-          <input v-model.trim="auditFilters.resourceType" class="ch-input" placeholder="资源类型" />
-          <input v-model.trim="auditFilters.resourceId" class="ch-input" placeholder="资源 ID" />
-          <input v-model.trim="auditFilters.actorId" class="ch-input" placeholder="操作者 ID" />
-          <select v-model="auditFilters.outcome" class="ch-input ch-select">
-            <option value="">全部结果</option><option value="SUCCESS">成功</option><option value="FAILURE">失败</option>
-          </select>
-          <button class="ch-btn ch-btn-primary" type="submit">查询</button>
-        </form>
-        <div v-else-if="auditView === 'deadLetters'" class="ch-audit-filters">
-          <span class="ch-count">已选择 {{ selectedDeadLetters.length }} / {{ deadLetters.length }}</span>
-          <button class="ch-btn ch-btn-primary" :disabled="selectedDeadLetters.length === 0 || replaying" @click="replayDeadLetters">
-            {{ replaying ? '正在重放…' : '重放所选' }}
-          </button>
-          <button class="ch-btn" @click="loadDeadLetters">刷新</button>
-        </div>
+        <button class="ch-btn" @click="loadExecutions">刷新执行记录</button>
       </div>
-      <div v-if="auditView === 'channels' && auditLoading" class="ch-state">正在加载审计记录…</div>
-      <div v-else-if="auditView === 'channels' && channelAudits.length === 0" class="ch-state">暂无渠道操作记录</div>
-      <table v-else-if="auditView === 'channels'">
-        <thead><tr><th>时间</th><th>动作</th><th>资源</th><th>操作者</th><th>结果</th><th>详情</th></tr></thead>
-        <tbody><tr v-for="a in channelAudits" :key="a.id">
-          <td>{{ a.createdAt || '-' }}</td><td>{{ a.action }}</td>
-          <td>{{ a.resourceType }} / {{ a.resourceId }}</td>
-          <td>{{ a.actorName || a.actorId || '-' }}<div class="ch-muted">{{ a.principalType || '-' }}</div></td>
-          <td><span class="ch-pill" :class="statusClass(a.outcome)">{{ a.outcome }}</span></td>
-          <td class="ch-audit-details">{{ auditDetails(a.details) }}</td>
-        </tr></tbody>
-      </table>
-      <div v-else-if="auditView === 'deadLetters' && auditLoading" class="ch-state">正在加载消息死信…</div>
-      <div v-else-if="auditView === 'deadLetters' && deadLetters.length === 0" class="ch-state">暂无消息死信</div>
-      <table v-else-if="auditView === 'deadLetters'">
-        <thead><tr><th>选择</th><th>时间</th><th>渠道 / 会话</th><th>发送人</th><th>尝试次数</th><th>失败原因</th></tr></thead>
-        <tbody><tr v-for="e in deadLetters" :key="e.id">
-          <td><input v-model="selectedDeadLetters" type="checkbox" :value="e.id" :aria-label="`选择死信 ${e.id}`" /></td>
-          <td>{{ e.createdAt || '-' }}</td><td>{{ e.provider }} / {{ e.channelId }}<div class="ch-muted">{{ e.conversationId }}</div></td>
-          <td>{{ e.senderType || '-' }}<div class="ch-muted">{{ e.senderActorId || '-' }}</div></td>
-          <td>{{ e.attempts ?? '-' }}</td><td class="ch-error-cell">{{ e.errorMessage || '-' }}</td>
-        </tr></tbody>
-      </table>
-      <div v-else-if="executions.length === 0" class="ch-state">暂无 Connector 执行记录</div>
+      <div v-if="executions.length === 0" class="ch-state">暂无 Connector 执行记录</div>
       <table v-else>
         <thead>
           <tr>

@@ -9,6 +9,7 @@
  */
 import { computed, nextTick, ref, watch } from 'vue';
 
+import { Modal } from '../../../ui';
 import { useKhI18n } from '../../i18n';
 
 interface Props {
@@ -75,10 +76,16 @@ function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <Teleport to="body" :disabled="!open">
-    <div v-if="open" class="khd-mask" @click.self="onCancel" @keydown="onKey">
-      <div class="khd-panel" tabindex="-1" @keydown="onKey">
-        <div v-if="title" class="khd-title">{{ title }}</div>
+  <Modal
+    :open="open"
+    class="khd-panel"
+    centered
+    :width="440"
+    :title="title"
+    :footer="false"
+    @cancel="onCancel"
+    @keydown="onKey"
+  >
         <div v-if="content" class="khd-content">{{ content }}</div>
         <input
           v-if="hasPrompt"
@@ -100,9 +107,7 @@ function onKey(e: KeyboardEvent) {
             {{ okText ?? t('common.ok') }}
           </button>
         </div>
-      </div>
-    </div>
-  </Teleport>
+  </Modal>
 </template>
 
 <style scoped>
@@ -116,15 +121,13 @@ function onKey(e: KeyboardEvent) {
   justify-content: center;
 }
 .khd-panel {
-  width: min(440px, 92vw);
-  padding: 22px 24px 18px;
   background: var(--kh-color-surface);
-  border-radius: var(--kh-radius-lg);
-  box-shadow: var(--kh-shadow-modal);
-  outline: none;
+}
+.khd-panel :deep(.as-modal__body) {
   display: flex;
   flex-direction: column;
   gap: var(--kh-space-3);
+  padding: 22px 24px 18px;
 }
 .khd-title {
   font-size: var(--kh-fs-3xl);

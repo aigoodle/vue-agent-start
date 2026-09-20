@@ -28,6 +28,7 @@
 import { fileURLToPath, URL } from 'node:url';
 
 import vue from '@vitejs/plugin-vue';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 
@@ -51,6 +52,7 @@ function isExternal(id: string): boolean {
 
 export default defineConfig({
   plugins: [
+    tailwindcss(),
     vue(),
     dts({
       tsconfigPath: './tsconfig.json',
@@ -81,8 +83,12 @@ export default defineConfig({
         'agent-studio/index': fileURLToPath(new URL('./src/agent-studio/index.ts', import.meta.url)),
         'agent-flow/index': fileURLToPath(new URL('./src/agent-flow/index.ts', import.meta.url)),
         'connector-hub/index': fileURLToPath(new URL('./src/connector-hub/index.ts', import.meta.url)),
+        'channel-hub/index': fileURLToPath(new URL('./src/channel-hub/index.ts', import.meta.url)),
         'plugin-hub/index': fileURLToPath(new URL('./src/plugin-hub/index.ts', import.meta.url)),
         'mcp-hub/index': fileURLToPath(new URL('./src/mcp-hub/index.ts', import.meta.url)),
+        'skill-hub/index': fileURLToPath(new URL('./src/skill-hub/index.ts', import.meta.url)),
+        'tool-hub/index': fileURLToPath(new URL('./src/tool-hub/index.ts', import.meta.url)),
+        'trigger-hub/index': fileURLToPath(new URL('./src/trigger-hub/index.ts', import.meta.url)),
       },
       formats: ['es', 'cjs'],
       // Emit a single collected stylesheet as dist/style.css (matches the

@@ -30,6 +30,7 @@
  */
 import { computed, ref, watch } from 'vue';
 
+import { Modal } from '../../ui';
 import { APP_TYPES } from '../composables/useAgentStudio';
 import type { AppType, AppTypeDescriptor } from '../types';
 
@@ -146,19 +147,21 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <!-- disabled="!open": 关闭时 Teleport 跳过挂载,body 里不残留 fixed 遮罩;
-       避免 <KeepAlive> deactivate 后遮罩漏在页面上盖住后续路由。-->
-  <Teleport to="body" :disabled="!open">
-    <div v-if="open" class="as-modal-mask" @click.self="close" @keydown="onKeydown">
-      <div class="as-modal-panel" tabindex="-1" @keydown="onKeydown">
-        <!-- Header -->
-        <div class="as-modal-header">
+  <Modal
+    :open="open"
+    class="as-modal-panel"
+    centered
+    width="min(1080px, 96vw)"
+    :footer="false"
+    @cancel="close"
+    @keydown="onKeydown"
+  >
+        <template #title>
           <div>
             <div class="as-modal-title">创建应用</div>
             <div class="as-modal-subtitle">从空白开始配置一个 AI 应用</div>
           </div>
-          <button class="as-close" @click="close" aria-label="关闭">×</button>
-        </div>
+        </template>
 
         <!-- Two-pane body -->
         <div class="as-body">
@@ -308,9 +311,7 @@ function onKeydown(e: KeyboardEvent) {
             <div class="as-preview-hint">{{ currentDesc?.hint }}</div>
           </div>
         </div>
-      </div>
-    </div>
-  </Teleport>
+  </Modal>
 </template>
 
 <style scoped>
@@ -325,16 +326,9 @@ function onKeydown(e: KeyboardEvent) {
   backdrop-filter: blur(2px);
 }
 .as-modal-panel {
-  width: min(1080px, 96vw);
   max-height: 92vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 25px 70px rgba(15, 23, 42, 0.25);
-  outline: none;
 }
+.as-modal-panel :deep(.as-modal__body) { padding: 0; }
 
 /* Header */
 .as-modal-header {

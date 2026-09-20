@@ -6,6 +6,7 @@ import {
   EditOutlined,
   PlusOutlined,
 } from '@ant-design/icons-vue';
+import { Modal } from '../../ui';
 
 const props = defineProps({
   showTitle: {
@@ -279,7 +280,7 @@ const TreeNode: any = defineComponent({
           </template>
         </div>
 
-        <a-modal
+        <Modal
           v-model:open="visible"
           :mask-closable="false"
           title="结构化字段定义"
@@ -326,7 +327,7 @@ const TreeNode: any = defineComponent({
               </a-form-item>
             </a-form>
           </div>
-        </a-modal>
+        </Modal>
       </template>
 
       <div v-else class="output-plain">

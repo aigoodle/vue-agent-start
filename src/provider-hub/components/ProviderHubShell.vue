@@ -16,7 +16,7 @@
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
-import { Popover } from '../../ui';
+import { Modal, Popover } from '../../ui';
 
 import {
   modelTypeColor,
@@ -1101,18 +1101,16 @@ function capabilityTags(
     />
 
     <!-- Manual add mini-modal -->
-    <div
-      v-if="manualAddOpen"
-      class="phs-mini-backdrop"
-      @click.self="manualAddOpen = false"
+    <Modal
+      v-model:open="manualAddOpen"
+      class="phs-mini-modal"
+      centered
+      :width="520"
+      :title="`手动添加模型 · ${manualAddProvider?.label ?? ''}`"
+      :mask-closable="!manualAddSaving"
+      :keyboard="!manualAddSaving"
+      :closable="!manualAddSaving"
     >
-      <div class="phs-mini-modal">
-        <div class="phs-mini-header">
-          <div class="phs-mini-title">
-            手动添加模型 · {{ manualAddProvider?.label }}
-          </div>
-          <button class="phs-mini-close" @click="manualAddOpen = false">✕</button>
-        </div>
         <div class="phs-mini-body">
           <div class="phs-mini-hint">
             用于目录里没有的自定义模型（自建 endpoint / 未公开的模型名）。
@@ -1141,6 +1139,7 @@ function capabilityTags(
             {{ manualAddError }}
           </div>
         </div>
+        <template #footer>
         <div class="phs-mini-footer">
           <button class="phs-btn" @click="manualAddOpen = false">取消</button>
           <button
@@ -1151,8 +1150,8 @@ function capabilityTags(
             {{ manualAddSaving ? '保存中…' : '添加' }}
           </button>
         </div>
-      </div>
-    </div>
+        </template>
+    </Modal>
   </div>
 </template>
 

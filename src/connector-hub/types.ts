@@ -40,6 +40,24 @@ export interface ChannelDefinition {
   uiSchema?: Record<string, unknown>; capabilities?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
+export type ChannelAccountScope = 'PERSONAL' | 'TENANT';
+export type ChannelInstancePolicy = 'SINGLE' | 'MULTIPLE';
+export interface ChannelIdentityBridgeDefinition {
+  enabled: boolean;
+  mode?: 'OAUTH' | 'MANUAL' | 'DIRECTORY' | string;
+  externalIdentityLabel?: string;
+  enterpriseIdentityLabel?: string;
+  description?: string;
+}
+/** Backend-published UI contract, normally authored by a channel module in YAML. */
+export interface ChannelAccountModel {
+  scope: ChannelAccountScope;
+  instancePolicy?: ChannelInstancePolicy;
+  ownerRequired?: boolean;
+  ownerLabel?: string;
+  ownerPlaceholder?: string;
+  identityBridge?: ChannelIdentityBridgeDefinition;
+}
 export interface ChannelAccount {
   channelId: string; accountId: string; name: string; enabled: boolean;
   configured: boolean; running: boolean; connected: boolean;
@@ -54,8 +72,13 @@ export interface ChannelConnection {
   credentialsConfigured: boolean; lastError?: string; lastTestedAt?: string;
   configVersion: number;
 }
+export interface ChannelConnectionEditConfiguration {
+  credentials: Record<string, unknown>;
+  config: Record<string, unknown>;
+  configuredSecretFields: string[];
+}
 export interface SaveChannelConnection {
-  id?: string; tenantId?: string; ownerType?: string; ownerId: string;
+  id?: string; tenantId?: string; ownerType?: string; ownerId?: string;
   provider: string; channelId: string; name: string;
   credentials?: Record<string, unknown>; config?: Record<string, unknown>;
   enabled?: boolean; agentId?: string; agentVersionId?: string; runtimeNodeId?: string;

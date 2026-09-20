@@ -5,7 +5,7 @@ import PromptEditor from '@/components/PromptEditor.vue';
 import VariableSelector from '@/components/VariableSelector.vue';
 import OutputItemCard from '@/workflow/OutputItemCard.vue';
 import WfField from '@/workflow/WfField.vue';
-import ModelPickerPopover from '../../../provider-hub/components/ModelPickerPopover.vue';
+import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
 const props = defineProps<{
   nodeId?: string;
   currentAppId?: string;
@@ -107,11 +107,10 @@ function syncTargetWorkflow(workflowId?: string) {
       <div class="wf-help">模型会结合当前用户已有任务，一次识别新增、修改或删除意图；修改和删除只能选择该用户自己的任务。</div>
     </WfField>
     <WfField title="参数提取模型" required>
-      <ModelPickerPopover
+      <WorkflowModelPicker
         v-model="formState.model"
         model-type="LLM"
         placeholder="点击选择 LLM 模型"
-        :width="440"
       />
     </WfField>
   </div>

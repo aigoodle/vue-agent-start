@@ -1,11 +1,16 @@
-import { flushPromises, mount } from '@vue/test-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import ChannelConnectionPanel from './ChannelConnectionPanel.vue';
 
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+const body = () => new DOMWrapper(document.body);
+
 function createClient() {
-  return {
-    connectors: {
+  const channels = {
       listChannels: vi.fn().mockResolvedValue([
         {
           provider: 'native',
@@ -23,7 +28,10 @@ function createClient() {
       getTenantAgentBinding: vi.fn().mockResolvedValue(null),
       listChannelIdentities: vi.fn().mockResolvedValue([]),
       listChannelEvents: vi.fn().mockResolvedValue([]),
-    },
+    };
+  return {
+    channels,
+    connectors: channels,
     agents: { list: vi.fn().mockResolvedValue([]) },
   } as any;
 }
@@ -60,10 +68,10 @@ describe('ChannelConnectionPanel', () => {
     await accountStat.trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('QQ 账号接入');
-    expect(wrapper.text()).toContain('ONLINE · 入站回调异常');
-    expect(wrapper.text()).toContain('待回调 3');
-    expect(wrapper.find('.cad-status').attributes('title')).toBe('database is locked');
+    expect(body().text()).toContain('QQ 账号接入');
+    expect(body().text()).toContain('ONLINE · 入站回调异常');
+    expect(body().text()).toContain('待回调 3');
+    expect(body().find('.cad-status').attributes('title')).toBe('database is locked');
     wrapper.unmount();
   });
 
@@ -87,11 +95,11 @@ describe('ChannelConnectionPanel', () => {
     await accountStat.trigger('click');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('已配置账号');
-    expect(wrapper.text()).toContain('客服一号');
-    expect(wrapper.text()).toContain('bot-001');
-    expect(wrapper.text()).toContain('员工账号');
-    expect(wrapper.text()).toContain('凭证已配置');
+    expect(body().text()).toContain('已配置账号');
+    expect(body().text()).toContain('客服一号');
+    expect(body().text()).toContain('bot-001');
+    expect(body().text()).toContain('员工账号');
+    expect(body().text()).toContain('凭证已配置');
     wrapper.unmount();
   });
 
@@ -120,10 +128,10 @@ describe('ChannelConnectionPanel', () => {
     await flushPromises();
     await wrapper.find('.cc-card').trigger('click');
     await flushPromises();
-    expect(wrapper.text()).toContain('钉钉 账号接入');
-    expect(wrapper.text()).toContain('+ 添加账号');
+    expect(body().text()).toContain('钉钉 账号接入');
+    expect(body().text()).toContain('+ 添加账号');
     expect(document.body.textContent).not.toContain('员工 / 所有者 ID');
-    await wrapper.find('.cad-add').trigger('click');
+    await body().find('.cad-add').trigger('click');
     await flushPromises();
     expect(document.body.textContent).toContain('添加账号');
     expect(document.body.textContent).toContain('员工 / 所有者 ID');

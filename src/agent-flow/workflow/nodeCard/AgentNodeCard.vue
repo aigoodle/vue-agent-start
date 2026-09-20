@@ -8,7 +8,8 @@ import MemoryWindow from '@/components/MemoryWindow.vue';
 import PromptEditor from '@/components/PromptEditor.vue';
 import ToolItemCard from '@/components/ToolItemCard.vue';
 import McpServerChooser from '@/components/McpServerChooser.vue';
-import ModelPickerPopover from '../../../provider-hub/components/ModelPickerPopover.vue';
+import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
+import SkillSelect from '../../../skill-hub/SkillSelect.vue';
 import WfField from '@/workflow/WfField.vue';
 import workflow_utils from '@/workflow/utils/workflow_utils';
 
@@ -21,6 +22,7 @@ const runtimeError = ref('');
 const mcpChooserRef = ref();
 formState.value.agentParameters ??= {};
 formState.value.agentParameters.mcpServers ??= [];
+formState.value.skillIds ??= [];
 const config = useAgentStartConfig();
 const client = useAgentStartClient() ?? createAgentStartClient({ baseUrl: config.apiBase ?? '/api', headers: () => mergeAgentStartHeaders(config.headers) });
 onMounted(async () => {
@@ -76,11 +78,10 @@ const OUTPUT_DEFAULTS = [
     </WfField>
 
     <WfField title="模型" required>
-      <ModelPickerPopover
+      <WorkflowModelPicker
         v-model="formState.model"
         model-type="LLM"
         placeholder="点击选择 Agent 模型"
-        :width="440"
       />
     </WfField>
   </div>
@@ -91,6 +92,11 @@ const OUTPUT_DEFAULTS = [
         Agent 可调用的工具集合，运行时按模型返回决定调用哪个。
       </template>
       <ToolItemCard v-model="formState" />
+    </WfField>
+
+    <WfField title="Skill" is-subtitle>
+      <template #tooltip>选择管理员发布的业务执行规范，运行时自动补充到系统提示词。</template>
+      <SkillSelect v-model="formState.skillIds" />
     </WfField>
 
     <WfField title="MCP Server" is-subtitle>

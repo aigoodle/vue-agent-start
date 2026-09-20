@@ -50,7 +50,9 @@ import { createRunsNamespace, type RunsNamespace } from './runs';
 import { createWorkflowsNamespace, type WorkflowsNamespace } from './workflows';
 import { createTriggersNamespace, type TriggersNamespace } from './triggers';
 import { createToolsNamespace, type ToolsNamespace } from './tools';
+import { createSkillsNamespace, type SkillsNamespace } from './skills';
 import { createConnectorsNamespace, type ConnectorsNamespace } from './connectors';
+import { createChannelsNamespace, type ChannelsNamespace } from './channels';
 import { readSseEvents, type SseEvent } from './sse';
 
 export interface AgentStartClient {
@@ -80,7 +82,10 @@ export interface AgentStartClient {
   readonly runs: RunsNamespace;
   readonly triggers: TriggersNamespace;
   readonly connectors: ConnectorsNamespace;
+  /** Long-running message gateways and their configured accounts. */
+  readonly channels: ChannelsNamespace;
   readonly tools: ToolsNamespace;
+  readonly skills: SkillsNamespace;
 }
 
 export function createAgentStartClient(
@@ -104,7 +109,9 @@ export function createAgentStartClient(
     runs: createRunsNamespace(core),
     triggers: createTriggersNamespace(core),
     connectors: createConnectorsNamespace(core),
+    channels: createChannelsNamespace(core),
     tools: createToolsNamespace(core),
+    skills: createSkillsNamespace(core),
   };
 }
 
@@ -124,8 +131,11 @@ export type {
   RequestCompletedEvent,
 };
 export type { ConnectorsNamespace } from './connectors';
+export type { ChannelsNamespace } from './channels';
+export type { SkillEntity, SaveSkillRequest, SkillStatus, SkillsNamespace } from './skills';
 export type {
   McpServerCatalogItem,
+  SaveCustomToolRequest,
   ToolCatalogItem,
   ToolsNamespace,
 } from './tools';
@@ -170,5 +180,7 @@ export type {
   TriggerScheduleConfig,
   CreateTriggerRequest as CreateScheduledTriggerRequest,
   TriggerWire,
+  TriggerPage,
+  TriggerPageOptions,
   TriggerInvocationWire,
 } from './triggers';

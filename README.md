@@ -10,7 +10,7 @@ pnpm add vue-agent-start
 
 宿主项目只需要提供 Vue、Pinia、Vue Router 和图标包等轻量 peer dependencies，具体版本范围见 `package.json`。组件库不再依赖或捆绑 Ant Design Vue。
 
-组件库内置了一套接近 Ant Design 交互密度的自有 UI 基座，包括按钮、输入框、选择器、开关、卡片、表单、Modal、Drawer、表格、提示消息等。安装 `AgentStartPlugin` 时会自动注册；也可以单独安装：
+组件库内置了一套接近 Ant Design 交互密度的自有 UI 基座，包括按钮、输入框、选择器、开关、卡片、表单、Modal、Drawer、表格、提示消息等。内部样式由 Tailwind CSS v4 在发布阶段编译，使用方不需要安装或配置 Tailwind。安装 `AgentStartPlugin` 时会自动注册；也可以单独安装：
 
 ```ts
 import { AgentStartUi } from 'vue-agent-start';
@@ -19,7 +19,7 @@ import 'vue-agent-start/style.css';
 app.use(AgentStartUi);
 ```
 
-主题通过 `--as-*` CSS 变量覆盖，不会修改宿主项目的 Element Plus、Naive UI 或其他组件库主题。
+主题通过 `--as-*` CSS 变量覆盖。构建入口不包含 Tailwind Preflight，因此不会重置宿主项目的原生标签，也不会修改 Element Plus、Naive UI 或其他组件库主题。
 
 ## 推荐：全局配置
 

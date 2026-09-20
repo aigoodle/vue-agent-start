@@ -16,8 +16,7 @@
 // -----------------------------------------------------------------------------
 // Style tokens — the only side-effect import.
 // -----------------------------------------------------------------------------
-import './knowledge-hub/styles/index.css';
-import './ui/style.css';
+import './style.css';
 
 export * from './ui';
 
@@ -47,6 +46,7 @@ export type {
   AgentRunWatchOptions,
   AgentStartClient,
   AgentStartClientOptions,
+  ChannelsNamespace,
   AgentsNamespace,
   DatasetWire,
   DocumentWire,
@@ -93,8 +93,12 @@ export * from './provider-hub/types';
 export type { HeadersLike } from './provider-hub/composables/useProviderHub';
 
 export * from './connector-hub';
+export { ChannelHubApp } from './channel-hub';
 export * from './plugin-hub';
 export * from './mcp-hub';
+export * from './skill-hub';
+export * from './tool-hub';
+export * from './trigger-hub';
 
 // -----------------------------------------------------------------------------
 // knowledge-hub — dataset UI kit

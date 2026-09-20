@@ -10,7 +10,8 @@ import {
 
 import PromptEditor from '@/components/PromptEditor.vue';
 import VariableSelector from '@/components/VariableSelector.vue';
-import ModelPickerPopover from '../../../provider-hub/components/ModelPickerPopover.vue';
+import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
+import { Modal } from '../../../ui';
 import WfField from '@/workflow/WfField.vue';
 
 defineProps<{ nodeId?: string }>();
@@ -105,7 +106,7 @@ function removeParam(index: number) {
 </script>
 
 <template>
-  <a-modal
+  <Modal
     v-model:open="modalOpen"
     :mask-closable="false"
     :title="editingIndex >= 0 ? '编辑抽取参数' : '新增抽取参数'"
@@ -138,7 +139,7 @@ function removeParam(index: number) {
         <a-checkbox v-model:checked="form.required">必填</a-checkbox>
       </a-form-item>
     </a-form>
-  </a-modal>
+  </Modal>
 
   <div class="wf-config-section">
     <WfField title="输入变量" required>
@@ -150,11 +151,10 @@ function removeParam(index: number) {
     </WfField>
 
     <WfField title="模型" required>
-      <ModelPickerPopover
+      <WorkflowModelPicker
         v-model="formState.model"
         model-type="LLM"
         placeholder="点击选择模型"
-        :width="440"
       />
     </WfField>
   </div>

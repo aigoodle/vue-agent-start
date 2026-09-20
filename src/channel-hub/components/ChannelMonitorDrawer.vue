@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
+import { Modal } from '../../ui';
 import type {
   ChannelConnection,
   ChannelConversation,
@@ -100,7 +101,7 @@ watch(connectionFilter, () => {
 
 async function loadConversations(append = false) {
   if (!props.open) return;
-  const api = props.client.connectors as any;
+  const api = props.client.channels as any;
   if (typeof api.listChannelConversations !== 'function' || typeof api.getChannelConversationSummary !== 'function') {
     activeView.value = 'messages';
     return;
@@ -206,7 +207,7 @@ function newIdempotencyKey() {
 }
 
 async function retryEvent(event: ChannelEvent) {
-  await props.client.connectors.retryChannelEvent(event.id, props.tenantId);
+  await props.client.channels.retryChannelEvent(event.id, props.tenantId);
   emit('eventsChanged');
 }
 
@@ -228,7 +229,7 @@ function resetTimeline() {
 
 async function loadTimeline(append = false) {
   if (!props.open || !selectedConversationId.value) return;
-  const api = props.client.connectors as any;
+  const api = props.client.channels as any;
   if (typeof api.pageChannelEvents !== 'function') return;
   if (append && (!timelineHasMore.value || timelineLoadingMore.value)) return;
   if (append) timelineLoadingMore.value = true;
@@ -277,7 +278,7 @@ function loadMoreTimeline() {
 async function claimConversation(row: ChannelConversation) {
   conversationError.value = '';
   try {
-    await props.client.connectors.claimChannelConversation(row.id, row.lockVersion, row.assignmentGroup);
+    await props.client.channels.claimChannelConversation(row.id, row.lockVersion, row.assignmentGroup);
     await loadConversations(false);
   } catch (e: any) { conversationError.value = e?.message ?? '接管失败，请刷新后重试'; }
 }
@@ -285,7 +286,7 @@ async function claimConversation(row: ChannelConversation) {
 async function resumeBot(row: ChannelConversation) {
   conversationError.value = '';
   try {
-    await props.client.connectors.resumeChannelConversationBot(row.id, row.lockVersion);
+    await props.client.channels.resumeChannelConversationBot(row.id, row.lockVersion);
     await loadConversations(false);
   } catch (e: any) { conversationError.value = e?.message ?? '恢复机器人失败'; }
 }
@@ -293,7 +294,7 @@ async function resumeBot(row: ChannelConversation) {
 async function closeConversation(row: ChannelConversation) {
   conversationError.value = '';
   try {
-    await props.client.connectors.closeChannelConversation(row.id, row.lockVersion);
+    await props.client.channels.closeChannelConversation(row.id, row.lockVersion);
     await loadConversations(false);
   } catch (e: any) { conversationError.value = e?.message ?? '关闭会话失败'; }
 }
@@ -306,7 +307,7 @@ async function submitNote() {
   if (!noteTarget.value || !noteContent.value.trim()) return;
   noteSaving.value = true; conversationError.value = '';
   try {
-    await props.client.connectors.addChannelConversationNote(noteTarget.value.id, noteContent.value.trim());
+    await props.client.channels.addChannelConversationNote(noteTarget.value.id, noteContent.value.trim());
     noteOpen.value = false; noteTarget.value = undefined; emit('eventsChanged');
   } catch (e: any) { conversationError.value = e?.message ?? '内部备注保存失败'; }
   finally { noteSaving.value = false; }
@@ -335,7 +336,7 @@ async function submitHandoff() {
   handoffSaving.value = true;
   handoffError.value = '';
   try {
-    await props.client.connectors.handoffChannelEvent(
+    await props.client.channels.handoffChannelEvent(
       handoffTarget.value.id,
       handoffNote.value.trim() || undefined,
       props.tenantId,
@@ -373,7 +374,7 @@ async function submitReply() {
   replySaving.value = true;
   replyError.value = '';
   try {
-    await props.client.connectors.replyChannelEvent(
+    await props.client.channels.replyChannelEvent(
       replyTarget.value.id,
       {
         content: replyContent.value.trim(),
@@ -561,16 +562,13 @@ const formatTime = (value?: string) => (value ? new Date(value).toLocaleString()
         </main>
       </aside>
 
-      <Teleport to="body">
-        <div v-if="replyOpen" class="cmd-dialog-mask" @click.self="closeReply">
-          <section class="cmd-dialog" role="dialog" aria-modal="true" aria-labelledby="reply-title">
-            <header>
+      <Modal :open="replyOpen" class="cmd-dialog" centered :width="560" :mask-closable="!replySaving" :keyboard="!replySaving" :closable="!replySaving" @cancel="closeReply">
+            <template #title>
               <div>
                 <h3 id="reply-title">回复外部用户</h3>
                 <p>通过 {{ channel?.name }} 账号发送给 {{ replyTarget?.senderId }}</p>
               </div>
-              <button class="cmd-close" @click="closeReply">✕</button>
-            </header>
+            </template>
             <main>
               <div v-if="replyTarget?.content" class="cmd-original-message">
                 <small>用户消息</small><p>{{ replyTarget.content }}</p>
@@ -596,26 +594,21 @@ const formatTime = (value?: string) => (value ? new Date(value).toLocaleString()
               </div>
               <div v-if="replyError" class="cmd-form-error">{{ replyError }}</div>
             </main>
-            <footer>
+            <template #footer><div class="cmd-dialog-footer">
               <button class="cmd-btn" :disabled="replySaving" @click="closeReply">取消</button>
               <button class="cmd-btn is-primary" :disabled="replySaving || (!replyContent.trim() && !replyAttachmentUrl.trim())" @click="submitReply">
                 {{ replySaving ? '提交中…' : '加入发送队列' }}
               </button>
-            </footer>
-          </section>
-        </div>
-      </Teleport>
+            </div></template>
+      </Modal>
 
-      <Teleport to="body">
-        <div v-if="handoffOpen" class="cmd-dialog-mask" @click.self="closeHandoff">
-          <section class="cmd-dialog" role="dialog" aria-modal="true" aria-labelledby="handoff-title">
-            <header>
+      <Modal :open="handoffOpen" class="cmd-dialog" centered :width="560" :mask-closable="!handoffSaving" :keyboard="!handoffSaving" :closable="!handoffSaving" @cancel="closeHandoff">
+            <template #title>
               <div>
                 <h3 id="handoff-title">转人工处理</h3>
                 <p>{{ handoffTarget?.ownerId || handoffTarget?.accountId }} · {{ channel?.name }}</p>
               </div>
-              <button class="cmd-close" @click="closeHandoff">✕</button>
-            </header>
+            </template>
             <main>
               <div class="cmd-handoff-notice">
                 该操作只将消息标记为待人工处理并记录备注，不会发送消息。如需回复用户，请使用“回复消息”。
@@ -631,25 +624,19 @@ const formatTime = (value?: string) => (value ? new Date(value).toLocaleString()
               </label>
               <div v-if="handoffError" class="cmd-form-error">{{ handoffError }}</div>
             </main>
-            <footer>
+            <template #footer><div class="cmd-dialog-footer">
               <button class="cmd-btn" :disabled="handoffSaving" @click="closeHandoff">取消</button>
               <button class="cmd-btn is-primary" :disabled="handoffSaving" @click="submitHandoff">
                 {{ handoffSaving ? '提交中…' : '确认转人工' }}
               </button>
-            </footer>
-          </section>
-        </div>
-      </Teleport>
+            </div></template>
+      </Modal>
 
-      <Teleport to="body">
-        <div v-if="noteOpen" class="cmd-dialog-mask" @click.self="noteOpen = false">
-          <section class="cmd-dialog" role="dialog" aria-modal="true">
-            <header><div><h3>添加内部备注</h3><p>仅企业内部可见，不会发送给外部用户</p></div><button class="cmd-close" @click="noteOpen = false">✕</button></header>
+      <Modal v-model:open="noteOpen" class="cmd-dialog" centered :width="560" :mask-closable="!noteSaving" :keyboard="!noteSaving" :closable="!noteSaving">
+            <template #title><div><h3>添加内部备注</h3><p>仅企业内部可见，不会发送给外部用户</p></div></template>
             <main><label class="cmd-form-field">备注内容<textarea v-model="noteContent" rows="5" maxlength="2000" placeholder="记录处理过程、判断或交接信息"></textarea></label></main>
-            <footer><button class="cmd-btn" :disabled="noteSaving" @click="noteOpen = false">取消</button><button class="cmd-btn is-primary" :disabled="noteSaving || !noteContent.trim()" @click="submitNote">保存内部备注</button></footer>
-          </section>
-        </div>
-      </Teleport>
+            <template #footer><div class="cmd-dialog-footer"><button class="cmd-btn" :disabled="noteSaving" @click="noteOpen = false">取消</button><button class="cmd-btn is-primary" :disabled="noteSaving || !noteContent.trim()" @click="submitNote">保存内部备注</button></div></template>
+      </Modal>
     </div>
   </Transition>
 </template>
@@ -964,9 +951,10 @@ const formatTime = (value?: string) => (value ? new Date(value).toLocaleString()
   padding: 16px 20px;
 }
 .cmd-dialog > header { border-bottom: 1px solid #e5e7eb; }
-.cmd-dialog > header h3 { margin: 0; font-size: 16px; color: #111827; }
-.cmd-dialog > header p { margin: 4px 0 0; font-size: 12px; color: #9ca3af; }
-.cmd-dialog > main { display: grid; gap: 16px; padding: 20px; }
+.cmd-dialog h3 { margin: 0; font-size: 16px; color: #111827; }
+.cmd-dialog .as-modal__title p { margin: 4px 0 0; font-size: 12px; color: #9ca3af; }
+.cmd-dialog main { display: grid; gap: 16px; }
+.cmd-dialog-footer { display: flex; justify-content: flex-end; gap: 12px; width: 100%; }
 .cmd-dialog > footer { justify-content: flex-end; border-top: 1px solid #e5e7eb; }
 .cmd-handoff-notice {
   padding: 11px 13px;
@@ -1009,7 +997,7 @@ const formatTime = (value?: string) => (value ? new Date(value).toLocaleString()
 :global(.dark) .cmd-dialog { background: #1f1f1f; }
 :global(.dark) .cmd-dialog > header,
 :global(.dark) .cmd-dialog > footer { border-color: #2d2d2d; }
-:global(.dark) .cmd-dialog > header h3 { color: #f3f4f6; }
+:global(.dark) .cmd-dialog h3 { color: #f3f4f6; }
 :global(.dark) .cmd-form-field { color: #d1d5db; }
 :global(.dark) .cmd-form-field textarea { color: #f3f4f6; background: #2d2d2d; border-color: #3d3d3d; }
 :global(.dark) .cmd-handoff-notice { color: #fbbf24; background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3); }

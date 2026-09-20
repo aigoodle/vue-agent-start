@@ -4,6 +4,7 @@ import { SearchOutlined, ToolOutlined } from '@ant-design/icons-vue';
 import { createAgentStartClient, type ToolCatalogItem } from '../../../client';
 import { useAgentStartClient } from '../../../client/vue';
 import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
+import { Modal } from '../../../ui';
 
 const emit = defineEmits<{ (e: 'formSubmit', value: ToolCatalogItem[]): void }>();
 const config = useAgentStartConfig();
@@ -61,7 +62,7 @@ defineExpose({ showModal, hideModal });
 </script>
 
 <template>
-  <a-modal v-model:open="open" title="选择工具" width="720px" ok-text="添加所选工具" cancel-text="取消" @ok="submit">
+  <Modal v-model:open="open" title="选择工具" width="720px" ok-text="添加所选工具" cancel-text="取消" @ok="submit">
     <div class="wf-tool-chooser">
       <a-input v-model:value="query" allow-clear placeholder="搜索工具名称、描述或提供方">
         <template #prefix><SearchOutlined /></template>
@@ -82,7 +83,7 @@ defineExpose({ showModal, hideModal });
       </div>
       <div class="wf-tool-summary">已选择 {{ selectedNames.length }} 个工具</div>
     </div>
-  </a-modal>
+  </Modal>
 </template>
 
 <style scoped>

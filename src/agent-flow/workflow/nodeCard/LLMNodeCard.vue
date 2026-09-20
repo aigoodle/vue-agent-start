@@ -4,7 +4,7 @@ import { ref } from 'vue';
 import MemoryWindow from '@/components/MemoryWindow.vue';
 import PromptEditor from '@/components/PromptEditor.vue';
 import PromptEditorTagPanel from '@/components/PromptEditorTagPanel.vue';
-import ModelPickerPopover from '../../../provider-hub/components/ModelPickerPopover.vue';
+import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
 import OutputItemCard from '@/workflow/OutputItemCard.vue';
 import WfField from '@/workflow/WfField.vue';
 import workflow_utils from '@/workflow/utils/workflow_utils';
@@ -73,11 +73,10 @@ const RESPONSE_FORMATS = [
 
   <div class="wf-config-section">
     <WfField title="模型" required>
-      <ModelPickerPopover
+      <WorkflowModelPicker
         v-model="formState.model"
         model-type="LLM"
         placeholder="点击选择 LLM 模型"
-        :width="440"
       />
     </WfField>
 

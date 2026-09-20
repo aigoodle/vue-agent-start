@@ -5,7 +5,7 @@ import { ApiOutlined, ClockCircleOutlined, MessageOutlined, ThunderboltOutlined 
 import { createAgentStartClient } from '../../../client';
 import { useAgentStartClient } from '../../../client/vue';
 import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
-import type { ChannelDefinition } from '../../../connector-hub/types';
+import type { ChannelConnection, ChannelDefinition } from '../../../connector-hub/types';
 
 const formState: any = defineModel();
 const global = useAgentStartConfig();
@@ -14,6 +14,8 @@ const client = useAgentStartClient() ?? createAgentStartClient({
   headers: () => mergeAgentStartHeaders(global.headers),
 });
 const channels = ref<ChannelDefinition[]>([]);
+const connections = ref<ChannelConnection[]>([]);
+const connectionsLoaded = ref(false);
 const connectorLoading = ref(false);
 const connectorError = ref('');
 
@@ -45,6 +47,9 @@ function ensureTrigger() {
   trigger.provider ??= '';
   trigger.channelId ??= '';
   trigger.channelName ??= '';
+  trigger.connectionId ??= '';
+  trigger.connectionName ??= '';
+  trigger.accountScope ??= trigger.connectionId ? 'SPECIFIC' : 'ALL';
   trigger.messageTypes ??= [];
   trigger.replyMode ??= 'ASYNC';
   return trigger;
@@ -81,20 +86,64 @@ const installedChannels = computed(() => channels.value.filter((channel) =>
   channel.enabled && channel.runtimeStatus !== 'DISABLED'));
 const selectedChannel = computed(() => installedChannels.value.find((channel) =>
   channel.provider === ensureTrigger().provider && channel.channelId === ensureTrigger().channelId));
+const availableConnections = computed(() => connections.value.filter((connection) =>
+  connection.provider === ensureTrigger().provider
+  && connection.channelId === ensureTrigger().channelId
+  && connection.desiredStatus === 'ACTIVE'));
+const selectedConnection = computed(() => availableConnections.value.find((connection) =>
+  connection.id === ensureTrigger().connectionId));
+const accountScope = computed({
+  get: () => ensureTrigger().accountScope,
+  set: (value: string) => {
+    ensureTrigger().accountScope = value;
+    if (value === 'ALL') {
+      ensureTrigger().connectionId = '';
+      ensureTrigger().connectionName = '';
+    }
+  },
+});
 watch(() => [ensureTrigger().provider, ensureTrigger().channelId], () => {
   const trigger = ensureTrigger();
   trigger.channelName = selectedChannel.value?.name ?? '';
-  // Legacy drafts may have pinned one employee's account. A workflow subscribes to
-  // the channel and is shared by every employee account, so never persist that pin.
-  delete trigger.connectionId;
-  delete trigger.connectionName;
+  if (connectionsLoaded.value && trigger.connectionId && !selectedConnection.value) {
+    trigger.connectionId = '';
+    trigger.connectionName = '';
+    trigger.accountScope = 'ALL';
+  }
 }, { immediate: true });
+watch(() => ensureTrigger().connectionId, () => {
+  ensureTrigger().connectionName = selectedConnection.value?.name ?? '';
+});
+
+function selectChannel(value: string) {
+  const [provider, ...parts] = value.split(':');
+  const trigger = ensureTrigger();
+  trigger.provider = provider;
+  trigger.channelId = parts.join(':');
+  trigger.connectionId = '';
+  trigger.connectionName = '';
+  trigger.accountScope = 'ALL';
+}
 
 async function loadMessageConnectors() {
   connectorLoading.value = true;
   connectorError.value = '';
   try {
-    channels.value = await client.connectors.listChannels();
+    const [loadedChannels, loadedConnections] = await Promise.all([
+      client.connectors.listChannels(),
+      client.connectors.listChannelConnections(),
+    ]);
+    channels.value = loadedChannels;
+    connections.value = loadedConnections;
+    connectionsLoaded.value = true;
+    const trigger = ensureTrigger();
+    if (trigger.connectionId && !selectedConnection.value) {
+      trigger.connectionId = '';
+      trigger.connectionName = '';
+      trigger.accountScope = 'ALL';
+    } else if (trigger.connectionId) {
+      trigger.connectionName = selectedConnection.value?.name ?? '';
+    }
   } catch (error: any) {
     connectorError.value = error?.message ?? '加载消息连接器失败';
   } finally {
@@ -185,7 +234,7 @@ onMounted(loadMessageConnectors);
           placeholder="请选择已接入的消息平台"
           show-search
           :filter-option="(input: string, option: any) => String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())"
-          @change="(value: string) => { const [provider, ...parts] = value.split(':'); formState.triggers.provider = provider; formState.triggers.channelId = parts.join(':'); }"
+          @change="selectChannel"
         >
           <a-select-option
             v-for="channel in installedChannels"
@@ -202,6 +251,37 @@ onMounted(loadMessageConnectors);
         暂无已安装并启用的消息连接器，请先在连接器中心完成接入。
       </div>
 
+      <template v-if="formState.triggers.provider && formState.triggers.channelId">
+        <label>账户接入方式
+          <a-select v-model:value="accountScope">
+            <a-select-option value="ALL">全部账户</a-select-option>
+            <a-select-option value="SPECIFIC">指定账户</a-select-option>
+          </a-select>
+        </label>
+
+        <label v-if="accountScope === 'SPECIFIC'">接入账户
+          <a-select
+            v-model:value="formState.triggers.connectionId"
+            placeholder="请选择已接入且启用的账户"
+            show-search
+            :filter-option="(input: string, option: any) => String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())"
+          >
+            <a-select-option
+              v-for="connection in availableConnections"
+              :key="connection.id"
+              :value="connection.id"
+              :label="connection.name"
+            >
+              {{ connection.name }}
+            </a-select-option>
+          </a-select>
+        </label>
+
+        <div v-if="accountScope === 'SPECIFIC' && availableConnections.length === 0" class="wf-connector-warning">
+          当前消息连接器暂无已启用的接入账户，请先在连接器中心添加并启用账户。
+        </div>
+      </template>
+
       <label>接收的消息类型
         <a-select v-model:value="formState.triggers.messageTypes" mode="multiple" placeholder="全部消息类型">
           <a-select-option v-for="type in ['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'FILE', 'RICH_TEXT']" :key="type" :value="type">{{ type }}</a-select-option>
@@ -216,7 +296,9 @@ onMounted(loadMessageConnectors);
       </label>
 
       <div class="wf-connector-note">
-        当前工作流订阅整个消息通道，不绑定某个员工账号。任一员工绑定自己的账号后，入站消息会以该员工的可信身份执行此工作流；异步回复会返回原账号和原会话。
+        {{ accountScope === 'SPECIFIC'
+          ? '仅所选账户收到的消息会触发此工作流；异步回复会返回该账户的原会话。'
+          : '该消息连接器下任一已启用账户收到消息都会触发此工作流；异步回复会返回原账户和原会话。' }}
       </div>
     </div>
 

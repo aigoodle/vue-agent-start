@@ -16,6 +16,7 @@
  */
 import { reactive, ref } from 'vue';
 
+import { Modal } from '../../ui';
 import type { AgentVariable, AgentVariableType } from '../types';
 
 const TYPES: { value: AgentVariableType; label: string; hint: string }[] = [
@@ -69,10 +70,6 @@ function closeModal() {
   emit('cancel');
 }
 
-function onMaskClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) closeModal();
-}
-
 /**
  * 变量名验证 —— 只允许字母/数字/下划线，且不能以数字开头，避免后续在
  * 提示词 `{{#user.xxx#}}` 模板里踩变量插值的语法坑。
@@ -108,18 +105,14 @@ defineExpose({ open: openModal, close: closeModal });
 </script>
 
 <template>
-  <Teleport to="body" :disabled="!open">
-    <div v-if="open" class="vem-mask" @click="onMaskClick">
-      <div class="vem-panel" role="dialog" aria-modal="true">
-        <div class="vem-header">
-          <span class="vem-title">
-            {{ editing ? '编辑变量' : '新增变量' }}
-          </span>
-          <button class="vem-close" aria-label="关闭" @click="closeModal">
-            ✕
-          </button>
-        </div>
-
+  <Modal
+    :open="open"
+    class="vem-panel"
+    centered
+    :width="500"
+    :title="editing ? '编辑变量' : '新增变量'"
+    @cancel="closeModal"
+  >
         <div class="vem-body">
           <div class="vem-field">
             <label class="vem-label">
@@ -197,6 +190,7 @@ defineExpose({ open: openModal, close: closeModal });
           </label>
         </div>
 
+        <template #footer>
         <div class="vem-footer">
           <button class="vem-btn vem-btn-ghost" @click="closeModal">
             取消
@@ -205,9 +199,8 @@ defineExpose({ open: openModal, close: closeModal });
             {{ editing ? '保存' : '添加' }}
           </button>
         </div>
-      </div>
-    </div>
-  </Teleport>
+        </template>
+  </Modal>
 </template>
 
 <style scoped>
@@ -229,20 +222,7 @@ defineExpose({ open: openModal, close: closeModal });
     opacity: 1;
   }
 }
-.vem-panel {
-  width: 500px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 80px);
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow:
-    0 20px 60px rgba(15, 23, 42, 0.24),
-    0 4px 12px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-  animation: vem-in 0.16s ease-out;
-}
+.vem-panel { max-height: calc(100vh - 80px); }
 @keyframes vem-in {
   from {
     opacity: 0;

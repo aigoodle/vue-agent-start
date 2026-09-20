@@ -1,6 +1,6 @@
 import type { HttpCore } from './core';
 
-export type TriggerType = 'WEBHOOK' | 'CRON' | 'EVENT' | 'MANUAL';
+export type TriggerType = 'WEBHOOK' | 'CRON' | 'EVENT' | 'CHANNEL_MESSAGE' | 'MANUAL';
 
 export interface TriggerScheduleConfig {
   scheduleType: 'CRON' | 'ONE' | 'ONCE';
@@ -15,6 +15,7 @@ export interface TriggerScheduleConfig {
 }
 
 export interface CreateTriggerRequest {
+  tenantId?: string;
   name: string;
   type: TriggerType;
   targetType?: string;
@@ -25,6 +26,7 @@ export interface CreateTriggerRequest {
 
 export interface TriggerWire extends CreateTriggerRequest {
   id: string;
+  configJson?: string;
   nextFireAt?: string | null;
   lastFireAt?: string | null;
   fireCount?: number;
@@ -39,12 +41,31 @@ export interface TriggerInvocationWire {
   status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
   conversationId?: string;
   runId?: string;
+  payloadJson?: string;
+  outputsJson?: string;
+  replayOf?: string;
   error?: string;
   createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TriggerPage {
+  records: TriggerWire[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface TriggerPageOptions {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  category?: 'APPLICATION' | 'USER';
 }
 
 export interface TriggersNamespace {
   list(): Promise<TriggerWire[]>;
+  page(options?: TriggerPageOptions): Promise<TriggerPage>;
   get(id: string): Promise<TriggerWire>;
   create(request: CreateTriggerRequest): Promise<TriggerWire>;
   createFromJson(json: string): Promise<TriggerWire>;
@@ -52,11 +73,18 @@ export interface TriggersNamespace {
   remove(id: string): Promise<void>;
   fire(id: string, payload?: Record<string, unknown>): Promise<Record<string, unknown>>;
   invocations(id: string): Promise<TriggerInvocationWire[]>;
+  replay(invocationId: string): Promise<TriggerInvocationWire>;
 }
 
 export function createTriggersNamespace(core: HttpCore): TriggersNamespace {
   return {
     list: () => core.request<TriggerWire[]>('/triggers'),
+    page: ({ page = 1, pageSize = 10, keyword, category } = {}) => {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      if (keyword?.trim()) params.set('keyword', keyword.trim());
+      if (category) params.set('category', category);
+      return core.request<TriggerPage>(`/triggers/page?${params}`);
+    },
     get: (id) => core.request<TriggerWire>(`/triggers/${encodeURIComponent(id)}`),
     create: (request) => core.request<TriggerWire>('/triggers', {
       method: 'POST', body: JSON.stringify(request),
@@ -73,6 +101,9 @@ export function createTriggersNamespace(core: HttpCore): TriggersNamespace {
     ),
     invocations: (id) => core.request<TriggerInvocationWire[]>(
       `/triggers/${encodeURIComponent(id)}/invocations`,
+    ),
+    replay: (invocationId) => core.request<TriggerInvocationWire>(
+      `/invocations/${encodeURIComponent(invocationId)}/replay`, { method: 'POST' },
     ),
   };
 }

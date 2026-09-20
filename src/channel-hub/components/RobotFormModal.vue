@@ -12,12 +12,13 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
+import { Modal } from '../../ui';
 import type {
   ChannelConnection,
   ChannelDefinition,
   RobotUser,
 } from '../types';
-import JsonSchemaForm from './JsonSchemaForm.vue';
+import JsonSchemaForm from '../../connector-hub/components/JsonSchemaForm.vue';
 
 const props = defineProps<{
   open: boolean;
@@ -108,7 +109,7 @@ async function save() {
   saving.value = true;
   error.value = '';
   try {
-    await props.client.connectors.saveChannelConnection({
+    await props.client.channels.saveChannelConnection({
       id: props.robot?.id,
       tenantId: props.tenantId,
       ownerType: 'USER',
@@ -136,20 +137,17 @@ async function save() {
 </script>
 
 <template>
-  <Transition name="rfm">
-    <div
-      v-if="open"
-      class="rfm-backdrop"
-      @click.self="emit('update:open', false)"
-    >
-      <section class="rfm-modal">
-        <header class="rfm-header">
-          <b class="rfm-title">{{ robot ? '编辑机器人' : '定义我的机器人' }}</b>
-          <button class="rfm-close" @click="emit('update:open', false)">
-            ✕
-          </button>
-        </header>
-
+  <Modal
+    :open="open"
+    class="rfm-modal"
+    centered
+    :width="620"
+    :title="robot ? '编辑机器人' : '定义我的机器人'"
+    :mask-closable="!saving"
+    :keyboard="!saving"
+    :closable="!saving"
+    @cancel="emit('update:open', false)"
+  >
         <main class="rfm-main">
           <label class="rfm-field">
             <span>消息渠道 *</span>
@@ -204,6 +202,7 @@ async function save() {
           <p v-if="error" class="rfm-note is-danger">{{ error }}</p>
         </main>
 
+        <template #footer>
         <footer class="rfm-footer">
           <label class="rfm-enable">
             <input v-model="form.enabled" type="checkbox" />启用消息接收
@@ -220,9 +219,8 @@ async function save() {
             {{ saving ? '保存中…' : robot ? '保存修改' : '创建机器人' }}
           </button>
         </footer>
-      </section>
-    </div>
-  </Transition>
+        </template>
+  </Modal>
 </template>
 
 <style scoped>
@@ -236,16 +234,7 @@ async function save() {
   justify-content: center;
   z-index: 1200;
 }
-.rfm-modal {
-  width: 620px;
-  max-width: 92vw;
-  max-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.25);
-}
+.rfm-modal { max-height: 88vh; }
 :global(.dark) .rfm-modal {
   background: #1f1f1f;
 }

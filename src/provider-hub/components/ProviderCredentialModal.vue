@@ -14,6 +14,7 @@
  */
 import { reactive, ref, watch } from 'vue';
 
+import { Modal } from '../../ui';
 import { useProviderHub } from '../composables/useProviderHub';
 import type { ProviderView } from '../types';
 
@@ -78,17 +79,24 @@ async function save() {
 </script>
 
 <template>
-  <div v-if="open" class="pcm-backdrop" @click.self="emit('update:open', false)">
-    <div class="pcm-modal">
-      <div class="pcm-header">
+  <Modal
+    :open="open"
+    class="pcm-modal"
+    centered
+    :width="520"
+    :mask-closable="!saving"
+    :keyboard="!saving"
+    :closable="!saving"
+    @cancel="emit('update:open', false)"
+  >
+      <template #title>
         <div class="pcm-title">
           <span class="pcm-title-icon">🔑</span>
           <span v-if="provider">
             {{ editMode ? '编辑凭证' : '添加 API 密钥' }} · {{ provider.label }}
           </span>
         </div>
-        <button class="pcm-close" @click="emit('update:open', false)">✕</button>
-      </div>
+      </template>
 
       <div class="pcm-body">
         <div class="pcm-hint">
@@ -137,6 +145,7 @@ async function save() {
         </div>
       </div>
 
+      <template #footer>
       <div class="pcm-footer">
         <button
           class="pcm-btn"
@@ -153,8 +162,8 @@ async function save() {
           {{ saving ? '校验中…' : '保存' }}
         </button>
       </div>
-    </div>
-  </div>
+      </template>
+  </Modal>
 </template>
 
 <style scoped>
@@ -167,16 +176,7 @@ async function save() {
   justify-content: center;
   z-index: 1000;
 }
-.pcm-modal {
-  width: 520px;
-  max-width: 92vw;
-  max-height: 88vh;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.25);
-  display: flex;
-  flex-direction: column;
-}
+.pcm-modal { max-height: 88vh; }
 :global(.dark) .pcm-modal {
   background: #1f1f1f;
   color: #f3f4f6;

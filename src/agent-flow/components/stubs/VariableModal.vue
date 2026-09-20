@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
+import { Modal } from '../../../ui';
 
 /**
  * 输入变量编辑模态框
@@ -74,7 +75,7 @@ defineExpose({ showModal, hideModal });
 </script>
 
 <template>
-  <a-modal
+  <Modal
     v-model:open="open"
     :mask-closable="false"
     :title="form.id ? '编辑输入变量' : '新增输入变量'"
@@ -112,5 +113,5 @@ defineExpose({ showModal, hideModal });
         <a-checkbox v-model:checked="form.required">必填</a-checkbox>
       </a-form-item>
     </a-form>
-  </a-modal>
+  </Modal>
 </template>

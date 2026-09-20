@@ -22,6 +22,7 @@
  */
 import { computed, onMounted, ref, watch } from 'vue';
 
+import { Modal } from '../../ui';
 import { useKnowledge } from '../composables/useKnowledge';
 import type { DatasetSummary, RetrievalConfig } from '../types';
 
@@ -183,22 +184,17 @@ function onSubmit() {
   close();
 }
 
-function onMaskClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) onCancel();
-}
 </script>
 
 <template>
-  <Teleport to="body" :disabled="!open">
-    <div v-if="open" class="kh-dpm-mask" @click="onMaskClick">
-      <div class="kh-dpm-panel" role="dialog" aria-modal="true">
-        <div class="kh-dpm-header">
-          <span class="kh-dpm-title">{{ title }}</span>
-          <button class="kh-dpm-close" aria-label="关闭" @click="onCancel">
-            ✕
-          </button>
-        </div>
-
+  <Modal
+    :open="open"
+    class="kh-dpm-panel"
+    centered
+    :width="480"
+    :title="title"
+    @cancel="onCancel"
+  >
         <div class="kh-dpm-search">
           <span class="kh-dpm-search-icon" aria-hidden="true">🔍</span>
           <input
@@ -250,6 +246,7 @@ function onMaskClick(e: MouseEvent) {
           </button>
         </div>
 
+        <template #footer>
         <div class="kh-dpm-footer">
           <span class="kh-dpm-count">
             {{ selected.size }} 个知识库被选中
@@ -267,9 +264,8 @@ function onMaskClick(e: MouseEvent) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
-  </Teleport>
+        </template>
+  </Modal>
 </template>
 
 <style scoped>
@@ -291,20 +287,7 @@ function onMaskClick(e: MouseEvent) {
     opacity: 1;
   }
 }
-.kh-dpm-panel {
-  width: 480px;
-  max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 80px);
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow:
-    0 20px 60px rgba(15, 23, 42, 0.24),
-    0 4px 12px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-  animation: kh-dpm-in 0.16s ease-out;
-}
+.kh-dpm-panel { max-height: calc(100vh - 80px); }
 @keyframes kh-dpm-in {
   from {
     opacity: 0;

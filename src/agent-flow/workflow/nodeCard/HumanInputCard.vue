@@ -2,7 +2,7 @@
 import { computed, h, onMounted, ref, watch } from 'vue';
 import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue';
 import PromptEditor from '@/components/PromptEditor.vue';
-import ModelPickerPopover from '../../../provider-hub/components/ModelPickerPopover.vue';
+import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
 import WfField from '@/workflow/WfField.vue';
 import { createAgentStartClient } from '../../../client';
 import { useAgentStartClient } from '../../../client/vue';
@@ -172,7 +172,7 @@ const addOption = (field: FormField) => {
   </div>
   <div v-if="usesAi" class="wf-config-section">
     <WfField title="生成模型" required>
-      <ModelPickerPopover v-model="formState.model" model-type="LLM" placeholder="点击选择生成表单的模型" :width="440" />
+      <WorkflowModelPicker v-model="formState.model" model-type="LLM" placeholder="点击选择生成表单的模型" />
     </WfField>
   </div>
   <PromptEditor

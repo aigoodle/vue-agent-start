@@ -16,8 +16,9 @@ const props = withDefaults(
     emptyText?: string;
     nodeId?: string;
     uiSchema?: unknown;
+    configuredSecretFields?: string[];
   }>(),
-  { modelValue: () => ({}), secretFields: () => [], allowAdvanced: true, emptyText: '该操作没有需要填写的参数' },
+  { modelValue: () => ({}), secretFields: () => [], configuredSecretFields: () => [], allowAdvanced: true, emptyText: '该操作没有需要填写的参数' },
 );
 
 const emit = defineEmits<{
@@ -79,6 +80,13 @@ function inputType(name: string, schema: JsonSchema) {
   }
   if (schema.type === 'number' || schema.type === 'integer') return 'number';
   return 'text';
+}
+
+function placeholder(name: string, schema: JsonSchema) {
+  if (props.configuredSecretFields.includes(name) && inputType(name, schema) === 'password') {
+    return '已配置，留空表示不修改';
+  }
+  return ui.value.fields?.[name]?.placeholder;
 }
 </script>
 
@@ -144,7 +152,7 @@ function inputType(name: string, schema: JsonSchema) {
         <input
           v-else
           :type="inputType(name, field)"
-          :placeholder="ui.fields?.[name]?.placeholder"
+          :placeholder="placeholder(name, field)"
           :min="field.minimum"
           :max="field.maximum"
           :value="value[name] as any"

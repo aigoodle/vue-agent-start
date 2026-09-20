@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
-import ModelPickerPopover from '../../../provider-hub/components/ModelPickerPopover.vue';
+import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
 import JsonSchemaForm from '../../../connector-hub/components/JsonSchemaForm.vue';
 import type { JsonSchema } from '../../../connector-hub/types';
 import { createAgentStartClient } from '../../../client';
@@ -50,7 +50,7 @@ onMounted(async () => {
   <section class="video-config">
     <p v-if="installationError" role="alert">{{ installationError }}</p>
     <h4>视频模型</h4>
-    <ModelPickerPopover v-model="form.model" model-type="VIDEO" :show-params="false" :auto-load-default="false" placeholder="选择已配置的视频模型" />
+    <WorkflowModelPicker v-model="form.model" model-type="VIDEO" :show-params="false" :auto-load-default="false" placeholder="选择已配置的视频模型" />
     <h4>视频提示词</h4>
     <PromptEditor v-model="form.prompt" :node-id="nodeId || ''" title="提示词" />
     <p v-if="loading">读取模型参数…</p>

@@ -58,6 +58,11 @@
       "import": "./dist/connector-hub/index.js",
       "require": "./dist/connector-hub/index.cjs"
     },
+    "./channel-hub": {
+      "types": "./dist/channel-hub/index.d.ts",
+      "import": "./dist/channel-hub/index.js",
+      "require": "./dist/channel-hub/index.cjs"
+    },
     "./plugin-hub": {
       "types": "./dist/plugin-hub/index.d.ts",
       "import": "./dist/plugin-hub/index.js",
@@ -68,6 +73,21 @@
       "import": "./dist/mcp-hub/index.js",
       "require": "./dist/mcp-hub/index.cjs"
     },
+    "./skill-hub": {
+      "types": "./dist/skill-hub/index.d.ts",
+      "import": "./dist/skill-hub/index.js",
+      "require": "./dist/skill-hub/index.cjs"
+    },
+    "./tool-hub": {
+      "types": "./dist/tool-hub/index.d.ts",
+      "import": "./dist/tool-hub/index.js",
+      "require": "./dist/tool-hub/index.cjs"
+    },
+    "./trigger-hub": {
+      "types": "./dist/trigger-hub/index.d.ts",
+      "import": "./dist/trigger-hub/index.js",
+      "require": "./dist/trigger-hub/index.cjs"
+    },
     "./style.css": "./dist/style.css",
     "./package.json": "./package.json"
   },
@@ -75,7 +95,8 @@
     "dist",
     "README.md",
     "CHANGELOG.md",
-    "CONNECTOR-HUB.md"
+    "CONNECTOR-HUB.md",
+    "CHANNEL-HUB.md"
   ],
   "sideEffects": [
     "**/*.css"

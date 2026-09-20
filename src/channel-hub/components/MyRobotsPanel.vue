@@ -59,8 +59,8 @@ async function load() {
   error.value = '';
   try {
     const [connections, channels] = await Promise.all([
-      client.connectors.listChannelConnections(props.tenantId, props.user.userId),
-      props.channels ? Promise.resolve(props.channels) : client.connectors.listChannels(),
+      client.channels.listChannelConnections(props.tenantId, props.user.userId),
+      props.channels ? Promise.resolve(props.channels) : client.channels.listChannels(),
     ]);
     robots.value = connections as MyRobot[];
     availableChannels.value = channels.filter((channel) => channel.installed);
@@ -84,7 +84,7 @@ function openEdit(robot: MyRobot) {
 async function remove(robot: MyRobot) {
   if (!confirm(`删除机器人「${robot.name}」?`)) return;
   try {
-    await client.connectors.deleteChannelConnection(robot.id, props.tenantId);
+    await client.channels.deleteChannelConnection(robot.id, props.tenantId);
     message.success(`已删除机器人「${robot.name}」`);
     await load();
   } catch (e: any) {

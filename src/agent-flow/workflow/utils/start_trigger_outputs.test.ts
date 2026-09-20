@@ -35,4 +35,21 @@ describe('START message connector outputs', () => {
         expect.objectContaining({ name: 'userId' }),
       ]));
   });
+
+  it('keeps synchronized output references stable when read repeatedly', () => {
+    const data: any = {
+      triggersEnabled: true,
+      triggers: { type: 'connector' },
+      structOutput: { schema: {}, data: [] },
+    };
+
+    const first = workflowUtils.getOutputList(data);
+    const triggers = first.find((item: any) => item.name === 'triggers');
+    const message = first.find((item: any) => item.name === 'message');
+
+    const second = workflowUtils.getOutputList(data);
+    expect(second.find((item: any) => item.name === 'triggers')).toBe(triggers);
+    expect(triggers.children).toBe(second.find((item: any) => item.name === 'triggers').children);
+    expect(second.find((item: any) => item.name === 'message')).toBe(message);
+  });
 });

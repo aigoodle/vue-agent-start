@@ -94,6 +94,8 @@ interface Props {
     | 'top'
     | 'topLeft'
     | 'topRight';
+  /** Select-like layout: keep the popup below and exactly as wide as its trigger. */
+  matchTriggerWidth?: boolean;
   /** 禁用触发。 */
   disabled?: boolean;
   /** 是否展示"参数"区域，默认展示。TEXT_EMBEDDING 等场景可传 false 隐藏。 */
@@ -549,7 +551,10 @@ defineExpose({
 <template>
   <Popover
     v-model:open="open"
+    class="ph-mp-popover"
     :placement="placement"
+    :match-trigger-width="matchTriggerWidth"
+    :flip-on-overflow="!matchTriggerWidth"
     trigger="click"
     overlay-class-name="ph-model-picker-popover"
     :get-popup-container="popupContainer"
@@ -558,7 +563,11 @@ defineExpose({
       <div
         class="ph-mp"
         :style="{
-          width: typeof width === 'number' ? `${width}px` : width,
+          width: matchTriggerWidth
+            ? '100%'
+            : typeof width === 'number'
+              ? `${width}px`
+              : width,
         }"
       >
         <!-- 顶部标题栏 -->
@@ -578,8 +587,11 @@ defineExpose({
           <!-- 模型卡片 —— 点击展开二级下拉 -->
           <Popover
             v-model:open="modelDropdownOpen"
+            class="ph-mp-popover"
             trigger="click"
             placement="bottomLeft"
+            match-trigger-width
+            :flip-on-overflow="false"
             overlay-class-name="ph-model-picker-popover"
             :get-popup-container="popupContainer"
           >
@@ -587,7 +599,7 @@ defineExpose({
               <div
                 class="ph-mp-dropdown"
                 :style="{
-                  width: typeof width === 'number' ? `${width - 40}px` : width,
+                  width: '100%',
                 }"
               >
                 <div class="ph-mp-search">
@@ -828,7 +840,6 @@ defineExpose({
           'has-value': !!currentModelName,
           'is-disabled': disabled,
         }"
-        @click="toggleOpen"
       >
         <div class="ph-mp-trigger-icon">
           <ProviderIcon
@@ -870,11 +881,41 @@ defineExpose({
   overflow: hidden;
 }
 
+.ph-model-picker-popover.as-popover__panel {
+  padding: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Tailwind-backed Ant compatibility layer renders the panel below the trigger
+ * instead of teleporting it. Keep the same edge treatment in both runtimes. */
+.ph-mp-popover > .as-popover__panel {
+  padding: 0;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
 .ph-mp {
   display: flex;
+  box-sizing: border-box;
   flex-direction: column;
   max-width: 92vw;
   max-height: 84vh;
+  border: 1px solid #d9dee8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  overflow: hidden;
+}
+
+/* The model selector inside the settings surface is a field, not an inline
+ * action. Make both the compatibility-popover anchor and its card consume the
+ * full content width. */
+.ph-mp .ph-mp-popover {
+  display: flex;
+  width: 100%;
 }
 
 /* 顶部标题栏 */
@@ -921,6 +962,8 @@ defineExpose({
 }
 .ph-mp-model-card {
   display: flex;
+  box-sizing: border-box;
+  width: 100%;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
@@ -982,8 +1025,14 @@ defineExpose({
 /* 二级下拉 */
 .ph-mp-dropdown {
   display: flex;
+  box-sizing: border-box;
   flex-direction: column;
   max-width: 92vw;
+  border: 1px solid #d9dee8;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  overflow: hidden;
 }
 .ph-mp-search {
   display: flex;
@@ -1267,8 +1316,13 @@ defineExpose({
 </style>
 
 <style scoped>
+.ph-mp-popover {
+  width: 100%;
+}
+
 .ph-mp-trigger {
   display: flex;
+  width: 100%;
   align-items: center;
   gap: 8px;
   padding: 6px 10px;

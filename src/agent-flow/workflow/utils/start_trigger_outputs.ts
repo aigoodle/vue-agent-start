@@ -33,6 +33,17 @@ export const connectorMessageOutputs = [
   { name: 'metadata', type: 'object', label: '消息元数据' },
 ];
 
+function outputFieldsEqual(current: any, expected: any) {
+  if (!current || typeof current !== 'object') return false;
+  return Object.entries(expected).every(([key, value]) => current[key] === value);
+}
+
+function outputListsEqual(current: any, expected: any[]) {
+  return Array.isArray(current)
+    && current.length === expected.length
+    && current.every((item, index) => outputFieldsEqual(item, expected[index]));
+}
+
 export function synchronizeStartTriggerOutputs(data: any): any[] {
   data.structOutput ??= { schema: {}, data: [] };
   if (!Array.isArray(data.structOutput.data)) data.structOutput.data = [];
@@ -43,11 +54,23 @@ export function synchronizeStartTriggerOutputs(data: any): any[] {
     data.structOutput.data.push(triggers);
   }
   const connector = Boolean(data.triggersEnabled && data.triggers?.type === 'connector');
-  triggers.type = 'object';
-  triggers.label = '触发器';
-  triggers.description = '触发器账号与渠道信息';
-  triggers.children = (connector ? connectorTriggerOutputs : connectorTriggerOutputs.slice(0, 1))
-    .map((item) => ({ ...item }));
+  const triggerFields = {
+    type: 'object',
+    label: '触发器',
+    description: '触发器账号与渠道信息',
+  };
+  for (const [key, value] of Object.entries(triggerFields)) {
+    if (triggers[key] !== value) triggers[key] = value;
+  }
+  const expectedTriggerChildren = connector
+    ? connectorTriggerOutputs
+    : connectorTriggerOutputs.slice(0, 1);
+  // This helper is also called while variable pickers render. Replacing the
+  // reactive children array on every call dirties the same render effect and
+  // causes Vue's "Maximum recursive updates" error.
+  if (!outputListsEqual(triggers.children, expectedTriggerChildren)) {
+    triggers.children = expectedTriggerChildren.map((item) => ({ ...item }));
+  }
 
   const messageIndex = data.structOutput.data.findIndex((item: any) => item?.name === 'message');
   if (connector) {
@@ -57,7 +80,13 @@ export function synchronizeStartTriggerOutputs(data: any): any[] {
       children: connectorMessageOutputs.map((item) => ({ ...item })),
     };
     if (messageIndex < 0) data.structOutput.data.push(message);
-    else data.structOutput.data[messageIndex] = message;
+    else {
+      const current = data.structOutput.data[messageIndex];
+      const { children, ...messageFields } = message;
+      const sameMessage = outputFieldsEqual(current, messageFields)
+        && outputListsEqual(current?.children, children);
+      if (!sameMessage) data.structOutput.data[messageIndex] = message;
+    }
   } else if (messageIndex >= 0) {
     data.structOutput.data.splice(messageIndex, 1);
   }

@@ -4,6 +4,7 @@ import { ApiOutlined } from '@ant-design/icons-vue';
 import { createAgentStartClient, type McpServerCatalogItem } from '../../client';
 import { useAgentStartClient } from '../../client/vue';
 import { mergeAgentStartHeaders, useAgentStartConfig } from '../../config';
+import { Modal } from '../../ui';
 
 const emit = defineEmits<{ (e: 'submit', value: McpServerCatalogItem[]): void }>();
 const config = useAgentStartConfig();
@@ -28,7 +29,7 @@ defineExpose({ showModal });
 </script>
 
 <template>
-  <a-modal v-model:open="open" title="选择 MCP 服务" width="640px" ok-text="添加所选服务" cancel-text="取消" @ok="submit">
+  <Modal v-model:open="open" title="选择 MCP 服务" width="640px" ok-text="添加所选服务" cancel-text="取消" @ok="submit">
     <div v-if="loading" class="mcp-state"><a-spin /> 正在加载 MCP 服务…</div>
     <a-alert v-else-if="error" type="error" :message="error" show-icon />
     <div v-else-if="!servers.length" class="mcp-state">尚未配置 MCP 服务，请先前往 MCP 配置页添加。</div>
@@ -40,7 +41,7 @@ defineExpose({ showModal });
         <a-tag :color="server.enabled ? 'green' : 'default'">{{ server.enabled ? (server.status || '已启用') : '已停用' }}</a-tag>
       </button>
     </div>
-  </a-modal>
+  </Modal>
 </template>
 
 <style scoped>

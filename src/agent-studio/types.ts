@@ -76,6 +76,7 @@ export interface AgentEntity {
   modelSettingsJson?: string;
   strategy: AgentStrategy;
   toolNamesJson?: string;
+  skillIdsJson?: string;
   approvalToolsJson?: string;
   delegateAgentIdsJson?: string;
   maxIterations?: number;
@@ -98,6 +99,7 @@ export interface CreateAgentRequest {
   runtimeRef?: string;
   strategy?: AgentStrategy;
   toolNames?: string[];
+  skillIds?: string[];
   approvalRequiredTools?: string[];
   delegateAgentIds?: string[];
   maxIterations?: number;

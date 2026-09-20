@@ -55,6 +55,7 @@ import DatasetPickerModal from '../../knowledge-hub/components/DatasetPickerModa
 import { useKnowledge } from '../../knowledge-hub/composables/useKnowledge';
 import type { DatasetSummary } from '../../knowledge-hub/types';
 import ModelPickerPopover from '../../provider-hub/components/ModelPickerPopover.vue';
+import SkillSelect from '../../skill-hub/SkillSelect.vue';
 import type { SelectedModel } from '../../provider-hub/types';
 
 import type {
@@ -155,6 +156,7 @@ const emit = defineEmits<{
       /** Structured selection (kept for callers that want the full record). */
       modelSelection?: SelectedModel;
       toolNames?: string[];
+      skillIds?: string[];
       datasetIds?: string[];
       /** Serialised RetrievalConfig — top-k / method / rerank. */
       retrievalConfigJson?: string;
@@ -232,6 +234,7 @@ interface EditableForm {
   modelProvider: string;
   modelSelection: SelectedModel;
   toolNames: string[];
+  skillIds: string[];
   datasetIds: string[];
   /**
    * Pass-through storage for the app-level RetrievalConfig JSON. The drawer
@@ -254,6 +257,7 @@ function makeEmptyForm(): EditableForm {
     modelProvider: '',
     modelSelection: {},
     toolNames: [],
+    skillIds: [],
     datasetIds: [],
     retrievalConfigJson: '',
     graphJson: '',
@@ -313,6 +317,7 @@ watch(
       modelProvider: app.modelProvider ?? '',
       modelSelection: hydrateSelection(app),
       toolNames: safeParseArray(app.toolNamesJson),
+      skillIds: safeParseArray(app.skillIdsJson),
       datasetIds: safeParseArray(app.datasetIdsJson),
       retrievalConfigJson: app.retrievalConfigJson ?? '',
       // Graph now flows via the `initialGraphJson` prop — the host fetches the
@@ -396,6 +401,7 @@ function collectSavePayload() {
     // happens server-side in AgentChatOptionsFactory.
     modelSettings,
     toolNames: form.value.toolNames,
+    skillIds: form.value.skillIds,
     datasetIds: form.value.datasetIds,
     retrievalConfigJson: form.value.retrievalConfigJson || undefined,
   };
@@ -1613,6 +1619,12 @@ function variableTypeLabel(type: AgentVariable['type']): string {
                         <option :value="true">启用</option>
                       </select>
                     </div>
+                  </div>
+
+                  <!-- 工具 -->
+                  <div class="dr-card">
+                    <div class="dr-card-head"><span class="dr-card-title"><span class="dr-card-title-dot" />Skill</span></div>
+                    <SkillSelect v-model="form.skillIds" />
                   </div>
 
                   <!-- 工具 -->

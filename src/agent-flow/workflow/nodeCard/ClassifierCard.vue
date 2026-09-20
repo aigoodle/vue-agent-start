@@ -4,7 +4,7 @@ import { h } from 'vue';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue';
 
 import PromptEditor from '@/components/PromptEditor.vue';
-import ModelPickerPopover from '../../../provider-hub/components/ModelPickerPopover.vue';
+import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
 import WfField from '@/workflow/WfField.vue';
 
 defineProps<{ nodeId?: string }>();
@@ -27,11 +27,10 @@ const removeClass = (index: number) => {
 <template>
   <div class="wf-config-section">
     <WfField title="模型" required>
-      <ModelPickerPopover
+      <WorkflowModelPicker
         v-model="formState.model"
         model-type="LLM"
         placeholder="点击选择分类模型"
-        :width="440"
       />
     </WfField>
   </div>

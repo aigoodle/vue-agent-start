@@ -2,10 +2,12 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
+import { Drawer, Modal } from '../../ui';
 import type { ChannelConnection, ChannelDefinition } from '../types';
 import ChannelIcon from './ChannelIcon.vue';
-import JsonSchemaForm from './JsonSchemaForm.vue';
+import JsonSchemaForm from '../../connector-hub/components/JsonSchemaForm.vue';
 import NativeChannelSetupGuide from './NativeChannelSetupGuide.vue';
+import { accountModelOf, connectionOwnerType } from '../channel-manifest';
 
 const props = defineProps<{
     open: boolean;
@@ -28,15 +30,20 @@ const form = ref({
 });
 const credentials = ref<Record<string, unknown>>({});
 const channelConfig = ref<Record<string, unknown>>({});
+const configuredSecretFields = ref<string[]>([]);
 const editingId = ref<string>();
 const formOpen = ref(false);
 const saving = ref(false);
 const installing = ref(false);
 const error = ref('');
 const notice = ref('');
-
 const platformKey = computed(() =>
   String(props.channel?.metadata?.platformId ?? props.channel?.channelId ?? '').toLowerCase(),
+);
+const accountModel = computed(() => accountModelOf(props.channel));
+const isTenantAccount = computed(() => accountModel.value.scope === 'TENANT');
+const canCreate = computed(() =>
+  accountModel.value.instancePolicy !== 'SINGLE' || props.connections.length === 0,
 );
 
 function linkOf(field: 'homepageUrl' | 'sourceUrl') {
@@ -48,6 +55,7 @@ function blankForm() {
   form.value = { ownerId: '', name: '', enabled: true };
   credentials.value = {};
   channelConfig.value = {};
+  configuredSecretFields.value = [];
   editingId.value = undefined;
 }
 
@@ -73,6 +81,19 @@ async function fillFrom(row: ChannelConnection) {
   };
   credentials.value = {};
   channelConfig.value = {};
+  configuredSecretFields.value = [];
+  error.value = '';
+  try {
+    const editable = await props.client.channels.getChannelConnectionConfiguration(
+      row.id,
+      props.tenantId,
+    );
+    credentials.value = { ...editable.credentials };
+    channelConfig.value = { ...editable.config };
+    configuredSecretFields.value = [...editable.configuredSecretFields];
+  } catch (e: any) {
+    error.value = e?.message ?? '读取账号配置失败';
+  }
 }
 
 // 打开抽屉 / 切换通道时重置表单
@@ -94,11 +115,11 @@ async function save() {
   saving.value = true;
   error.value = '';
   try {
-    await props.client.connectors.saveChannelConnection({
+    await props.client.channels.saveChannelConnection({
       id: editingId.value,
       tenantId: props.tenantId,
-      ownerType: 'USER',
-      ownerId: form.value.ownerId,
+      ownerType: connectionOwnerType(accountModel.value),
+      ownerId: accountModel.value.ownerRequired ? form.value.ownerId : undefined,
       provider: channel.provider,
       channelId: channel.channelId,
       name: form.value.name,
@@ -118,7 +139,7 @@ async function save() {
 async function test(row: ChannelConnection) {
   error.value = '';
   try {
-    await props.client.connectors.testChannelConnection(row.id, props.tenantId);
+    await props.client.channels.testChannelConnection(row.id, props.tenantId);
     notice.value = `账号「${row.name}」连通性测试通过`;
     emit('saved');
   } catch (e: any) {
@@ -128,7 +149,7 @@ async function test(row: ChannelConnection) {
 
 async function remove(row: ChannelConnection) {
   if (!window.confirm(`删除 ${row.name}？`)) return;
-  await props.client.connectors.deleteChannelConnection(row.id, props.tenantId);
+  await props.client.channels.deleteChannelConnection(row.id, props.tenantId);
   emit('saved');
 }
 
@@ -145,7 +166,7 @@ const callbackBacklogOf = (row: ChannelConnection) => {
   return Number.isFinite(value) && value > 0 ? value : 0;
 };
 const rowNeedsCallback = (row: ChannelConnection) =>
-  ['wecom', 'webhook'].includes(props.channel?.channelId ?? '')
+  ['webhook'].includes(props.channel?.channelId ?? '')
   || String(row.runtimeMetadata?.transport ?? '').toLowerCase() === 'webhook';
 const webhookReady = (row: ChannelConnection) =>
   rowNeedsCallback(row)
@@ -177,10 +198,15 @@ async function copyCallbackPath(row: ChannelConnection) {
 </script>
 
 <template>
-  <Transition name="cad">
-    <div v-if="open" class="cad-mask" @click.self="emit('update:open', false)">
-      <aside class="cad-drawer" @click.stop>
-        <header class="cad-header">
+  <Drawer
+    :open="open"
+    class="cad-drawer"
+    placement="left"
+    :width="600"
+    :body-style="{ padding: 0 }"
+    @update:open="emit('update:open', $event)"
+  >
+        <template #title>
           <div class="cad-header-info">
             <ChannelIcon
               class="cad-icon"
@@ -196,8 +222,7 @@ async function copyCallbackPath(row: ChannelConnection) {
               <small>{{ channel?.provider }} · {{ channel?.version || '-' }}</small>
             </div>
           </div>
-          <button class="cad-close" @click="emit('update:open', false)">✕</button>
-        </header>
+        </template>
 
         <main class="cad-main">
           <div v-if="error" class="cad-alert">{{ error }}</div>
@@ -242,14 +267,14 @@ async function copyCallbackPath(row: ChannelConnection) {
               <div class="cad-section-head">
                 <h3>已配置账号</h3>
                 <span class="cad-count">{{ connections.length }}</span>
-                <button class="cad-btn cad-btn-primary cad-add" @click="openCreate">+ 添加账号</button>
+                <button v-if="canCreate" class="cad-btn cad-btn-primary cad-add" @click="openCreate">+ 添加账号</button>
               </div>
               <div v-if="!connections.length" class="cad-empty">尚未配置账号</div>
               <div v-for="row in connections" :key="row.id" class="cad-row">
                 <div class="cad-row-main">
                   <b>{{ row.name }}</b>
                   <small>
-                    {{ row.ownerId }} · {{ row.runtimeAccountId || '无运行账号' }}
+                    {{ row.ownerId || (row.ownerType === 'TENANT' ? '租户级账号' : '未指定所有者') }} · {{ row.runtimeAccountId || '无运行账号' }}
                   </small>
                 </div>
                 <span
@@ -262,7 +287,7 @@ async function copyCallbackPath(row: ChannelConnection) {
                 <span v-if="callbackBacklogOf(row)" class="cad-tag is-warn">
                   待回调 {{ callbackBacklogOf(row) }}
                 </span>
-                <span class="cad-tag">员工账号</span>
+                <span class="cad-tag">{{ row.ownerType === 'TENANT' ? '企业账号' : '个人账号' }}</span>
                 <span :class="['cad-tag', { 'is-warn': !row.credentialsConfigured }]">
                   {{ row.credentialsConfigured ? '凭证已配置' : '缺少凭证' }}
                 </span>
@@ -278,13 +303,19 @@ async function copyCallbackPath(row: ChannelConnection) {
               </div>
             </section>
 
-            <Teleport to="body">
-              <div v-if="formOpen" class="cad-form-mask" @click.self="closeForm">
-                <section class="cad-form-dialog" role="dialog" aria-modal="true">
-                  <header class="cad-form-header">
+            <Modal
+              :open="formOpen"
+              class="cad-form-dialog"
+              centered
+              :width="560"
+              :mask-closable="!saving"
+              :keyboard="!saving"
+              :closable="!saving"
+              @cancel="closeForm"
+            >
+                  <template #title>
                     <div><h3>{{ editingId ? '编辑账号' : '添加账号' }}</h3><p>{{ channel?.name }} · {{ channel?.provider }}</p></div>
-                    <button class="cad-close" @click="closeForm">✕</button>
-                  </header>
+                  </template>
                   <div class="cad-form-body">
                     <div v-if="error" class="cad-alert">{{ error }}</div>
                     <NativeChannelSetupGuide
@@ -292,9 +323,9 @@ async function copyCallbackPath(row: ChannelConnection) {
                       :account-id="editingId"
                     />
                     <div class="cad-fields">
-                <label>
-                  员工 / 所有者 ID
-                  <input v-model.trim="form.ownerId" required placeholder="例如 employee-001" />
+                <label v-if="accountModel.ownerRequired">
+                  {{ accountModel.ownerLabel }}
+                  <input v-model.trim="form.ownerId" required :placeholder="accountModel.ownerPlaceholder" />
                 </label>
                 <label>
                   连接名称
@@ -306,89 +337,50 @@ async function copyCallbackPath(row: ChannelConnection) {
                 </label>
                     </div>
 
+                    <div v-if="isTenantAccount && accountModel.identityBridge?.enabled" class="cad-note">
+                      <b>运行时身份关联</b><br />
+                      {{ accountModel.identityBridge.description || `该企业账号接入后，可将${accountModel.identityBridge.externalIdentityLabel || '渠道用户'}关联到${accountModel.identityBridge.enterpriseIdentityLabel || '企业员工'}。` }}
+                    </div>
+
                     <fieldset>
                 <legend>账号凭证</legend>
                 <p>凭证会加密保存且不会回显，编辑时留空表示不修改。</p>
                 <JsonSchemaForm
                   v-model="credentials"
                   :schema="channel?.credentialSchema"
+                  :ui-schema="channel?.uiSchema"
+                  :configured-secret-fields="configuredSecretFields"
                 />
                     </fieldset>
 
                     <fieldset>
                 <legend>通道配置</legend>
-                <JsonSchemaForm v-model="channelConfig" :schema="channel?.configurationSchema" />
+                <JsonSchemaForm
+                  v-model="channelConfig"
+                  :schema="channel?.configurationSchema"
+                  :ui-schema="channel?.uiSchema"
+                />
                     </fieldset>
                   </div>
-                  <footer class="cad-footer">
+                  <template #footer>
+                  <div class="cad-footer">
                     <label class="cad-enable"><input v-model="form.enabled" type="checkbox" />启用消息接收</label>
                     <div class="cad-footer-actions">
                       <button class="cad-btn" @click="closeForm">取消</button>
-                      <button class="cad-btn cad-btn-primary" :disabled="saving || !form.ownerId || !form.name" @click="save">
+                      <button class="cad-btn cad-btn-primary" :disabled="saving || (accountModel.ownerRequired && !form.ownerId) || !form.name" @click="save">
                         {{ saving ? '保存中…' : editingId ? '保存修改' : '创建连接' }}
                       </button>
                     </div>
-                  </footer>
-                </section>
-              </div>
-            </Teleport>
+                  </div>
+                  </template>
+            </Modal>
           </template>
         </main>
-      </aside>
-    </div>
-  </Transition>
+  </Drawer>
 </template>
 
 <style scoped>
-/* -------- 遮罩与左侧抽屉容器 -------- */
-.cad-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.35);
-  z-index: 1100;
-}
-.cad-drawer {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: min(600px, 94vw);
-  height: 100%;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  background: #fff;
-  box-shadow: 6px 0 22px rgba(15, 23, 42, 0.14);
-}
-:global(.dark) .cad-drawer {
-  background: #1f1f1f;
-}
-
-/* 进出场动画（从左滑入） */
-.cad-enter-active,
-.cad-leave-active {
-  transition: opacity 0.18s ease;
-}
-.cad-enter-active .cad-drawer,
-.cad-leave-active .cad-drawer {
-  transition: transform 0.18s ease;
-}
-.cad-enter-from,
-.cad-leave-to {
-  opacity: 0;
-}
-.cad-enter-from .cad-drawer,
-.cad-leave-to .cad-drawer {
-  transform: translateX(-48px);
-}
-
 /* -------- 头部 -------- */
-.cad-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e5e7eb;
-}
 .cad-header-info {
   display: flex;
   align-items: center;
@@ -411,35 +403,7 @@ async function copyCallbackPath(row: ChannelConnection) {
   font-size: 12px;
   color: #9ca3af;
 }
-.cad-close {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  background: none;
-  font-size: 14px;
-  color: #9ca3af;
-  border-radius: 6px;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-.cad-close:hover {
-  background: #f3f4f6;
-  color: #111827;
-}
-:global(.dark) .cad-header {
-  border-bottom-color: #2d2d2d;
-}
 :global(.dark) .cad-header-text b {
-  color: #f3f4f6;
-}
-:global(.dark) .cad-close:hover {
-  background: #2d2d2d;
   color: #f3f4f6;
 }
 
@@ -534,6 +498,7 @@ async function copyCallbackPath(row: ChannelConnection) {
   display: grid;
   gap: 10px;
 }
+.cad-wide { grid-column: 1 / -1; }
 .cad-section-head {
   display: flex;
   align-items: center;
@@ -706,15 +671,6 @@ async function copyCallbackPath(row: ChannelConnection) {
 }
 
 /* -------- 表单 -------- */
-.cad-form-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(15, 23, 42, 0.5);
-}
 .cad-form-dialog {
   width: min(720px, 96vw);
   max-height: min(820px, 92vh);
@@ -732,12 +688,12 @@ async function copyCallbackPath(row: ChannelConnection) {
   padding: 18px 20px;
   border-bottom: 1px solid #e5e7eb;
 }
-.cad-form-header h3 { margin: 0; font-size: 16px; color: #111827; }
-.cad-form-header p { margin: 4px 0 0; font-size: 12px; color: #9ca3af; }
+.cad-form-dialog h3 { margin: 0; font-size: 16px; color: #111827; }
+.cad-form-dialog :deep(.as-modal__title p) { margin: 4px 0 0; font-size: 12px; color: #9ca3af; }
 .cad-form-body { display: grid; gap: 18px; padding: 20px; overflow: auto; }
 :global(.dark) .cad-form-dialog { background: #1f1f1f; }
 :global(.dark) .cad-form-header { border-color: #2d2d2d; }
-:global(.dark) .cad-form-header h3 { color: #f3f4f6; }
+:global(.dark) .cad-form-dialog h3 { color: #f3f4f6; }
 .cad-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

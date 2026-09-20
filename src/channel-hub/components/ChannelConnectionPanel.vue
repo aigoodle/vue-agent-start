@@ -9,7 +9,7 @@ import {
   MessageOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue';
-import { Card, Tag } from '../../ui';
+import { ManagementCard, Tag } from '../../ui';
 
 import type { AgentStartClient } from '../../client';
 import type {
@@ -158,8 +158,8 @@ async function load(forceRefresh = false) {
   error.value = '';
   try {
     const [channels, connections] = await Promise.all([
-      props.client.connectors.listChannels(forceRefresh),
-      props.client.connectors.listChannelConnections(props.tenantId),
+      props.client.channels.listChannels(forceRefresh),
+      props.client.channels.listChannelConnections(props.tenantId),
     ]);
     catalog.value = channels;
     rows.value = connections;
@@ -171,7 +171,7 @@ async function load(forceRefresh = false) {
 }
 async function loadEvents() {
   try {
-    events.value = await props.client.connectors.listChannelEvents({
+    events.value = await props.client.channels.listChannelEvents({
       tenantId: props.tenantId,
       limit: 100,
     });
@@ -228,15 +228,17 @@ onUnmounted(() => {
           <span>{{ section.groups.length }}</span>
         </header>
         <div :class="['cc-cards', { 'is-compact': section.compact }]">
-          <Card
+          <ManagementCard
             v-for="group in section.groups"
             :key="group.id"
-            hoverable
             :class="['cc-card', { 'is-compact': section.compact }]"
-            :body-style="{ padding: section.compact ? '12px 14px' : '16px 16px 14px' }"
+            :compact="section.compact"
+            :title="group.name"
+            :description="group.description || '暂无描述'"
             @click="openAccount(primaryOf(group))"
+            @keydown.enter="openAccount(primaryOf(group))"
           >
-            <header class="cc-card-head">
+            <template #icon>
               <ChannelIcon
                 :platform-id="group.id"
                 :channel-id="primaryOf(group).channelId"
@@ -245,20 +247,17 @@ onUnmounted(() => {
                 :size="section.compact ? 36 : 44"
                 :radius="section.compact ? 9 : 12"
               />
-              <div class="cc-card-title">
-                <b>{{ group.name }}</b>
-                <small>
-                  <template v-if="group.adapters.length === 1">
-                    {{ group.adapters[0].provider }} · {{ group.adapters[0].version || '-' }}
-                  </template>
-                  <template v-else>{{ group.adapters.length }} 个适配器</template>
-                </small>
-              </div>
+            </template>
+            <template #subtitle>
+              <template v-if="group.adapters.length === 1">
+                {{ group.adapters[0].provider }} · {{ group.adapters[0].version || '-' }}
+              </template>
+              <template v-else>{{ group.adapters.length }} 个适配器</template>
+            </template>
+            <template #badge>
               <Tag v-if="groupInstalled(group)" class="cc-pill" color="success">已接入</Tag>
               <Tag v-else class="cc-pill">未接入</Tag>
-            </header>
-
-            <p class="cc-desc">{{ group.description || '暂无描述' }}</p>
+            </template>
 
             <div v-if="!section.compact" class="cc-stats">
               <span
@@ -378,7 +377,7 @@ onUnmounted(() => {
                 <CodeOutlined />源码
               </a>
             </template>
-          </Card>
+          </ManagementCard>
         </div>
       </section>
     </div>
@@ -530,93 +529,12 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
 }
-/* 卡片基于 antd Card，仅覆写圆角、边框、悬浮与内部节奏 */
-.cc-card {
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 12px;
-  border-color: #e5e7eb;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  cursor: pointer;
-  transition:
-    box-shadow 0.15s ease,
-    transform 0.15s ease,
-    border-color 0.15s ease;
-}
-.cc-card:hover {
-  transform: translateY(-2px);
-  border-color: #a5b4fc;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-}
-.cc-card :deep(.ant-card-body) {
-  flex: 1;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-}
-.cc-card.is-compact {
-  border-radius: 10px;
-}
-.cc-card.is-compact:hover { transform: translateY(-1px); }
-.cc-card.is-compact :deep(.ant-card-body) {
-  gap: 7px;
-}
-.cc-card.is-compact .cc-desc {
-  min-height: 0;
-  -webkit-line-clamp: 1;
-  font-size: 12px;
-}
-:global(.dark) .cc-card {
-  background: #1f1f1f;
-  border-color: #2d2d2d;
-}
-:global(.dark) .cc-card:hover {
-  border-color: #6366f1;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-}
-
-/* 卡片头部 */
-.cc-card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.cc-card-title {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-.cc-card-title b {
-  font-size: 15px;
-  color: #111827;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cc-card-title small {
-  font-size: 12px;
-  color: #9ca3af;
-}
-:global(.dark) .cc-card-title b {
-  color: #f3f4f6;
-}
-
-/* 描述：两行截断 */
-.cc-desc {
-  margin: 0;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-  min-height: 39px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-:global(.dark) .cc-desc {
-  color: #9ca3af;
+/* 卡片骨架、标题、描述、悬浮和焦点态由共享 ManagementCard 提供。 */
+.cc-card { gap: 10px; }
+.cc-card :deep(.as-management-card__icon) {
+  width: auto;
+  height: auto;
+  background: transparent;
 }
 
 /* 统计行：更紧凑的数字胶囊 */
@@ -755,17 +673,6 @@ onUnmounted(() => {
   color: #f3f4f6;
 }
 
-/* 卡片底部操作：antd Card #actions 插槽（图标 + 文字小按钮） */
-.cc-card :deep(.ant-card-actions) {
-  border-top: 1px solid #f3f4f6;
-  background: transparent;
-}
-.cc-card :deep(.ant-card-actions > li) {
-  margin: 6px 0;
-}
-.cc-card :deep(.ant-card-actions > li > span) {
-  color: inherit;
-}
 /* actions 内的图标 + 文字 / 链接统一成小号可点样式 */
 .cc-act,
 .cc-act-link {
@@ -805,9 +712,6 @@ a.cc-act-link {
 }
 .cc-act.is-disabled:hover {
   transform: none;
-}
-:global(.dark) .cc-card :deep(.ant-card-actions) {
-  border-top-color: #2d2d2d;
 }
 :global(.dark) .cc-act,
 :global(.dark) .cc-act-link,

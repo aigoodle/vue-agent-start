@@ -7,7 +7,7 @@ const guides: Record<string, { mode: string; steps: string[] }> = {
   qqbot: { mode: '官方签名 Webhook', steps: ['在 QQ 开放平台开启消息回调', '配置公网 HTTPS 回调地址', '平台 op=13 校验会自动返回 Ed25519 签名'] },
   feishu: { mode: '事件订阅 Webhook', steps: ['订阅 im.message.receive_v1', '配置 Verification Token', '为应用开通读取和发送消息权限'] },
   dingtalk: { mode: '官方 Stream', steps: ['机器人消息接收模式选择 Stream', '配置 Client ID 和 Client Secret', '无需公网回调地址'] },
-  wecom: { mode: '加密 XML Webhook', steps: ['在自建应用中配置接收消息', '填写 Token 和 EncodingAESKey', '回调 URL 支持 GET 校验与 AES 解密'] },
+  wecom: { mode: '官方 WebSocket 长连接', steps: ['在企业微信管理后台创建智能机器人', '填写机器人 Bot ID 和 Secret', '保存后服务端自动认证、保活并接收消息，无需配置回调地址'] },
   email: { mode: 'IMAP + SMTP', steps: ['为邮箱开启 IMAP/SMTP', '建议使用独立应用密码', '未读邮件进入工作流，结果回复原发件人'] },
   webhook: { mode: 'HTTP JSON', steps: ['入站请求使用 X-Agent-Start-Token', '消息体需包含 messageId、senderId 和 content', '出站请求发送到 outboundUrl'] },
 };
@@ -16,7 +16,7 @@ const guide = computed(() => guides[props.channelId ?? '']);
 const callbackPath = computed(() =>
   `/agent-start/channel-events/native/${props.channelId || '{channelId}'}/${props.accountId || '{accountId}'}`,
 );
-const needsCallback = computed(() => ['qqbot', 'feishu', 'wecom', 'webhook'].includes(props.channelId ?? ''));
+const needsCallback = computed(() => ['qqbot', 'feishu', 'webhook'].includes(props.channelId ?? ''));
 </script>
 
 <template>

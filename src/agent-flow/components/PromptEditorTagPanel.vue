@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { DownOutlined, RightOutlined } from '@ant-design/icons-vue';
 
@@ -34,7 +34,9 @@ const props = defineProps({
 const emit = defineEmits(['close', 'select']);
 
 const panelRef = ref<HTMLElement | null>(null);
-const panelPos = ref({ top: '0px', left: '0px' });
+// 首次测量完成前放在视口外，既不会闪到左上角，也不需要额外的
+// visibility 响应式状态（后者容易与 Teleport 更新形成递归渲染）。
+const panelPos = ref({ top: '-9999px', left: '-9999px' });
 const expandedKeys = ref<Set<string>>(new Set());
 const workflowStore = useWorkflowStore();
 const nodeList = computed<any[]>(() => props.nodeId
@@ -63,7 +65,10 @@ function updatePosition() {
   if (top + panelH > vh) top = Math.max(10, rect.top - panelH - 6);
   if (left + panelW > vw) left = Math.max(10, vw - panelW - 10);
 
-  panelPos.value = { top: `${top}px`, left: `${left}px` };
+  panelPos.value = {
+    top: `${Math.max(10, top)}px`,
+    left: `${Math.max(10, left)}px`,
+  };
 }
 
 /** ---------- 搜索/展开 ---------- */
@@ -150,6 +155,7 @@ onMounted(() => {
   document.addEventListener('keydown', onDocKeyDown, true);
   window.addEventListener('scroll', updatePosition, true);
   window.addEventListener('resize', updatePosition);
+  if (props.show) updatePosition();
 });
 
 onUnmounted(() => {
@@ -159,15 +165,15 @@ onUnmounted(() => {
   window.removeEventListener('resize', updatePosition);
 });
 
-watch(
-  () => [props.show, props.targetElement],
-  () => {
-    if (props.show) {
-      nextTick(updatePosition);
-    }
-  },
-  { immediate: true },
-);
+watch(() => props.show, (show) => {
+  if (show) updatePosition();
+  else panelPos.value = { top: '-9999px', left: '-9999px' };
+}, { flush: 'post' });
+
+// slash 输入模式会持续替换光标锚点；面板已经打开时同步跟随。
+watch(() => props.targetElement, () => {
+  if (props.show) updatePosition();
+}, { flush: 'post' });
 
 watch(() => props.position, updatePosition);
 
@@ -186,7 +192,13 @@ function isActive(nodeId: string, parentName: string | null, name: string) {
 
 <template>
   <Teleport to="body">
-  <div v-if="show" ref="panelRef" class="wf-tag-panel" :style="panelPos" @mousedown.stop>
+  <div
+    v-if="show"
+    ref="panelRef"
+    class="wf-tag-panel"
+    :style="panelPos"
+    @mousedown.stop
+  >
     <div class="wf-tag-panel-header">
       <div class="wf-tag-panel-title">快速插入变量</div>
       <button class="wf-tag-panel-close" @click="close">

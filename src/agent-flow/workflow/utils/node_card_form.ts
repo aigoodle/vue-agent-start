@@ -78,6 +78,7 @@ const nodeCardForm: any = {
       text: '用户查询：{{#var.query#}}',
     },
     tools: [],
+    skillIds: [],
     agentParameters: {},
     output: [
       { type: 'string', name: 'text', value: '', label: '生成内容' },

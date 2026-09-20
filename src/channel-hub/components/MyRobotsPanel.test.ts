@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils';
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import MyRobotsPanel from './MyRobotsPanel.vue';
 
@@ -25,19 +25,21 @@ const ROBOT = {
 };
 
 function makeClient(overrides: Record<string, any> = {}) {
+  const channels = {
+    listChannelConnections: vi.fn().mockResolvedValue([{ ...ROBOT }]),
+    listChannels: vi.fn().mockResolvedValue([{
+      provider: 'native', channelId: 'qqbot', name: 'QQBot', installed: true,
+      enabled: true, runtimeStatus: 'UP', credentialSchema: '{"type":"object"}',
+    }]),
+    saveChannelConnection: vi.fn().mockResolvedValue({ ...ROBOT }),
+    deleteChannelConnection: vi.fn().mockResolvedValue(undefined),
+    getEmployeeAgentBinding: vi.fn().mockResolvedValue(null),
+    saveEmployeeAgentBinding: vi.fn().mockResolvedValue({}),
+    ...overrides,
+  };
   return {
-    connectors: {
-      listChannelConnections: vi.fn().mockResolvedValue([{ ...ROBOT }]),
-      listChannels: vi.fn().mockResolvedValue([{
-        provider: 'native', channelId: 'qqbot', name: 'QQBot', installed: true,
-        enabled: true, runtimeStatus: 'UP', credentialSchema: '{"type":"object"}',
-      }]),
-      saveChannelConnection: vi.fn().mockResolvedValue({ ...ROBOT }),
-      deleteChannelConnection: vi.fn().mockResolvedValue(undefined),
-      getEmployeeAgentBinding: vi.fn().mockResolvedValue(null),
-      saveEmployeeAgentBinding: vi.fn().mockResolvedValue({}),
-      ...overrides,
-    },
+    channels,
+    connectors: channels,
     agents: {
       list: vi.fn().mockResolvedValue([{ id: 'agent-1', name: '客服 Agent' }]),
     },
@@ -50,6 +52,10 @@ function mountPanel(client: any) {
   return mount(MyRobotsPanel, {
     props: { client, user: USER, tenantId: 'tenant-a' },
   });
+}
+
+function modalBody() {
+  return new DOMWrapper(document.body);
 }
 
 describe('MyRobotsPanel', () => {
@@ -82,13 +88,14 @@ describe('MyRobotsPanel', () => {
     await flushPromises();
 
     // 表单里不存在 userId / 租户输入项
-    const labels = wrapper.findAll('.rfm-field').map((f) => f.text());
+    const modal = modalBody();
+    const labels = modal.findAll('.rfm-field').map((f) => f.text());
     expect(labels.join(' ')).not.toContain('userId');
-    expect(wrapper.find('input[name="tenantId"]').exists()).toBe(false);
+    expect(modal.find('input[name="tenantId"]').exists()).toBe(false);
 
-    await wrapper.find('select.rfm-input').setValue('native:qqbot');
-    await wrapper.find('input.rfm-input').setValue('售前导购');
-    await wrapper
+    await modal.find('select.rfm-input').setValue('native:qqbot');
+    await modal.find('input.rfm-input').setValue('售前导购');
+    await modal
       .findAll('button')
       .find((b) => b.text() === '创建机器人')!
       .trigger('click');
@@ -112,10 +119,11 @@ describe('MyRobotsPanel', () => {
       .trigger('click');
     await flushPromises();
 
-    const nameInput = wrapper.find('input.rfm-input');
+    const modal = modalBody();
+    const nameInput = modal.find('input.rfm-input');
     expect((nameInput.element as HTMLInputElement).value).toBe('售后小助手');
     await nameInput.setValue('售后小助手 Pro');
-    await wrapper
+    await modal
       .findAll('button')
       .find((b) => b.text() === '保存修改')!
       .trigger('click');
