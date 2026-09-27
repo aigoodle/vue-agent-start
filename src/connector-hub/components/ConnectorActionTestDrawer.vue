@@ -7,7 +7,7 @@ import type {
   ConnectorDefinition,
   ConnectorResult,
 } from '../types';
-import JsonSchemaForm from './JsonSchemaForm.vue';
+import JsonSchemaForm from '../../ui/components/JsonSchemaForm.vue';
 
 const props = defineProps<{
   open: boolean;

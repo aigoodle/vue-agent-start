@@ -140,6 +140,7 @@ export type {
   ToolsNamespace,
 } from './tools';
 export * from '../connector-hub/types';
+export * from '../channel-hub/types';
 export type { ModelsNamespace, ListModelsOptions } from './models';
 export type { ProvidersNamespace, PredefinedModelPayload } from './providers';
 export type {

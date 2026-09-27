@@ -8,7 +8,7 @@ import type {
   ConnectorDefinition,
   ConnectorInstallation,
 } from '../types';
-import JsonSchemaForm from './JsonSchemaForm.vue';
+import JsonSchemaForm from '../../ui/components/JsonSchemaForm.vue';
 import { parseJsonSchema } from '../types';
 import { splitPluginConfiguration } from '../schema-ui';
 

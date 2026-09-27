@@ -1,4 +1,4 @@
-import type { ChannelAccountModel, ChannelDefinition } from '../connector-hub/types';
+import type { ChannelAccountModel, ChannelDefinition } from './types';
 
 const PERSONAL_DEFAULT: ChannelAccountModel = {
   scope: 'PERSONAL', instancePolicy: 'MULTIPLE', ownerRequired: true,

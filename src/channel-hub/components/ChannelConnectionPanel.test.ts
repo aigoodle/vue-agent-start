@@ -31,7 +31,6 @@ function createClient() {
     };
   return {
     channels,
-    connectors: channels,
     agents: { list: vi.fn().mockResolvedValue([]) },
   } as any;
 }
@@ -48,12 +47,12 @@ describe('ChannelConnectionPanel', () => {
 
   it('shows native callback degradation inside the channel account drawer', async () => {
     const client = createClient();
-    client.connectors.listChannels.mockResolvedValue([{
+    client.channels.listChannels.mockResolvedValue([{
       provider: 'native', channelId: 'qqbot', name: 'QQ', description: 'QQ 消息通道',
       version: '1.0', installed: true, enabled: true, runtimeStatus: 'ONLINE',
       metadata: { platformId: 'qqbot' },
     }]);
-    client.connectors.listChannelConnections.mockResolvedValue([{
+    client.channels.listChannelConnections.mockResolvedValue([{
       id: 'native-1', tenantId: 'default', ownerType: 'USER', ownerId: 'employee-7',
       provider: 'native', channelId: 'qqbot', name: 'QQ 客服', desiredStatus: 'ACTIVE',
       runtimeStatus: 'ONLINE', runtimeAccountId: 'profile-7', credentialsConfigured: true,
@@ -77,7 +76,7 @@ describe('ChannelConnectionPanel', () => {
 
   it('lists configured accounts in the account drawer, not the main panel', async () => {
     const client = createClient();
-    client.connectors.listChannelConnections.mockResolvedValue([{
+    client.channels.listChannelConnections.mockResolvedValue([{
       id: 'conn-1', tenantId: 'default', ownerType: 'USER', ownerId: 'employee-1',
       provider: 'native', channelId: 'dingtalk', name: '客服一号', desiredStatus: 'ACTIVE',
       runtimeStatus: 'ONLINE', runtimeAccountId: 'bot-001', credentialsConfigured: true,
@@ -105,7 +104,7 @@ describe('ChannelConnectionPanel', () => {
 
   it('does not treat a disabled fallback adapter as an installed channel', async () => {
     const client = createClient();
-    client.connectors.listChannels.mockResolvedValue([
+    client.channels.listChannels.mockResolvedValue([
       {
         provider: 'native', channelId: 'mattermost', name: 'Mattermost', installed: true,
         enabled: false, runtimeStatus: 'DISABLED', metadata: { platformId: 'mattermost' },
@@ -152,8 +151,8 @@ describe('ChannelConnectionPanel', () => {
 
   it('loads additional conversation pages without replacing the first page', async () => {
     const client = createClient();
-    client.connectors.listChannelConversations = vi.fn().mockResolvedValue([]);
-    client.connectors.getChannelConversationSummary = vi.fn().mockResolvedValue({
+    client.channels.listChannelConversations = vi.fn().mockResolvedValue([]);
+    client.channels.getChannelConversationSummary = vi.fn().mockResolvedValue({
       total: 2, waitingHuman: 0, humanActive: 0, slaBreached: 0, unread: 0,
     });
     const conversation = (id: string, preview: string) => ({
@@ -162,7 +161,7 @@ describe('ChannelConnectionPanel', () => {
       routingPolicyVersion: 1, status: 'BOT_ACTIVE', agentPaused: false,
       lastMessagePreview: preview, unreadCount: 0, slaBreached: false, lockVersion: 1,
     });
-    client.connectors.pageChannelConversations = vi.fn()
+    client.channels.pageChannelConversations = vi.fn()
       .mockResolvedValueOnce({ items: [conversation('conversation-2', '最新会话')], nextCursor: 'next-1', hasMore: true })
       .mockResolvedValueOnce({ items: [conversation('conversation-1', '较早会话')], hasMore: false });
     const wrapper = mount(ChannelConnectionPanel, { props: { client } });
@@ -177,7 +176,7 @@ describe('ChannelConnectionPanel', () => {
 
     expect(wrapper.text()).toContain('最新会话');
     expect(wrapper.text()).toContain('较早会话');
-    expect(client.connectors.pageChannelConversations.mock.calls[1][0]).toMatchObject({ cursor: 'next-1' });
+    expect(client.channels.pageChannelConversations.mock.calls[1][0]).toMatchObject({ cursor: 'next-1' });
     wrapper.unmount();
   });
 
@@ -195,14 +194,14 @@ describe('ChannelConnectionPanel', () => {
       channelId: 'dingtalk', accountId: 'account-1', conversationId: 'conversation-1',
       direction: 'INBOUND', content, handled: true, status: 'HANDLED',
     });
-    client.connectors.listChannelConversations = vi.fn().mockResolvedValue([conversation]);
-    client.connectors.getChannelConversationSummary = vi.fn().mockResolvedValue({
+    client.channels.listChannelConversations = vi.fn().mockResolvedValue([conversation]);
+    client.channels.getChannelConversationSummary = vi.fn().mockResolvedValue({
       total: 1, waitingHuman: 0, humanActive: 0, slaBreached: 0, unread: 0,
     });
-    client.connectors.pageChannelConversations = vi.fn().mockResolvedValue({
+    client.channels.pageChannelConversations = vi.fn().mockResolvedValue({
       items: [conversation], hasMore: false,
     });
-    client.connectors.pageChannelEvents = vi.fn()
+    client.channels.pageChannelEvents = vi.fn()
       .mockResolvedValueOnce({ items: [event('event-2', '最新一页')], nextCursor: 'event-cursor-1', hasMore: true })
       .mockResolvedValueOnce({ items: [event('event-1', '更早一页')], hasMore: false });
 
@@ -215,7 +214,7 @@ describe('ChannelConnectionPanel', () => {
 
     expect(wrapper.text()).toContain('最新一页');
     expect(wrapper.text()).toContain('加载更早消息');
-    expect(client.connectors.pageChannelEvents).toHaveBeenNthCalledWith(1, {
+    expect(client.channels.pageChannelEvents).toHaveBeenNthCalledWith(1, {
       connectionId: undefined, conversationId: 'conversation-1', cursor: undefined, limit: 50,
     });
     await wrapper.find('.cmd-load-more-messages').trigger('click');
@@ -223,7 +222,7 @@ describe('ChannelConnectionPanel', () => {
 
     expect(wrapper.text()).toContain('最新一页');
     expect(wrapper.text()).toContain('更早一页');
-    expect(client.connectors.pageChannelEvents).toHaveBeenNthCalledWith(2, {
+    expect(client.channels.pageChannelEvents).toHaveBeenNthCalledWith(2, {
       connectionId: undefined, conversationId: 'conversation-1', cursor: 'event-cursor-1', limit: 50,
     });
     wrapper.unmount();
@@ -244,14 +243,14 @@ describe('ChannelConnectionPanel', () => {
       direction: 'INBOUND', content, handled: true, status: 'HANDLED',
     });
     const conversations = [conversation('conversation-a'), conversation('conversation-b')];
-    client.connectors.listChannelConversations = vi.fn().mockResolvedValue(conversations);
-    client.connectors.getChannelConversationSummary = vi.fn().mockResolvedValue({
+    client.channels.listChannelConversations = vi.fn().mockResolvedValue(conversations);
+    client.channels.getChannelConversationSummary = vi.fn().mockResolvedValue({
       total: 2, waitingHuman: 0, humanActive: 0, slaBreached: 0, unread: 0,
     });
-    client.connectors.pageChannelConversations = vi.fn().mockResolvedValue({ items: conversations, hasMore: false });
+    client.channels.pageChannelConversations = vi.fn().mockResolvedValue({ items: conversations, hasMore: false });
     let resolveFirst!: (value: any) => void;
     const first = new Promise((resolve) => { resolveFirst = resolve; });
-    client.connectors.pageChannelEvents = vi.fn()
+    client.channels.pageChannelEvents = vi.fn()
       .mockReturnValueOnce(first)
       .mockResolvedValueOnce({ items: [event('event-b', 'conversation-b', '当前会话消息')], hasMore: false });
 

@@ -182,7 +182,7 @@ async function loadEvents() {
 
 // -------- row / form actions
 async function installChannel(channel: ChannelDefinition) {
-  error.value = `请在应用中引入 ${channel.channelId} 原生 Connector Starter 后重启服务`;
+  error.value = `请在应用中引入 ${channel.channelId} 原生渠道(Channel)Starter 后重启服务`;
 }
 
 // -------- drawer events

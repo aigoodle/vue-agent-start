@@ -7,7 +7,7 @@ import WfField from '@/workflow/WfField.vue';
 import { createAgentStartClient } from '../../../client';
 import { useAgentStartClient } from '../../../client/vue';
 import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
-import type { ChannelConnection, ChannelDefinition } from '../../../connector-hub/types';
+import type { ChannelConnection, ChannelDefinition } from '../../../channel-hub/types';
 
 defineProps<{ nodeId?: string }>();
 const formState: any = defineModel();
@@ -129,7 +129,7 @@ onMounted(() => {
   if (!formState.value.presentationMode) formState.value.presentationMode = 'AUTO';
   if (!formState.value.deliveryFallback) formState.value.deliveryFallback = 'WEB_LINK_THEN_TEXT';
   if (!formState.value.formTitle) formState.value.formTitle = formState.value.inputSchema?.title || '人工输入';
-  void Promise.all([client.connectors.listChannels(), client.connectors.listChannelConnections()]).then(([catalog, saved]) => { channels.value = catalog; connections.value = saved; }).catch(() => { /* connector hub may be disabled */ });
+  void Promise.all([client.channels.listChannels(), client.channels.listChannelConnections()]).then(([catalog, saved]) => { channels.value = catalog; connections.value = saved; }).catch(() => { /* channel hub may be disabled */ });
   syncGeneratedConfig();
 });
 watch(() => [formState.value.formMode, formState.value.formFields, formState.value.formTitle, formState.value.prompt, formState.value.submitButtonText, formState.value.timeoutEnabled, formState.value.timeoutValue, formState.value.timeoutUnit], syncGeneratedConfig, { deep: true });

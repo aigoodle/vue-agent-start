@@ -5,7 +5,7 @@ import { ApiOutlined, ClockCircleOutlined, MessageOutlined, ThunderboltOutlined 
 import { createAgentStartClient } from '../../../client';
 import { useAgentStartClient } from '../../../client/vue';
 import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
-import type { ChannelConnection, ChannelDefinition } from '../../../connector-hub/types';
+import type { ChannelConnection, ChannelDefinition } from '../../../channel-hub/types';
 
 const formState: any = defineModel();
 const global = useAgentStartConfig();
@@ -130,8 +130,8 @@ async function loadMessageConnectors() {
   connectorError.value = '';
   try {
     const [loadedChannels, loadedConnections] = await Promise.all([
-      client.connectors.listChannels(),
-      client.connectors.listChannelConnections(),
+      client.channels.listChannels(),
+      client.channels.listChannelConnections(),
     ]);
     channels.value = loadedChannels;
     connections.value = loadedConnections;

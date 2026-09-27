@@ -5,7 +5,7 @@ import type { AgentStartClient } from '../../client';
 import { Drawer, Modal } from '../../ui';
 import type { ChannelConnection, ChannelDefinition } from '../types';
 import ChannelIcon from './ChannelIcon.vue';
-import JsonSchemaForm from '../../connector-hub/components/JsonSchemaForm.vue';
+import JsonSchemaForm from '../../ui/components/JsonSchemaForm.vue';
 import NativeChannelSetupGuide from './NativeChannelSetupGuide.vue';
 import { accountModelOf, connectionOwnerType } from '../channel-manifest';
 
@@ -156,7 +156,7 @@ async function remove(row: ChannelConnection) {
 async function install() {
   const channel = props.channel;
   if (!channel) return;
-  error.value = `请在后端引入 ${channel.channelId} 原生 Connector Starter 后重启服务`;
+  error.value = `请在后端引入 ${channel.channelId} 原生渠道(Channel)Starter 后重启服务`;
 }
 
 const callbackIssueOf = (row: ChannelConnection) =>
