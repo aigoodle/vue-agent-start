@@ -93,7 +93,7 @@ export * from './provider-hub/types';
 export type { HeadersLike } from './provider-hub/composables/useProviderHub';
 
 export * from './connector-hub';
-export { ChannelHubApp } from './channel-hub';
+export * from './channel-hub';
 export * from './plugin-hub';
 export * from './mcp-hub';
 export * from './skill-hub';

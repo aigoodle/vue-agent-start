@@ -18,7 +18,7 @@ import type {
   ChannelDefinition,
   RobotUser,
 } from '../types';
-import JsonSchemaForm from '../../connector-hub/components/JsonSchemaForm.vue';
+import JsonSchemaForm from '../../ui/components/JsonSchemaForm.vue';
 
 const props = defineProps<{
   open: boolean;

@@ -22,8 +22,8 @@ const SelectStub = defineComponent({
 });
 
 describe('TriggersItemCard', () => {
-  it('loads message connectors and persists the selected channel trigger', async () => {
-    const connectors = {
+  it('loads message channels and persists the selected channel trigger', async () => {
+    const channels = {
       listChannels: vi.fn().mockResolvedValue([
         { provider: 'native', channelId: 'wecom', name: '企业微信', enabled: true },
         { provider: 'native', channelId: 'qqbot', name: 'QQBot', enabled: true },
@@ -37,7 +37,7 @@ describe('TriggersItemCard', () => {
     const wrapper = mount(TriggersItemCard, {
       props: { modelValue: model, 'onUpdate:modelValue': () => undefined },
       global: {
-        provide: { [AgentStartClientKey as symbol]: { connectors } },
+        provide: { [AgentStartClientKey as symbol]: { channels } },
         stubs: {
           'a-select': SelectStub,
           'a-select-option': defineComponent({
@@ -54,8 +54,8 @@ describe('TriggersItemCard', () => {
     });
 
     await flushPromises();
-    expect(connectors.listChannels).toHaveBeenCalledOnce();
-    expect(connectors.listChannelConnections).toHaveBeenCalledOnce();
+    expect(channels.listChannels).toHaveBeenCalledOnce();
+    expect(channels.listChannelConnections).toHaveBeenCalledOnce();
     expect(wrapper.text()).toContain('企业微信');
     expect(wrapper.text()).not.toContain('Telegram');
     expect(wrapper.text()).not.toContain('已停用渠道');
@@ -73,7 +73,7 @@ describe('TriggersItemCard', () => {
   });
 
   it('can scope a message connector trigger to one connected account', async () => {
-    const connectors = {
+    const channels = {
       listChannels: vi.fn().mockResolvedValue([
         { provider: 'native', channelId: 'wecom', name: '企业微信', enabled: true },
       ]),
@@ -86,7 +86,7 @@ describe('TriggersItemCard', () => {
     const wrapper = mount(TriggersItemCard, {
       props: { modelValue: model, 'onUpdate:modelValue': () => undefined },
       global: {
-        provide: { [AgentStartClientKey as symbol]: { connectors } },
+        provide: { [AgentStartClientKey as symbol]: { channels } },
         stubs: {
           'a-select': SelectStub,
           'a-select-option': defineComponent({

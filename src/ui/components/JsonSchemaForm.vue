@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import type { JsonSchema } from '../types';
-import { parseJsonSchema } from '../types';
-import { parseSchemaUi, visibleSchemaFields } from '../schema-ui';
+import type { JsonSchema } from '../../connector-hub/types';
+import { parseJsonSchema } from '../../connector-hub/types';
+import { parseSchemaUi, visibleSchemaFields } from '../../connector-hub/schema-ui';
 import VarInsertField from '../../agent-flow/workflow/VarInsertField.vue';
 import ModelPickerPopover from '../../provider-hub/components/ModelPickerPopover.vue';
 

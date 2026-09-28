@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
 import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
-import JsonSchemaForm from '../../../connector-hub/components/JsonSchemaForm.vue';
+import JsonSchemaForm from '../../../ui/components/JsonSchemaForm.vue';
 import type { JsonSchema } from '../../../connector-hub/types';
 import { createAgentStartClient } from '../../../client';
 import { useAgentStartClient } from '../../../client/vue';

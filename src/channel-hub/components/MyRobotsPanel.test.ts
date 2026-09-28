@@ -39,7 +39,6 @@ function makeClient(overrides: Record<string, any> = {}) {
   };
   return {
     channels,
-    connectors: channels,
     agents: {
       list: vi.fn().mockResolvedValue([{ id: 'agent-1', name: '客服 Agent' }]),
     },
@@ -64,7 +63,7 @@ describe('MyRobotsPanel', () => {
     const wrapper = mountPanel(client);
     await flushPromises();
 
-    expect(client.connectors.listChannelConnections).toHaveBeenCalledWith('tenant-a', 'u-7');
+    expect(client.channels.listChannelConnections).toHaveBeenCalledWith('tenant-a', 'u-7');
     expect(wrapper.text()).toContain('售后小助手');
     expect(wrapper.text()).toContain('处理售后咨询');
     expect(wrapper.text()).toContain('qqbot · 员工账号');
@@ -101,11 +100,11 @@ describe('MyRobotsPanel', () => {
       .trigger('click');
     await flushPromises();
 
-    expect(client.connectors.saveChannelConnection).toHaveBeenCalledWith(
+    expect(client.channels.saveChannelConnection).toHaveBeenCalledWith(
       expect.objectContaining({ name: '售前导购', ownerId: 'u-7', tenantId: 'tenant-a' }),
     );
     // 保存后刷新列表
-    expect(client.connectors.listChannelConnections).toHaveBeenCalledTimes(2);
+    expect(client.channels.listChannelConnections).toHaveBeenCalledTimes(2);
   });
 
   it('edits an existing robot through update()', async () => {
@@ -129,7 +128,7 @@ describe('MyRobotsPanel', () => {
       .trigger('click');
     await flushPromises();
 
-    expect(client.connectors.saveChannelConnection).toHaveBeenCalledWith(
+    expect(client.channels.saveChannelConnection).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'robot-1', name: '售后小助手 Pro' }),
     );
   });
@@ -146,7 +145,7 @@ describe('MyRobotsPanel', () => {
       .trigger('click');
     await flushPromises();
 
-    expect(client.connectors.deleteChannelConnection).toHaveBeenCalledWith('robot-1', 'tenant-a');
-    expect(client.connectors.listChannelConnections).toHaveBeenCalledTimes(2);
+    expect(client.channels.deleteChannelConnection).toHaveBeenCalledWith('robot-1', 'tenant-a');
+    expect(client.channels.listChannelConnections).toHaveBeenCalledTimes(2);
   });
 });

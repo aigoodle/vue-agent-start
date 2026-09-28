@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { createAgentStartClient } from '../../../client';
 import { useAgentStartClient } from '../../../client/vue';
 import { mergeAgentStartHeaders, useAgentStartConfig } from '../../../config';
-import JsonSchemaForm from '../../../connector-hub/components/JsonSchemaForm.vue';
+import JsonSchemaForm from '../../../ui/components/JsonSchemaForm.vue';
 import type { ConnectorConnection, ConnectorDefinition, ConnectorInstallation, JsonSchema } from '../../../connector-hub/types';
 import { parseJsonSchema } from '../../../connector-hub/types';
 import { schemaOutputFields } from '../../../connector-hub/schema-ui';

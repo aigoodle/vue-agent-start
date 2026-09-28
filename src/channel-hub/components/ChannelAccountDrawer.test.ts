@@ -40,7 +40,6 @@ function mountDrawer() {
       },
     },
   });
-  client.connectors = client.channels;
   return { client, wrapper };
 }
 
@@ -79,13 +78,13 @@ describe('ChannelAccountDrawer employee-owned account', () => {
     (dialog.querySelector('.cad-btn-primary') as HTMLButtonElement).click();
     await flushPromises();
 
-    expect(client.connectors.saveChannelConnection).toHaveBeenCalledWith(
+    expect(client.channels.saveChannelConnection).toHaveBeenCalledWith(
       expect.objectContaining({ ownerId: 'employee-1', name: '员工 QQ' }),
     );
-    const request = client.connectors.saveChannelConnection.mock.calls[0][0];
+    const request = client.channels.saveChannelConnection.mock.calls[0][0];
     expect(request).not.toHaveProperty('agentId');
     expect(request).not.toHaveProperty('agentVersionId');
-    expect(client.connectors.saveEmployeeAgentBinding).not.toHaveBeenCalled();
+    expect(client.channels.saveEmployeeAgentBinding).not.toHaveBeenCalled();
   });
 
   it('creates a tenant account without asking for a personal owner', async () => {
@@ -112,7 +111,7 @@ describe('ChannelAccountDrawer employee-owned account', () => {
     (dialog.querySelector('.cad-btn-primary') as HTMLButtonElement).click();
     await flushPromises();
 
-    expect(client.connectors.saveChannelConnection).toHaveBeenCalledWith(
+    expect(client.channels.saveChannelConnection).toHaveBeenCalledWith(
       expect.objectContaining({ ownerType: 'TENANT', ownerId: undefined, name: '总部企业微信' }),
     );
   });

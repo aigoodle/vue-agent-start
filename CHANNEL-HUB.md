@@ -12,9 +12,12 @@ import { ChannelHubApp } from 'vue-agent-start/channel-hub';
 <ChannelHubApp :client="agentStartClient" />
 ```
 
-Use `client.channels` for channel catalog, account, conversation and message
-operations. The old channel methods under `client.connectors` and the old
-component exports from `connector-hub` remain available for compatibility.
+Use `client.channels` for channel catalog, account, connection, conversation
+and message operations; the channel model types (`ChannelDefinition`,
+`ChannelConnection`, `MyRobot`, …) are declared in `channel-hub/types`.
+`client.connectors` is reserved for callable business connectors and no longer
+exposes channel methods, and channel components are exported only from
+`vue-agent-start/channel-hub` (no `connector-hub` compatibility re-exports).
 
 The backend `provider` identifies the gateway runtime (for example `native` or
 `hermes`), while `channelId` identifies the platform adapter (for example
