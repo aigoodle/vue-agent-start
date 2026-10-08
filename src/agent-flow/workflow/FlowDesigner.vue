@@ -2845,4 +2845,62 @@ defineExpose({
   color: #6b7280;
   line-height: 1.5;
 }
+
+/* Workflow designer dark surfaces. Keep the canvas slightly darker than nodes. */
+:global(.dark) .dify-flow-designer,
+:global([data-theme='dark']) .dify-flow-designer {
+  --wf-designer-bg: #061629;
+  --wf-designer-surface: #081e36;
+  --wf-designer-surface-hover: #0b2947;
+  --wf-designer-border: #29445f;
+  --wf-designer-text: #e7eef7;
+  --wf-designer-muted: #8da3bb;
+}
+
+:global(.dark) .dify-flow-designer .center-canvas,
+:global(.dark) .dify-flow-designer .dify-flow,
+:global([data-theme='dark']) .dify-flow-designer .center-canvas,
+:global([data-theme='dark']) .dify-flow-designer .dify-flow {
+  background: var(--wf-designer-bg);
+}
+
+:global(.dark) .dify-flow-designer :is(.wf-top-toolbar, .wf-bottom-status, .wf-context-menu, .wf-selector-panel, .wf-selector-preview, .node-preview-card, .wf-zoom-cluster),
+:global([data-theme='dark']) .dify-flow-designer :is(.wf-top-toolbar, .wf-bottom-status, .wf-context-menu, .wf-selector-panel, .wf-selector-preview, .node-preview-card, .wf-zoom-cluster) {
+  color: var(--wf-designer-text);
+  background: color-mix(in srgb, var(--wf-designer-surface) 96%, transparent);
+  border-color: var(--wf-designer-border);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+}
+
+:global(.dark) .dify-flow-designer :is(.wf-selector-header, .wf-top-btn:hover:not(:disabled), .wf-context-menu-item:hover, .wf-selector-node:hover, .wf-selector-close-btn:hover, .wf-zoom-btn:hover),
+:global([data-theme='dark']) .dify-flow-designer :is(.wf-selector-header, .wf-top-btn:hover:not(:disabled), .wf-context-menu-item:hover, .wf-selector-node:hover, .wf-selector-close-btn:hover, .wf-zoom-btn:hover) {
+  color: var(--wf-designer-text);
+  background: var(--wf-designer-surface-hover);
+}
+
+:global(.dark) .dify-flow-designer :is(.wf-top-btn, .wf-status-value, .wf-context-menu-item, .wf-selector-node-label, .wf-selector-preview-title, .preview-title, .wf-zoom-btn),
+:global([data-theme='dark']) .dify-flow-designer :is(.wf-top-btn, .wf-status-value, .wf-context-menu-item, .wf-selector-node-label, .wf-selector-preview-title, .preview-title, .wf-zoom-btn) {
+  color: var(--wf-designer-text);
+}
+
+:global(.dark) .dify-flow-designer :is(.wf-status-label, .wf-context-menu-shortcut, .wf-selector-category-title, .wf-selector-preview-desc, .preview-description),
+:global([data-theme='dark']) .dify-flow-designer :is(.wf-status-label, .wf-context-menu-shortcut, .wf-selector-category-title, .wf-selector-preview-desc, .preview-description) {
+  color: var(--wf-designer-muted);
+}
+
+:global(.dark) .dify-flow-designer :is(.wf-top-toolbar-divider, .wf-context-menu-divider),
+:global([data-theme='dark']) .dify-flow-designer :is(.wf-top-toolbar-divider, .wf-context-menu-divider) {
+  background: var(--wf-designer-border);
+}
+
+:global(.dark) .dify-flow-designer :deep(.vue-flow__handle),
+:global([data-theme='dark']) .dify-flow-designer :deep(.vue-flow__handle) {
+  border-color: #081e36;
+}
+
+:global(.dark) .dify-flow-designer :deep(.vue-flow__minimap.wf-minimap),
+:global([data-theme='dark']) .dify-flow-designer :deep(.vue-flow__minimap.wf-minimap) {
+  background: #081e36 !important;
+  border-color: var(--wf-designer-border);
+}
 </style>

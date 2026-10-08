@@ -12,7 +12,7 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
-import { Modal } from '../../ui';
+import { Button, Modal } from '../../ui';
 import type {
   ChannelConnection,
   ChannelDefinition,
@@ -208,16 +208,17 @@ async function save() {
             <input v-model="form.enabled" type="checkbox" />启用消息接收
           </label>
           <span class="rfm-footer-spacer" />
-          <button class="rfm-btn" @click="emit('update:open', false)">
+          <Button @click="emit('update:open', false)">
             取消
-          </button>
-          <button
-            class="rfm-btn rfm-btn-primary"
-            :disabled="saving || !channelKey || !form.name.trim()"
+          </Button>
+          <Button
+            type="primary"
+            :loading="saving"
+            :disabled="!channelKey || !form.name.trim()"
             @click="save"
           >
-            {{ saving ? '保存中…' : robot ? '保存修改' : '创建机器人' }}
-          </button>
+            {{ robot ? '保存修改' : '创建机器人' }}
+          </Button>
         </footer>
         </template>
   </Modal>

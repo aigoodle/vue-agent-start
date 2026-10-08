@@ -202,7 +202,7 @@ const toggleLogicalOperator = (caseItem: any) => {
   text-align: center;
   font-size: 12px;
   color: #9ca3af;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #e5e7eb;
   border-radius: 6px;
 }
@@ -218,7 +218,7 @@ const toggleLogicalOperator = (caseItem: any) => {
   flex-direction: column;
   gap: 6px;
   padding: 8px 10px;
-  background: #ffffff;
+  background: var(--wf-config-surface, #ffffff);
   border: 1px solid #f0f0f0;
   border-left: 3px solid #d1d5db;
   border-radius: 6px;
@@ -267,7 +267,7 @@ const toggleLogicalOperator = (caseItem: any) => {
   flex-direction: column;
   gap: 4px;
   padding: 6px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border-radius: 4px;
 }
 
@@ -280,7 +280,7 @@ const toggleLogicalOperator = (caseItem: any) => {
   font-weight: 700;
   letter-spacing: 0.6px;
   color: #4338ca;
-  background: #eef2ff;
+  background: color-mix(in srgb, var(--wf-accent, #6366f1) 14%, var(--wf-config-surface, #fff));
   border: 1px solid #c7d2fe;
   border-radius: 999px;
   cursor: pointer;
@@ -288,7 +288,7 @@ const toggleLogicalOperator = (caseItem: any) => {
   line-height: 16px;
 }
 .cond-logical-op:hover {
-  background: #e0e7ff;
+  background: color-mix(in srgb, var(--wf-accent, #6366f1) 20%, var(--wf-config-surface, #fff));
   border-color: #a5b4fc;
 }
 .cond-logical-op-or {
@@ -315,10 +315,10 @@ const toggleLogicalOperator = (caseItem: any) => {
 
 .cond-ghost {
   opacity: 0.4;
-  background: #f1f5f9;
+  background: var(--wf-config-surface-hover, #f9fafb);
 }
 
 .cond-chosen {
-  background: #eef2ff;
+  background: color-mix(in srgb, var(--wf-accent, #6366f1) 14%, var(--wf-config-surface, #fff));
 }
 </style>

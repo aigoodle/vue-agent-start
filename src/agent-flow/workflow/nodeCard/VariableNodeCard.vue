@@ -99,7 +99,7 @@ const onNameChange = (it: any) => {
   text-align: center;
   font-size: 12px;
   color: #9ca3af;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #e5e7eb;
   border-radius: 6px;
 }
@@ -115,7 +115,7 @@ const onNameChange = (it: any) => {
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px solid #f0f0f0;
   border-radius: 6px;
 }

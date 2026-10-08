@@ -76,7 +76,7 @@ function remove(name: string) {
 </script>
 
 <template>
-  <div class="tool-card">
+  <div class="agent-tool-card">
     <div class="tool-head">
       <div class="tool-title">
         工具
@@ -187,7 +187,7 @@ function remove(name: string) {
 </template>
 
 <style scoped>
-.tool-card {
+.agent-tool-card {
   position: relative;
   padding: 12px 14px;
   background: #fff;

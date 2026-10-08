@@ -253,13 +253,13 @@ const addOption = (field: FormField) => {
 </template>
 
 <style scoped>
-.human-empty { padding: 18px 10px; text-align: center; font-size: 12px; color: #9ca3af; background: #f9fafb; border: 1px dashed #d1d5db; border-radius: 8px; }
+.human-empty { padding: 18px 10px; text-align: center; font-size: 12px; color: #9ca3af; background: var(--wf-config-surface-hover, #f9fafb); border: 1px dashed #d1d5db; border-radius: 8px; }
 .human-field-list { display: flex; flex-direction: column; gap: 10px; }
-.human-field-card { padding: 10px; background: #f9fafb; border: 1px solid #eef0f3; border-radius: 8px; }
+.human-field-card { padding: 10px; background: var(--wf-config-surface-hover, #f9fafb); border: 1px solid #eef0f3; border-radius: 8px; }
 .human-field-toolbar { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 8px; }
 .human-field-index { margin-right: auto; width: 22px; height: 22px; line-height: 22px; text-align: center; color: #fff; background: #f59e0b; border-radius: 50%; font-size: 11px; }
 .human-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 8px; }
-.human-options { display: flex; flex-direction: column; gap: 6px; padding: 8px; margin-bottom: 8px; background: #fff; border-radius: 6px; }
+.human-options { display: flex; flex-direction: column; gap: 6px; padding: 8px; margin-bottom: 8px; background: var(--wf-config-surface, #fff); border-radius: 6px; }
 .human-option-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 5px; }
 .human-timeout { display: flex; margin-top: 8px; }
 .human-channel-fields { display: grid; width: 100%; gap: 8px; }
@@ -267,7 +267,7 @@ const addOption = (field: FormField) => {
 .human-help { margin-top: 6px; color: #9ca3af; font-size: 11px; }
 .human-ai-tip { margin: -2px 16px 14px; padding: 9px 11px; color: #7c3aed; font-size: 12px; background: #f5f3ff; border-radius: 7px; }
 .human-mode-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.human-mode-button { display: inline-flex; align-items: center; min-width: 0; padding: 5px 9px; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 7px; cursor: pointer; font-size: 12px; line-height: 18px; transition: all .18s ease; }
+.human-mode-button { display: inline-flex; align-items: center; min-width: 0; padding: 5px 9px; color: #64748b; background: var(--wf-config-surface, #fff); border: 1px solid #e2e8f0; border-radius: 7px; cursor: pointer; font-size: 12px; line-height: 18px; transition: all .18s ease; }
 .human-mode-button:hover { color: #7c3aed; border-color: #c4b5fd; background: #faf9ff; }
 .human-mode-button.is-active { color: #6d28d9; border-color: #8b5cf6; background: #f5f3ff; box-shadow: 0 0 0 2px rgb(139 92 246 / 10%); }
 .human-mode-check { flex: 0 0 15px; height: 15px; margin-right: 5px; line-height: 15px; text-align: center; color: #fff; background: #8b5cf6; border-radius: 50%; font-size: 10px; }

@@ -99,10 +99,20 @@
   --kh-input-bg: var(--kh-color-surface);
   --kh-input-border: #d1d5db;
   --kh-input-radius: var(--kh-radius-md);
+
+  /* Card icon backgrounds - light mode (pastel colors) */
+  --kh-card-icon-bg-1: #FFF4ED;
+  --kh-card-icon-bg-2: #EEF4FF;
+  --kh-card-icon-bg-3: #EFFDF4;
+  --kh-card-icon-bg-4: #FEF3F2;
+  --kh-card-icon-bg-5: #FFF8E6;
+  --kh-card-icon-bg-6: #FDF2FA;
+  --kh-card-icon-bg-7: #F0F9FF;
+  --kh-card-icon-bg-8: #F0FDF9;
 }
 
-/* Dark mode overrides — flipped by setting data-theme="dark" on any ancestor. */
-[data-theme='dark'] {
+/* Dark mode overrides — flipped by setting class="dark" on any ancestor. */
+.dark {
   --kh-color-primary: #818cf8;
   --kh-color-primary-strong: #6366f1;
   --kh-color-primary-soft: rgba(129, 140, 248, 0.15);
@@ -135,4 +145,14 @@
   --kh-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --kh-shadow-md: 0 3px 12px rgba(0, 0, 0, 0.4);
   --kh-shadow-lg: 0 4px 14px rgba(0, 0, 0, 0.5);
+
+  /* Card icon backgrounds - dark mode (muted dark colors) */
+  --kh-card-icon-bg-1: rgba(255, 244, 237, 0.15);
+  --kh-card-icon-bg-2: rgba(238, 244, 255, 0.15);
+  --kh-card-icon-bg-3: rgba(239, 253, 244, 0.15);
+  --kh-card-icon-bg-4: rgba(254, 243, 242, 0.15);
+  --kh-card-icon-bg-5: rgba(255, 248, 230, 0.15);
+  --kh-card-icon-bg-6: rgba(253, 242, 250, 0.15);
+  --kh-card-icon-bg-7: rgba(240, 249, 255, 0.15);
+  --kh-card-icon-bg-8: rgba(240, 253, 249, 0.15);
 }

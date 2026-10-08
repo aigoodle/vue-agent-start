@@ -5,7 +5,7 @@
  * only render the agent/provider/knowledge pages should not pull the complete
  * agent-flow dependency graph into their browser bundle.
  */
-import './knowledge-hub/styles/index.css';
+// CSS is imported via src/style.css (shared across all entries)
 
 export {
   AgentStartPlugin,

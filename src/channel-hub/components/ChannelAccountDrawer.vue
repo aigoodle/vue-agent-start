@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
-import { Drawer, Modal } from '../../ui';
+import { Button, Drawer, Modal } from '../../ui';
 import type { ChannelConnection, ChannelDefinition } from '../types';
 import ChannelIcon from './ChannelIcon.vue';
 import JsonSchemaForm from '../../ui/components/JsonSchemaForm.vue';
@@ -267,7 +267,7 @@ async function copyCallbackPath(row: ChannelConnection) {
               <div class="cad-section-head">
                 <h3>已配置账号</h3>
                 <span class="cad-count">{{ connections.length }}</span>
-                <button v-if="canCreate" class="cad-btn cad-btn-primary cad-add" @click="openCreate">+ 添加账号</button>
+                <Button v-if="canCreate" type="primary" class="cad-add" @click="openCreate">+ 添加账号</Button>
               </div>
               <div v-if="!connections.length" class="cad-empty">尚未配置账号</div>
               <div v-for="row in connections" :key="row.id" class="cad-row">
@@ -366,10 +366,15 @@ async function copyCallbackPath(row: ChannelConnection) {
                   <div class="cad-footer">
                     <label class="cad-enable"><input v-model="form.enabled" type="checkbox" />启用消息接收</label>
                     <div class="cad-footer-actions">
-                      <button class="cad-btn" @click="closeForm">取消</button>
-                      <button class="cad-btn cad-btn-primary" :disabled="saving || (accountModel.ownerRequired && !form.ownerId) || !form.name" @click="save">
-                        {{ saving ? '保存中…' : editingId ? '保存修改' : '创建连接' }}
-                      </button>
+                      <Button @click="closeForm">取消</Button>
+                      <Button
+                        type="primary"
+                        :loading="saving"
+                        :disabled="(accountModel.ownerRequired && !form.ownerId) || !form.name"
+                        @click="save"
+                      >
+                        {{ editingId ? '保存修改' : '创建连接' }}
+                      </Button>
                     </div>
                   </div>
                   </template>

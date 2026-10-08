@@ -91,12 +91,18 @@ export const Drawer = defineComponent({
           h('aside', {
             ...attrs,
             ref: panel,
-            class: ['as-drawer', `as-drawer--${props.placement}`, attrs.class],
+            class: ['as-drawer', 'as-hud-frame', 'as-hud-frame--drawer', `as-drawer--${props.placement}`, attrs.class],
             role: 'dialog',
             'aria-modal': 'true',
             tabindex: -1,
             style: [{ width: typeof props.width === 'number' ? `${props.width}px` : props.width }, attrs.style as never],
           }, [
+            h('div', { class: 'as-hud-drawer__chrome', 'aria-hidden': 'true' }, [
+              h('i', { class: 'as-hud-drawer__rail as-hud-drawer__rail--top' }),
+              h('i', { class: 'as-hud-drawer__rail as-hud-drawer__rail--bottom' }),
+              h('i', { class: 'as-hud-drawer__rail as-hud-drawer__rail--left' }),
+              h('i', { class: 'as-hud-drawer__rail as-hud-drawer__rail--right' }),
+            ]),
             (props.title || slots.title || slots.extra || props.closable) ? h('header', { class: 'as-drawer__header' }, [
               h('div', { class: 'as-drawer__title' }, slots.title?.() ?? props.title),
               h('div', { class: 'as-drawer__extra' }, [slots.extra?.(), props.closable ? h('button', { class: 'as-drawer__close', type: 'button', 'aria-label': '关闭', onClick: close }, '×') : null]),

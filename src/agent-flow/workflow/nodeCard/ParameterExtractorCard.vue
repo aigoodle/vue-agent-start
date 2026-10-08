@@ -249,7 +249,7 @@ function removeParam(index: number) {
   padding: 16px;
   font-size: 12px;
   color: #9ca3af;
-  background: #fafafa;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #e5e7eb;
   border-radius: 8px;
   cursor: pointer;
@@ -281,7 +281,7 @@ function removeParam(index: number) {
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px solid #f0f0f0;
   border-radius: 6px;
   cursor: pointer;
@@ -291,7 +291,7 @@ function removeParam(index: number) {
 }
 
 .param-item:hover {
-  background: #f3f4f6;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border-color: #e5e7eb;
 }
 

@@ -69,14 +69,26 @@ export const Modal = defineComponent({
       h('section', {
         ...attrs,
         ref: panel,
-        class: ['as-modal', attrs.class],
+        class: ['as-modal', 'as-hud-frame', 'as-hud-frame--modal', attrs.class],
         role: 'dialog',
         'aria-modal': 'true',
         tabindex: -1,
         style: [{ width: typeof props.width === 'number' ? `${props.width}px` : props.width }, attrs.style as never],
       }, [
+        h('div', { class: 'as-hud-modal__chrome', 'aria-hidden': 'true' }, [
+          h('i', { class: 'as-hud-modal__corner as-hud-modal__corner--tl' }),
+          h('i', { class: 'as-hud-modal__corner as-hud-modal__corner--tr' }),
+          h('i', { class: 'as-hud-modal__corner as-hud-modal__corner--bl' }),
+          h('i', { class: 'as-hud-modal__corner as-hud-modal__corner--br' }),
+          h('i', { class: 'as-hud-modal__rail as-hud-modal__rail--top' }),
+          h('i', { class: 'as-hud-modal__rail as-hud-modal__rail--bottom' }),
+          h('i', { class: 'as-hud-modal__rail as-hud-modal__rail--left' }),
+          h('i', { class: 'as-hud-modal__rail as-hud-modal__rail--right' }),
+        ]),
         h('header', { class: 'as-modal__head' }, [
-          h('div', { class: 'as-modal__title' }, slots.title?.() ?? props.title),
+          h('div', { class: 'as-modal__title' }, [
+            h('span', { class: 'as-modal__title-text' }, slots.title?.() ?? props.title),
+          ]),
           props.closable ? h('button', { type: 'button', class: 'as-modal__close', 'aria-label': '关闭', onClick: close }, '×') : null,
         ]),
         h('div', { class: 'as-modal__body' }, slots.default?.()),

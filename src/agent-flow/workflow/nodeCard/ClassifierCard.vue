@@ -99,7 +99,7 @@ const removeClass = (index: number) => {
   text-align: center;
   font-size: 12px;
   color: #9ca3af;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #e5e7eb;
   border-radius: 6px;
 }
@@ -115,7 +115,7 @@ const removeClass = (index: number) => {
   flex-direction: column;
   gap: 6px;
   padding: 10px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px solid #f0f0f0;
   border-radius: 6px;
 }

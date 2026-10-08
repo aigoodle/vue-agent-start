@@ -16,7 +16,7 @@
  */
 import { reactive, ref } from 'vue';
 
-import { Modal } from '../../ui';
+import { Button, Modal } from '../../ui';
 import type { AgentVariable, AgentVariableType } from '../types';
 
 const TYPES: { value: AgentVariableType; label: string; hint: string }[] = [
@@ -192,12 +192,12 @@ defineExpose({ open: openModal, close: closeModal });
 
         <template #footer>
         <div class="vem-footer">
-          <button class="vem-btn vem-btn-ghost" @click="closeModal">
+          <Button @click="closeModal">
             取消
-          </button>
-          <button class="vem-btn vem-btn-primary" @click="submit">
+          </Button>
+          <Button type="primary" @click="submit">
             {{ editing ? '保存' : '添加' }}
-          </button>
+          </Button>
         </div>
         </template>
   </Modal>

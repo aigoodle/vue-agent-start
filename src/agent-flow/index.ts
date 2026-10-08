@@ -17,7 +17,7 @@ import nodeCardForm from './workflow/utils/node_card_form';
 import workflowUtils from './workflow/utils/workflow_utils';
 import { validateWorkflowGraph } from './workflow/utils/graph_validator';
 import { AgentStartUi } from '../ui';
-import '../ui/style.css';
+// CSS is imported via src/style.css (shared across all entries)
 
 export {
   FlowDesigner,

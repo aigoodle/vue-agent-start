@@ -11,6 +11,7 @@ import type {
   ConnectorDefinition,
   ConnectorInstallation
 } from '../connector-hub/types';
+import { Button, Card } from '../ui';
 
 const props = withDefaults(defineProps<{ tenantId?: string; title?: string }>(), {title: '插件管理'});
 const global = useAgentStartConfig();
@@ -92,11 +93,29 @@ onMounted(() => load());
 
 <template>
   <div class="ph as-management">
+    <!-- 页面头部 -->
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
+          <span style="font-size: 18px">🧩</span>
+        </div>
+        <div class="as-page-header-text">
+          <div class="as-page-title">插件管理</div>
+          <div class="as-page-subtitle">
+            Java 插件 · 远程插件 · 动态加载
+          </div>
+        </div>
+      </div>
+
+      <div class="as-page-header-controls">
+        <div class="ph-search as-management-search"><span>⌕</span><input v-model="query"
+                                                                         placeholder="搜索插件名称、描述或插件 ID"></div>
+        <Button type="primary" :loading="syncing" @click="load(true)">↻ 同步插件目录</Button>
+      </div>
+    </div>
+
     <section class="ph-hero as-management-toolbar">
       <div><p>统一管理动态加载的 Java 与远程插件，配置连接后即可用于 Agent 和工作流。</p></div>
-      <button class="ph-primary" :disabled="syncing" @click="load(true)">
-        <span>↻</span>{{ syncing ? '同步中…' : '同步插件目录' }}
-      </button>
     </section>
     <section class="ph-stats">
       <div><b>{{ plugins.length }}</b><span>已发现插件</span></div>
@@ -105,8 +124,6 @@ onMounted(() => load());
       <div><b>{{ actionCount }}</b><span>可用 Action</span></div>
     </section>
     <section class="ph-toolbar as-management-toolbar">
-      <div class="ph-search as-management-search"><span>⌕</span><input v-model="query"
-                                                                       placeholder="搜索插件名称、描述或插件 ID"></div>
       <div class="ph-categories as-management-segments">
         <button v-for="item in categories" :key="item" :class="{active:category===item}" @click="category=item">
           {{ item === 'ALL' ? '全部' : item }}
@@ -123,35 +140,52 @@ onMounted(() => load());
       <h3>没有找到插件</h3>
       <p>请确认插件 JAR 已加入后端运行时，或调整当前筛选条件。</p></div>
     <section v-else class="ph-grid as-management-grid">
-      <article v-for="p in rows" :key="p.key.connectorId" class="ph-card as-management-card">
-        <header>
+      <Card variant="management"
+        v-for="p in rows"
+        :key="p.key.connectorId"
+        class="ph-card"
+        :title="p.name"
+        :subtitle="p.key.connectorId"
+        :description="p.description || '此插件暂未提供说明。'"
+      >
+        <template #icon>
           <div class="ph-icon">{{ p.icon || '🧩' }}</div>
-          <div class="ph-title"><h3>{{ p.name }}</h3><code>{{ p.key.connectorId }}</code></div>
-          <span class="ph-status"
-                :class="{online:installationOf(p)?.enabled}"><i></i>{{ installationOf(p)?.enabled ? '已启用' : '未启用' }}</span>
-        </header>
-        <p class="ph-desc">{{ p.description || '此插件暂未提供说明。' }}</p>
-        <div class="ph-badges"><span>{{ p.metadata?.runtime === 'JAVA' ? 'Java Plugin' : 'Remote HTTP' }}</span><span>v{{ p.version || '-' }}</span><span>{{ p.category || 'other' }}</span>
-        </div>
-        <div class="ph-actions-list">
-          <div v-for="a in p.actions" :key="a.id">
-            <span><b>{{ a.name }}</b><small>{{ a.description || a.id }}</small></span><em
-              :class="String(a.riskLevel).toLowerCase()">{{ a.riskLevel || 'READ' }}</em>
-            <button :disabled="!installationOf(p)?.enabled" @click="testAction(p,a)">试运行</button>
+        </template>
+        <template #badge>
+          <span class="ph-status" :class="{online:installationOf(p)?.enabled}">
+            <i></i>{{ installationOf(p)?.enabled ? '已启用' : '未启用' }}
+          </span>
+        </template>
+        <template #default>
+          <div class="ph-badges">
+            <span>{{ p.metadata?.runtime === 'JAVA' ? 'Java Plugin' : 'Remote HTTP' }}</span>
+            <span>v{{ p.version || '-' }}</span>
+            <span>{{ p.category || 'other' }}</span>
           </div>
-        </div>
-        <footer>
-          <div class="ph-connection"><span :class="{ready:connectionOf(p)}">{{ connectionOf(p) ? '✓' : '!' }}</span>
-            <div>
-              <b>{{ connectionOf(p)?.name || '尚未配置连接' }}</b><small>{{ connectionOf(p) ? `${connectionOf(p)?.status} · 凭证${connectionOf(p)?.credentialsConfigured ? '已配置' : '未配置'}` : '配置 API Key、账号或插件参数' }}</small>
+          <div class="ph-actions-list">
+            <div v-for="a in p.actions" :key="a.id">
+              <span><b>{{ a.name }}</b><small>{{ a.description || a.id }}</small></span>
+              <em :class="String(a.riskLevel).toLowerCase()">{{ a.riskLevel || 'READ' }}</em>
+              <button :disabled="!installationOf(p)?.enabled" @click="testAction(p,a)">试运行</button>
             </div>
           </div>
+        </template>
+        <template #meta>
+          <div class="ph-connection">
+            <span :class="{ready:connectionOf(p)}">{{ connectionOf(p) ? '✓' : '!' }}</span>
+            <div>
+              <b>{{ connectionOf(p)?.name || '尚未配置连接' }}</b>
+              <small>{{ connectionOf(p) ? `${connectionOf(p)?.status} · 凭证${connectionOf(p)?.credentialsConfigured ? '已配置' : '未配置'}` : '配置 API Key、账号或插件参数' }}</small>
+            </div>
+          </div>
+        </template>
+        <template #actions>
           <div class="ph-card-buttons">
             <button class="ghost" @click="toggle(p)">{{ installationOf(p)?.enabled ? '停用' : '启用' }}</button>
             <button class="primary" @click="configure(p)">{{ connectionOf(p) ? '管理连接' : '立即配置' }}</button>
           </div>
-        </footer>
-      </article>
+        </template>
+      </Card>
     </section>
     <ConnectorConnectionModal v-model:open="configOpen" :client="client" :connector="selected"
                               :installation="installationOf(selected)" :connection="connectionOf(selected)"
@@ -324,20 +358,8 @@ onMounted(() => load());
 }
 
 .ph-card {
-  display: flex;
-  flex-direction: column;
   min-height: 355px;
   padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--panel);
-  transition: .2s
-}
-
-.ph-card:hover {
-  border-color: #b8b3ff;
-  box-shadow: 0 9px 28px #11182710;
-  transform: translateY(-1px)
 }
 
 .ph-card header {

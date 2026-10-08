@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue';
 import {DeleteOutlined, EyeOutlined, PlayCircleOutlined, PlusOutlined} from '@ant-design/icons-vue';
-import {Alert, Button, Empty, Form, FormItem, Input, ManagementCard, Modal, Select, Spin, Switch, Tag, Textarea, message} from '../ui';
+import {Alert, Button, Empty, Form, FormItem, Input, Card, Modal, Select, Spin, Switch, Tag, Textarea, message} from '../ui';
 import {createAgentStartClient, type SaveCustomToolRequest, type ToolCatalogItem} from '../client';
 import {useAgentStartClient} from '../client/vue';
 import {mergeAgentStartHeaders, useAgentStartConfig} from '../config';
@@ -188,6 +188,29 @@ onMounted(load);
 
 <template>
   <div class="tool-manager as-management">
+    <!-- 页面头部 -->
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
+          <span style="font-size: 18px">⌘</span>
+        </div>
+        <div class="as-page-header-text">
+          <div class="as-page-title">工具管理</div>
+          <div class="as-page-subtitle">
+            系统工具 · 自定义工具 · Agent 能力扩展
+          </div>
+        </div>
+      </div>
+
+      <div class="as-page-header-controls">
+        <Input v-model:value="search" class="as-management-search" allow-clear placeholder="搜索名称或说明"/>
+        <Button type="primary" @click="openCreate">
+          <PlusOutlined/>
+          创建工具
+        </Button>
+      </div>
+    </div>
+
     <Alert v-if="error" class="as-management-error" type="error" show-icon :message="error"/>
     <div class="tool-toolbar as-management-toolbar">
       <nav class="tool-tabs as-management-segments">
@@ -196,27 +219,22 @@ onMounted(load);
             counts[item[0]]
           }}</span></button>
       </nav>
-      <div class="tool-toolbar-actions as-management-toolbar__actions">
-        <Input v-model:value="search" class="as-management-search" allow-clear placeholder="搜索名称或说明"/>
-        <Button type="primary" @click="openCreate">
-          <PlusOutlined/>
-          创建工具
-        </Button>
-      </div>
     </div>
     <Spin :spinning="loading">
       <div v-if="!loading && !visibleTools.length" class="as-management-empty">
         <Empty description="暂无符合条件的工具"/>
       </div>
       <div v-else class="tool-grid as-management-grid">
-        <ManagementCard v-for="tool in visibleTools" :key="tool.name" class="tool-card"
+        <Card variant="management" v-for="tool in visibleTools" :key="tool.name" class="tool-card"
                  :title="tool.label || tool.name" :subtitle="tool.name"
                  :description="tool.description || '暂无说明'"
                  @click="openDetail(tool)" @keydown.enter="openDetail(tool)">
           <template #icon>⌘</template>
+          <template #badge>
+            <Tag :color="tool.custom ? 'blue' : 'green'">{{ tool.custom ? '自定义' : '系统' }}</Tag>
+          </template>
           <template #meta>
             <div class="tool-meta">
-              <Tag :color="tool.custom ? 'blue' : 'green'">{{ tool.custom ? '自定义' : '系统' }}</Tag>
               <Tag>{{ parametersOf(tool).length }} 个参数</Tag>
             </div>
           </template>
@@ -236,7 +254,7 @@ onMounted(load);
               </Button>
             </div>
           </template>
-        </ManagementCard>
+        </Card>
       </div>
     </Spin>
 
@@ -372,7 +390,7 @@ onMounted(load);
 
 .tool-grid {
   @apply gap-2.5;
-  grid-template-columns:repeat(auto-fill, minmax(245px, 1fr));
+  grid-template-columns:repeat(auto-fill, minmax(290px, 1fr));
 }
 
 .tool-card {
@@ -380,8 +398,7 @@ onMounted(load);
 }
 
 .tool-card:hover, .tool-card:focus-visible {
-  @apply -translate-y-px outline-none shadow-[0_6px_18px_rgb(16_24_40/5%)];
-  border-color: #84adff;
+  @apply outline-none;
 }
 
 .tool-card-title {
@@ -420,6 +437,10 @@ onMounted(load);
   @apply gap-1;
 }
 
+.tool-card :deep(.as-management-card__badge .as-tag) {
+  margin: 0;
+}
+
 .tool-meta .as-tag {
   margin: 0;
   padding: 0 5px;
@@ -427,12 +448,12 @@ onMounted(load);
   line-height: 18px
 }
 
-.tool-card footer {
-  @apply -mx-3.5 -mb-3.5 mt-1.5 justify-between gap-2 border-t border-[#e4e7ec] px-3.5 py-[7px];
-}
-
 .tool-card-actions {
-  @apply shrink-0;
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .tool-card-actions :deep(.as-btn) {

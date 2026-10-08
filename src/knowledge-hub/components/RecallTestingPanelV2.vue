@@ -274,12 +274,12 @@ function replay(h: RecentQuery) {
 .kh-recall-title {
   font-size: 15px;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--kh-color-text-primary);
 }
 .kh-recall-sub {
   margin-top: 2px;
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 
 .kh-recall-body {
@@ -301,10 +301,10 @@ function replay(h: RecentQuery) {
   min-width: 0;
 }
 .kh-recall-input-wrap {
-  border: 1.5px solid #6366f1;
+  border: 1.5px solid var(--kh-color-primary);
   border-radius: 10px;
   padding: 12px 14px;
-  background: #fafbff;
+  background: var(--kh-color-surface-sunken);
 }
 .kh-recall-input-toolbar {
   display: flex;
@@ -315,32 +315,32 @@ function replay(h: RecentQuery) {
 .kh-recall-input-label {
   font-size: 12px;
   font-weight: 600;
-  color: #334155;
+  color: var(--kh-color-text-secondary);
 }
 .kh-recall-mode-btn-wrap {
   position: relative;
 }
 .kh-recall-mode-btn {
   padding: 4px 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--kh-input-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--kh-input-bg);
   font-size: 11px;
-  color: #475569;
+  color: var(--kh-color-text-secondary);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 .kh-recall-mode-btn:hover {
-  border-color: #cbd5e1;
+  border-color: var(--kh-color-border-hover);
 }
 .kh-recall-mode-icon {
-  color: #4338ca;
+  color: var(--kh-color-primary);
 }
 .kh-recall-mode-caret {
   font-size: 9px;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 .kh-recall-mode-menu {
   position: absolute;
@@ -349,8 +349,8 @@ function replay(h: RecentQuery) {
   z-index: 20;
   min-width: 160px;
   padding: 4px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--kh-color-surface-raised);
+  border: 1px solid var(--kh-color-border);
   border-radius: 8px;
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1);
 }
@@ -361,15 +361,15 @@ function replay(h: RecentQuery) {
   padding: 6px 10px;
   border-radius: 4px;
   font-size: 12px;
-  color: #475569;
+  color: var(--kh-color-text-secondary);
   cursor: pointer;
 }
 .kh-recall-mode-item:hover {
-  background: #f8fafc;
+  background: var(--kh-color-surface-hover);
 }
 .kh-recall-mode-item-active {
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--kh-color-primary-soft);
+  color: var(--kh-color-primary);
 }
 
 .kh-recall-textarea {
@@ -382,11 +382,11 @@ function replay(h: RecentQuery) {
   background: transparent;
   font-family: inherit;
   font-size: 13px;
-  color: #0f172a;
+  color: var(--kh-color-text-primary);
   line-height: 1.55;
 }
 .kh-recall-textarea::placeholder {
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 
 .kh-recall-input-footer {
@@ -397,7 +397,7 @@ function replay(h: RecentQuery) {
 }
 .kh-recall-char-count {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 
 .kh-btn {
@@ -421,7 +421,7 @@ function replay(h: RecentQuery) {
 .kh-recall-history-title {
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--kh-color-text-secondary);
   margin-bottom: 10px;
 }
 .kh-recall-history-empty {
@@ -434,19 +434,19 @@ function replay(h: RecentQuery) {
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--kh-color-surface-sunken);
+  border: 1px solid var(--kh-color-border);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .kh-recall-empty-clock {
   font-size: 18px;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 .kh-recall-empty-text {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 .kh-recall-history-list {
   display: flex;
@@ -464,27 +464,27 @@ function replay(h: RecentQuery) {
   align-items: center;
 }
 .kh-recall-history-row:hover {
-  background: #f8fafc;
+  background: var(--kh-color-surface-hover);
 }
 .kh-recall-history-method {
   padding: 1px 6px;
   border-radius: 4px;
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--kh-color-primary-soft);
+  color: var(--kh-color-primary);
   font-size: 10px;
   text-align: center;
 }
 .kh-recall-history-query {
-  color: #334155;
+  color: var(--kh-color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .kh-recall-history-count {
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
 }
 .kh-recall-history-at {
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 
 /* RIGHT — anchored to the top so both empty and populated states share the
@@ -496,15 +496,15 @@ function replay(h: RecentQuery) {
   flex-direction: column;
   gap: 10px;
   padding: 4px 4px 8px;
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
+  background: var(--kh-color-surface-sunken);
+  border: 1px solid var(--kh-color-divider);
   border-radius: 10px;
 }
 .kh-recall-results-title {
   padding: 10px 12px 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #334155;
+  color: var(--kh-color-text-secondary);
 }
 .kh-recall-results-toolbar {
   display: flex;
@@ -513,12 +513,12 @@ function replay(h: RecentQuery) {
   gap: 12px;
 }
 .kh-recall-results-count {
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
   font-weight: 400;
 }
 .kh-recall-view-switch {
   display: inline-flex;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--kh-color-border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -526,22 +526,22 @@ function replay(h: RecentQuery) {
   border: none;
   padding: 4px 10px;
   font-size: 11px;
-  color: #475569;
-  background: #fff;
+  color: var(--kh-color-text-secondary);
+  background: var(--kh-color-surface);
   cursor: pointer;
 }
 .kh-recall-view-btn + .kh-recall-view-btn {
-  border-left: 1px solid #e2e8f0;
+  border-left: 1px solid var(--kh-color-border);
 }
 .kh-recall-view-btn-active {
-  color: #4338ca;
-  background: #eef2ff;
+  color: var(--kh-color-primary);
+  background: var(--kh-color-primary-soft);
   font-weight: 600;
 }
 .kh-recall-right-empty {
   padding: 32px 12px 40px;
   text-align: center;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 .kh-recall-empty-target {
   font-size: 38px;
@@ -550,7 +550,7 @@ function replay(h: RecentQuery) {
 .kh-recall-empty-hint {
   margin-top: 10px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 .kh-recall-results {
   width: 100%;
@@ -559,8 +559,8 @@ function replay(h: RecentQuery) {
 .kh-recall-hit {
   padding: 10px 12px;
   margin-bottom: 8px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--kh-color-surface);
+  border: 1px solid var(--kh-color-border);
   border-radius: 8px;
 }
 .kh-recall-hit-head {
@@ -568,7 +568,7 @@ function replay(h: RecentQuery) {
   align-items: center;
   gap: 8px;
   font-size: 11px;
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
   margin-bottom: 8px;
 }
 .kh-recall-hit-tag {
@@ -580,7 +580,7 @@ function replay(h: RecentQuery) {
   font-size: 10px;
 }
 .kh-recall-hit-doc {
-  color: #4338ca;
+  color: var(--kh-color-primary);
 }
 .kh-recall-hit-score {
   color: #b45309;
@@ -591,24 +591,24 @@ function replay(h: RecentQuery) {
 }
 .kh-recall-hit-body {
   font-size: 12px;
-  color: #334155;
+  color: var(--kh-color-text-secondary);
   line-height: 1.55;
 }
 .kh-recall-hit-type,
 .kh-recall-hit-heading {
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
   font-size: 11px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--kh-color-border);
   border-radius: 999px;
   padding: 1px 8px;
-  background: #f8fafc;
+  background: var(--kh-color-surface-sunken);
 }
 .kh-recall-hit-metrics {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   font-size: 11px;
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
   margin-bottom: 4px;
 }
 </style>

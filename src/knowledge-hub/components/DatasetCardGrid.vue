@@ -11,6 +11,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
+import { Card } from '../../ui';
 import { useKhI18n } from '../i18n';
 import type { DatasetCardItem } from '../types';
 
@@ -38,16 +39,8 @@ const emit = defineEmits<{
 const { t } = useKhI18n();
 
 const ICONS = ['📙', '📗', '📘', '📕', '📓', '📔', '📒', '🗂', '📚', '🧭'];
-const BGS = [
-  '#FFF4ED',
-  '#EEF4FF',
-  '#EFFDF4',
-  '#FEF3F2',
-  '#FFF8E6',
-  '#FDF2FA',
-  '#F0F9FF',
-  '#F0FDF9',
-];
+// Background colors now use CSS variables for automatic dark mode support
+const BG_COUNT = 8;
 function hashCode(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = Math.trunc((h << 5) - h + s.charCodeAt(i));
@@ -57,7 +50,8 @@ function iconOf(d: DatasetCardItem) {
   return ICONS[hashCode(d.id || d.name) % ICONS.length];
 }
 function bgOf(d: DatasetCardItem) {
-  return BGS[hashCode((d.id || d.name) + '.bg') % BGS.length];
+  const idx = (hashCode((d.id || d.name) + '.bg') % BG_COUNT) + 1;
+  return `var(--kh-card-icon-bg-${idx})`;
 }
 function fromNow(iso?: string): string {
   if (!iso) return '';
@@ -122,56 +116,57 @@ onBeforeUnmount(() => {
 <template>
   <div class="kh-cards">
     <!-- +新建 -->
-    <div
+    <Card
       v-if="showCreateCard"
-      class="kh-card kh-card-new"
-      :class="{ 'kh-card-disabled': !!disabledReason }"
+      variant="management"
+      class="kh-create-card"
+      interactive
+      :disabled="!!disabledReason"
       :title="disabledReason"
-      @click="!disabledReason && emit('create')"
+      @click="emit('create')"
     >
-      <div class="kh-card-new-inner">
-        <div class="kh-card-plus">+</div>
-        <div class="kh-card-title-new">新建知识库</div>
-        <div class="kh-card-sub-new">导入文档 / 上传文件 / 空知识库</div>
+      <div class="as-create-card__inner">
+        <div class="as-create-card__plus">+</div>
+        <div class="as-create-card__title">新建知识库</div>
+        <div class="as-create-card__subtitle">导入文档 / 上传文件 / 空知识库</div>
       </div>
-    </div>
+    </Card>
 
-    <div
+    <Card variant="management"
       v-for="d in filtered"
       :key="d.id"
       class="kh-card"
       :class="{ 'kh-card-active': openMenuId === d.id }"
+      :title="d.name"
+      :description="d.description || '暂无描述'"
       @click="emit('open', d)"
     >
-      <div class="kh-card-head">
+      <template #icon>
         <div class="kh-card-icon" :style="{ background: bgOf(d) }">
           {{ iconOf(d) }}
         </div>
-        <div class="kh-card-title-wrap">
-          <div class="kh-card-title" :title="d.name">{{ d.name }}</div>
-          <div class="kh-card-meta">
-            <span
-              class="kh-card-tag"
-              :data-tone="d.indexingTechnique === 'ECONOMY' ? 'default' : 'blue'"
-            >
-              {{ d.indexingTechnique === 'ECONOMY' ? '经济' : '高质量' }}
-            </span>
-            <span>· {{ fromNow(d.updatedAt) || '刚刚' }}</span>
-          </div>
-        </div>
-      </div>
-      <div class="kh-card-desc" :title="d.description || ''">
-        {{ d.description || '暂无描述' }}
-      </div>
-      <div class="kh-card-spacer" />
-      <div class="kh-card-foot">
+      </template>
+
+      <template #subtitle>
+        <span
+          class="kh-card-tag"
+          :data-tone="d.indexingTechnique === 'ECONOMY' ? 'default' : 'blue'"
+        >
+          {{ d.indexingTechnique === 'ECONOMY' ? '经济' : '高质量' }}
+        </span>
+        <span>· {{ fromNow(d.updatedAt) || '刚刚' }}</span>
+      </template>
+
+      <template #meta>
         <span class="kh-card-foot-item" :title="`${d.documentCount ?? 0} 个文档`">
           📄 {{ d.documentCount ?? 0 }}
         </span>
         <span class="kh-card-foot-item" :title="`${d.segmentCount ?? 0} 个片段`">
           🧩 {{ d.segmentCount ?? 0 }}
         </span>
-        <span class="kh-card-foot-fill" />
+      </template>
+
+      <template #actions>
         <div class="kh-card-menu-wrap" @click.stop>
           <button
             type="button"
@@ -220,8 +215,8 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </Card>
   </div>
 </template>
 
@@ -233,64 +228,34 @@ onBeforeUnmount(() => {
 }
 .kh-card {
   position: relative;
-  height: 200px;
-  padding: 16px 18px 12px;
-  background: var(--kh-card-bg);
-  border: 1px solid var(--kh-card-border);
-  border-radius: var(--kh-card-radius);
+  /* right padding reserves space for the corner "⋯" menu overlay
+     so the title / subtitle truncate before running under it. */
+  padding-right: 36px;
   cursor: pointer;
-  transition:
-    box-shadow var(--kh-tx-fast),
-    transform var(--kh-tx-fast),
-    border-color var(--kh-tx-fast);
-  display: flex;
-  flex-direction: column;
+  /* menu opens upward from the footer; its top edge escapes the padding
+     box but the card's 16px top padding keeps it inside the border box. */
   overflow: hidden;
-  box-shadow: var(--kh-shadow-sm);
 }
-.kh-card:hover {
-  box-shadow: var(--kh-card-shadow-hover);
-  transform: translateY(-2px);
-  border-color: var(--kh-color-border-hover);
+/* Card's footer (#meta + #actions) must sit at the bottom of the
+   fixed-height card, with the meta portion taking the role of the old
+   .kh-card-foot and the actions portion hosting the "⋯" menu in-flow so
+   the menu popup anchors to it correctly. */
+.kh-card:deep(.as-management-card__footer) {
+  font-size: var(--kh-fs-md);
+  color: var(--kh-color-text-tertiary);
+}
+/* Actions slot keeps the menu-wrap in-flow so the popup anchors to it. */
+.kh-card:deep(.as-management-card__actions) {
+  display: inline-flex;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex: none;
 }
 .kh-card-active {
-  border-color: var(--kh-color-primary-outline);
-  box-shadow: var(--kh-card-shadow-hover);
+  border-color: color-mix(in srgb, var(--as-primary) 60%, var(--as-card-border));
+  box-shadow: var(--as-card-shadow-hover);
 }
-.kh-card-new {
-  border: 1.5px dashed var(--kh-color-primary-outline);
-  background: var(--kh-color-primary-soft);
-  box-shadow: none;
-}
-.kh-card-new:hover {
-  border-color: var(--kh-color-primary);
-  transform: translateY(-2px);
-}
-.kh-card-disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.kh-card-new-inner {
-  margin: auto 0;
-  text-align: center;
-  color: var(--kh-color-primary);
-}
-.kh-card-plus {
-  font-size: 42px;
-  line-height: 1;
-  font-weight: 200;
-}
-.kh-card-title-new {
-  margin-top: 6px;
-  font-size: var(--kh-fs-2xl);
-  font-weight: 500;
-}
-.kh-card-sub-new {
-  margin-top: 4px;
-  font-size: var(--kh-fs-md);
-  color: var(--kh-color-text-muted);
-}
-
 .kh-card-head {
   display: flex;
   gap: var(--kh-space-3);
@@ -306,6 +271,9 @@ onBeforeUnmount(() => {
   border-radius: var(--kh-radius-md);
   font-size: 22px;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+}
+:global(.dark) .kh-card-icon {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 .kh-card-title-wrap {
   min-width: 0;

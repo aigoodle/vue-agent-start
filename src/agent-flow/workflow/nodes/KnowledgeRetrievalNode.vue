@@ -197,8 +197,8 @@ const isDynamic = computed(() => props.data?.dataset?.dynamic === true);
   gap: 8px;
   padding: 5px 8px;
   font-size: 11px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--wf-node-surface);
+  border: 1px solid var(--wf-node-border);
   border-radius: 6px;
   transition: border-color 0.15s, background 0.15s;
 }

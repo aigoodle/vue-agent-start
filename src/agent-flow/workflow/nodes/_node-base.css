@@ -11,8 +11,13 @@
 .wf-node {
   --wf-accent: #6b7280;
   --wf-accent-hover: #4b5563;
-  --wf-node-bg: #ffffff;
+  --wf-node-bg: var(--as-card-bg, #ffffff);
   --wf-node-border: #e5e7eb;
+  --wf-node-surface: #f8fafc;
+  --wf-node-surface-strong: #eef2f7;
+  --wf-node-text: #1f2937;
+  --wf-node-text-secondary: #6b7280;
+  --wf-node-text-muted: #94a3b8;
   --wf-node-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   --wf-node-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
 
@@ -39,12 +44,7 @@
  * 用户一眼就能看出"这是当前正在配置的节点"。纯 CSS，没有 JS reactivity 开销。 */
 .selected .wf-node,
 .wf-node.wf-node-selected {
-  background:
-    linear-gradient(
-      color-mix(in srgb, var(--wf-accent, #6366f1) 6%, #ffffff),
-      color-mix(in srgb, var(--wf-accent, #6366f1) 6%, #ffffff)
-    ),
-    var(--wf-node-bg);
+  background: color-mix(in srgb, var(--wf-accent, #6366f1) 12%, var(--wf-node-bg));
   border-color: var(--wf-accent, #6366f1) !important;
   box-shadow:
     0 0 0 3px color-mix(in srgb, var(--wf-accent, #6366f1) 45%, transparent),
@@ -122,7 +122,7 @@
 .wf-node-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--wf-node-text);
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -139,7 +139,7 @@
 
 .wf-node-description {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--wf-node-text-secondary);
   line-height: 1.4;
 }
 
@@ -202,8 +202,8 @@
 /* LLM / Agent 提示词预览：中性灰底，适合代码/长文本 */
 .wf-node-config-preview {
   padding: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--wf-node-surface);
+  border: 1px solid var(--wf-node-border);
   border-radius: 6px;
 }
 
@@ -211,12 +211,12 @@
   margin-bottom: 4px;
   font-size: 11px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--wf-node-text-secondary);
 }
 
 .wf-node-config-value {
   font-size: 12px;
-  color: #334155;
+  color: var(--wf-node-text);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   word-break: break-all;
 }
@@ -239,7 +239,7 @@
 
 .wf-node-preview-value {
   font-size: 12px;
-  color: #1f2937;
+  color: var(--wf-node-text);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   word-break: break-all;
 }
@@ -249,7 +249,7 @@
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
-  color: #1f2937;
+  color: var(--wf-node-text);
 }
 
 /* LLM 参数指标行 */
@@ -257,7 +257,7 @@
   display: flex;
   gap: 12px;
   padding-top: 8px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--wf-node-border);
 }
 
 .wf-node-metric {
@@ -269,13 +269,42 @@
 .wf-node-metric-label {
   font-size: 10px;
   font-weight: 500;
-  color: #9ca3af;
+  color: var(--wf-node-text-muted);
 }
 
 .wf-node-metric-value {
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--wf-node-text);
+}
+
+/* Shared dark surface for every workflow node, including LLM. */
+.dark .wf-node,
+[data-theme='dark'] .wf-node {
+  --wf-node-bg: #081e36;
+  --wf-node-border: #29445f;
+  --wf-node-surface: #0b2947;
+  --wf-node-surface-strong: #103555;
+  --wf-node-text: #e7eef7;
+  --wf-node-text-secondary: #a9bad0;
+  --wf-node-text-muted: #7890aa;
+  --wf-node-shadow: 0 4px 14px rgb(0 0 0 / 28%);
+  --wf-node-shadow-hover: 0 8px 24px rgb(0 0 0 / 38%);
+}
+
+.dark .selected .wf-node,
+.dark .wf-node.wf-node-selected,
+[data-theme='dark'] .selected .wf-node,
+[data-theme='dark'] .wf-node.wf-node-selected {
+  background: color-mix(in srgb, var(--wf-accent, #6366f1) 18%, var(--wf-node-bg));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--wf-accent, #6366f1) 55%, transparent),
+    0 8px 24px rgb(0 0 0 / 38%) !important;
+}
+
+.dark .wf-node-badge,
+[data-theme='dark'] .wf-node-badge {
+  border-color: var(--wf-node-bg);
 }
 
 /* End 节点回复预览 */

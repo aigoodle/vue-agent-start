@@ -57,6 +57,7 @@ import type { DatasetSummary } from '../../knowledge-hub/types';
 import ModelPickerPopover from '../../provider-hub/components/ModelPickerPopover.vue';
 import SkillSelect from '../../skill-hub/SkillSelect.vue';
 import type { SelectedModel } from '../../provider-hub/types';
+import { Drawer } from '../../ui';
 
 import type {
   AgentEntity,
@@ -1075,15 +1076,16 @@ function variableTypeLabel(type: AgentVariable['type']): string {
 </script>
 
 <template>
-  <!-- disabled="!open": 抽屉关闭时 Teleport 直接跳过挂载,DOM 就留在组件树内
-       (且被 v-if 吃掉,不渲染任何东西)。避免 <KeepAlive> deactivate 时抽屉
-       残留在 body 上遮住后续路由 —— 表现为切换路由后全屏空白,只能 F5 才好。
-       Vue3 <Teleport :disabled> 就是为此场景设计。-->
-  <Teleport to="body" :disabled="!open">
-    <div v-if="open" class="dr-mask">
-      <div class="dr-panel">
-        <!-- ==== Top header bar ==== -->
-        <div class="dr-header">
+  <Drawer
+    :open="open"
+    class="dr-app-drawer"
+    width="100vw"
+    :closable="false"
+    :mask-closable="false"
+    :body-style="{ padding: '0', overflow: 'hidden' }"
+    @update:open="emit('update:open', $event)"
+  >
+      <template #title>
           <div class="dr-brand">
             <div
               class="dr-icon-sm"
@@ -1096,7 +1098,8 @@ function variableTypeLabel(type: AgentVariable['type']): string {
               <span class="dr-mode-badge">{{ modeLabel }}</span>
             </div>
           </div>
-
+      </template>
+      <template #extra>
           <div class="dr-header-right">
             <!-- Model picker (right-side of the header) — hidden for workflow
                  mode: the model is selected per-node inside the canvas (each
@@ -1236,7 +1239,9 @@ function variableTypeLabel(type: AgentVariable['type']): string {
             </button>
             </div>
           </div>
-        </div>
+      </template>
+
+      <div class="dr-panel">
 
         <!-- ==== Two-column body: LEFT rail + MAIN content ==== -->
         <div class="dr-body">
@@ -1879,8 +1884,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
           </div>
         </transition>
       </div>
-    </div>
-  </Teleport>
+  </Drawer>
 </template>
 
 <style scoped>
@@ -1893,12 +1897,15 @@ function variableTypeLabel(type: AgentVariable['type']): string {
   animation: dr-fade-in 0.14s ease-out;
 }
 .dr-panel {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: #f8fafc;
   overflow: hidden;
+}
+:global(.dr-app-drawer) {
+  max-width: 100vw;
 }
 @keyframes dr-fade-in {
   from {

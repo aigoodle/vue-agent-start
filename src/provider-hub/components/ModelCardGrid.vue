@@ -6,6 +6,7 @@
  */
 import { computed, ref } from 'vue';
 
+import { Card } from '../../ui';
 import {
   modelTypeColor,
   modelTypeLabel,
@@ -98,28 +99,28 @@ function providerLabel(name: string): string {
         </div>
       </div>
       <div class="ph-model-grid">
-        <div
+        <Card variant="management"
           v-for="m in grouped[provName] ?? []"
           :key="m.id"
           class="ph-model-card"
+          :title="m.modelName"
+          interactive
         >
-          <div class="ph-model-header">
+          <template #icon>
             <ProviderIcon :name="m.providerName" :size="40" />
-            <div class="ph-title-wrap">
-              <div class="ph-title" :title="m.modelName">{{ m.modelName }}</div>
-              <div class="ph-tags">
-                <span
-                  class="ph-type-tag"
-                  :data-color="modelTypeColor(m.modelType)"
-                >
-                  {{ modelTypeLabel(m.modelType) }}
-                </span>
-                <span v-if="m.isDefault" class="ph-default-tag">默认</span>
-              </div>
-            </div>
-          </div>
+          </template>
 
-          <div class="ph-desc">
+          <template #subtitle>
+            <span
+              class="ph-type-tag"
+              :data-color="modelTypeColor(m.modelType)"
+            >
+              {{ modelTypeLabel(m.modelType) }}
+            </span>
+            <span v-if="m.isDefault" class="ph-default-tag">默认</span>
+          </template>
+
+          <template #description>
             <span
               v-if="testResults[m.id]"
               :class="testResults[m.id]!.ok ? 'ph-ok' : 'ph-fail'"
@@ -127,43 +128,44 @@ function providerLabel(name: string): string {
               {{ testResults[m.id]!.text }}
             </span>
             <span v-else>{{ providerLabel(m.providerName) }} · 凭证加密存储</span>
-          </div>
+          </template>
 
-          <div class="ph-footer">
+          <template #meta>
             <span class="ph-status">
               {{ m.enabled ? '✅ 已启用' : '⛔ 已停用' }}
             </span>
-            <div class="ph-actions">
-              <button
-                v-if="showTestButton"
-                class="ph-btn"
-                :disabled="testingId === m.id"
-                @click.stop="runTest(m)"
-              >
-                {{ testingId === m.id ? '测试中...' : '🔍 测试' }}
-              </button>
-              <button
-                class="ph-btn"
-                @click.stop="emit('editCredentials', m)"
-              >
-                编辑凭证
-              </button>
-              <button
-                v-if="!m.isDefault"
-                class="ph-btn"
-                @click.stop="emit('setDefault', m)"
-              >
-                设为默认
-              </button>
-              <button
-                class="ph-btn ph-btn-danger"
-                @click.stop="emit('delete', m)"
-              >
-                删除
-              </button>
-            </div>
-          </div>
-        </div>
+          </template>
+
+          <template #actions>
+            <button
+              v-if="showTestButton"
+              class="ph-btn"
+              :disabled="testingId === m.id"
+              @click.stop="runTest(m)"
+            >
+              {{ testingId === m.id ? '测试中...' : '🔍 测试' }}
+            </button>
+            <button
+              class="ph-btn"
+              @click.stop="emit('editCredentials', m)"
+            >
+              编辑凭证
+            </button>
+            <button
+              v-if="!m.isDefault"
+              class="ph-btn"
+              @click.stop="emit('setDefault', m)"
+            >
+              设为默认
+            </button>
+            <button
+              class="ph-btn ph-btn-danger"
+              @click.stop="emit('delete', m)"
+            >
+              删除
+            </button>
+          </template>
+        </Card>
       </div>
     </div>
   </div>
@@ -207,19 +209,26 @@ function providerLabel(name: string): string {
   gap: 12px;
 }
 .ph-model-card {
-  padding: 14px 16px 12px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  transition:
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
 }
-.ph-model-card:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
+/* Card footer: status on the left, action buttons on the right,
+   anchored to the bottom of the card. */
+.ph-model-card:deep(.as-management-card__footer) {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+}
+.ph-model-card:deep(.as-management-card__actions) {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex: none;
 }
 .ph-model-header {
   display: flex;

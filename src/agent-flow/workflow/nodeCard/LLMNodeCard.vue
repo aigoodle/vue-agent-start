@@ -168,7 +168,7 @@ const RESPONSE_FORMATS = [
 <style scoped>
 .llm-varselect {
   padding: 4px 8px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #d1d5db;
   border-radius: 6px;
   cursor: pointer;
