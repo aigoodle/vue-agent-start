@@ -455,7 +455,7 @@ watch(() => props.selectNode, panelInit);
   padding: 0 !important;
   font-size: 16px !important;
   font-weight: 600 !important;
-  color: #1f2937;
+  color: var(--wf-config-text) !important;
 }
 
 /* 左边缘拖拽手柄：完全嵌在面板内 6px 触发区，中央一条 2px 竖线

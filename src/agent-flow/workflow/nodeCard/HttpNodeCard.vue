@@ -285,7 +285,7 @@ const authEnabled = computed(() => {
 .wf-http-url {
   display: flex;
   align-items: stretch;
-  background: #ffffff;
+  background: var(--wf-config-surface, #ffffff);
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   overflow: hidden;
@@ -325,7 +325,7 @@ const authEnabled = computed(() => {
   padding: 0 8px;
   gap: 2px;
   color: #6b7280;
-  background: #fafafa;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border-left: 1px solid #e5e7eb;
   font-size: 11px;
 }
@@ -365,7 +365,7 @@ const authEnabled = computed(() => {
   font-size: 10px;
   font-weight: 600;
   color: #4338ca;
-  background: #eef2ff;
+  background: color-mix(in srgb, var(--wf-accent, #6366f1) 14%, var(--wf-config-surface, #fff));
   border-radius: 9px;
   letter-spacing: 0.2px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
@@ -385,7 +385,7 @@ const authEnabled = computed(() => {
   align-items: center;
   gap: 2px;
   padding: 2px;
-  background: #f3f4f6;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border-radius: 6px;
   overflow-x: auto;
 }
@@ -409,7 +409,7 @@ const authEnabled = computed(() => {
 
 .wf-http-body-tab.is-active {
   color: #4338ca;
-  background: #ffffff;
+  background: var(--wf-config-surface, #ffffff);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   font-weight: 500;
 }
@@ -423,7 +423,7 @@ const authEnabled = computed(() => {
   text-align: center;
   font-size: 11px;
   color: #9ca3af;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #e5e7eb;
   border-radius: 6px;
 }
@@ -433,7 +433,7 @@ const authEnabled = computed(() => {
   align-items: center;
   padding: 6px 10px;
   min-height: 32px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #d1d5db;
   border-radius: 6px;
   cursor: pointer;

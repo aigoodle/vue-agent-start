@@ -34,14 +34,16 @@
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 .as-management-card {
-  --as-mgmt-panel: var(--as-bg, #fff);
+  --as-mgmt-panel: var(--as-card-bg, #ffffff);
   --as-mgmt-soft: color-mix(in srgb, var(--as-bg-layout, #f5f5f5) 72%, white);
-  --as-mgmt-line: var(--as-border-secondary, #eaecf0);
+  --as-mgmt-line: var(--as-card-border, var(--as-border-secondary, #eaecf0));
   --as-mgmt-text: var(--as-text, #172033);
   --as-mgmt-muted: var(--as-text-secondary, #667085);
-  @apply flex min-h-[190px] min-w-0 flex-col rounded-xl border p-4 transition-[border-color,box-shadow,transform] duration-200;
+  @apply flex min-h-[190px] min-w-0 flex-col border p-4 transition-[border-color,box-shadow,transform] duration-200;
+  border-radius: var(--as-card-radius, 12px);
   border-color: var(--as-mgmt-line);
   background: var(--as-mgmt-panel);
+  box-shadow: var(--as-card-shadow, 0 1px 2px rgb(15 23 42 / 4%));
 }
 .as-management-card--interactive { cursor: pointer; }
 .as-management-card--interactive:focus-visible {
@@ -49,9 +51,13 @@
   outline-offset: 2px;
 }
 .as-management-card--interactive:hover {
-  @apply -translate-y-px shadow-[0_8px_24px_rgb(16_24_40/7%)];
+  @apply -translate-y-px;
   border-color: color-mix(in srgb, var(--as-primary) 45%, var(--as-mgmt-line));
+  box-shadow: var(--as-card-shadow-hover, 0 8px 24px rgb(16 24 40 / 7%));
 }
+.as-management-card--borderless { @apply border-0; }
+.as-management-card--disabled { @apply cursor-not-allowed opacity-60; }
+.as-management-card--disabled:hover { transform: none; box-shadow: var(--as-card-shadow, 0 1px 2px rgb(15 23 42 / 4%)); }
 .as-management-card__head,
 .as-management-card__footer { @apply flex items-center justify-between gap-2.5; }
 .as-management-card__icon {
@@ -73,10 +79,34 @@
 .as-management-card__content { @apply min-w-0; }
 .as-management-card__badge { @apply ml-auto shrink-0; }
 .as-management-card__meta { @apply flex min-w-0 flex-wrap items-center gap-[5px]; }
-.as-management-card__footer { @apply mt-auto border-t pt-[11px]; border-color: var(--as-mgmt-line); }
-.as-management-card__actions { @apply flex flex-wrap items-center gap-[5px]; }
+.as-management-card__footer {
+  @apply mt-auto border-t pt-2;
+  border-color: var(--as-card-divider, var(--as-mgmt-line));
+}
+.as-management-card--footer-plain .as-management-card__footer {
+  @apply border-t-0 pt-0;
+}
+.as-management-card__actions { @apply flex flex-wrap items-center gap-2; }
 .as-management-card--compact { @apply min-h-0 p-3.5; }
 .as-management-card--compact .as-management-card__description { @apply mb-0 min-h-0; }
+
+/* A create entry is ordinary Card content; only its presentation is shared. */
+.as-create-card,
+.kh-create-card {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--as-primary, #6366f1) 65%, var(--as-card-border));
+  background: var(--as-card-bg, #ffffff);
+}
+.as-create-card:hover,
+.kh-create-card:hover {
+  background: var(--as-card-bg, #ffffff);
+}
+.as-create-card .as-management-card__content,
+.kh-create-card .as-management-card__content { @apply my-auto; }
+.as-create-card__inner { @apply text-center; color: var(--as-primary, #6366f1); }
+.as-create-card__plus { @apply text-4xl font-extralight leading-none; }
+.as-create-card__title { @apply mt-1 text-sm font-medium; }
+.as-create-card__subtitle { @apply mt-1 text-xs; color: var(--as-text-placeholder, #9ca3af); }
 .as-management-empty {
   @apply grid min-h-[280px] place-items-center rounded-xl border border-dashed;
   border-color: var(--as-mgmt-line);

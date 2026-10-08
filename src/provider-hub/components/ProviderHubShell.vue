@@ -16,7 +16,7 @@
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
-import { Modal, Popover } from '../../ui';
+import { Button, Card, Modal, Popover } from '../../ui';
 
 import {
   modelTypeColor,
@@ -655,13 +655,13 @@ function capabilityTags(
 
 <template>
   <div class="phs-root">
-    <!-- 卡片式标题栏：图标徽章 + 标题 + 副标题，右侧搜索框 -->
-    <div class="phs-toolbar">
-      <div class="phs-toolbar-head">
-        <div class="phs-toolbar-logo" aria-hidden="true">
+    <!-- 页面头部：使用共用样式类 -->
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
           <svg
-            width="22"
-            height="22"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -681,34 +681,36 @@ function capabilityTags(
             <path d="M20 15h2" />
           </svg>
         </div>
-        <div class="phs-toolbar-text">
-          <div class="phs-toolbar-title">模型供应商</div>
-          <div class="phs-toolbar-subtitle">
+        <div class="as-page-header-text">
+          <div class="as-page-title">模型供应商</div>
+          <div class="as-page-subtitle">
             接入与管理模型供应商 · 凭证 · 模型目录 · 默认模型
           </div>
         </div>
       </div>
-      <div class="phs-search-wrap">
-        <svg
-          class="phs-search-icon"
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
-        <input
-          v-model="search"
-          class="phs-search"
-          placeholder="搜索供应商"
-        />
+      <div class="as-page-header-controls">
+        <div class="phs-search-wrap">
+          <svg
+            class="phs-search-icon"
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <input
+            v-model="search"
+            class="phs-search"
+            placeholder="搜索供应商"
+          />
+        </div>
       </div>
     </div>
 
@@ -723,43 +725,51 @@ function capabilityTags(
     <div v-if="configured.length > 0" class="phs-section">
       <div class="phs-section-title">模型列表</div>
       <div class="phs-configured-grid">
-        <div v-for="p in configured" :key="p.name" class="phs-compact-card">
-          <div class="phs-compact-head">
+        <Card variant="management"
+          v-for="p in configured"
+          :key="p.name"
+          class="phs-compact-card"
+          :title="p.label"
+          :footer-divider="false"
+        >
+          <template #icon>
             <ProviderIcon
               :name="p.name"
               :size="36"
               v-bind="providerIconProps(p)"
             />
-            <div class="phs-compact-title" :title="p.label">
-              {{ p.label }}
+          </template>
+
+          <template #actions>
+            <div class="phs-card-menu-anchor">
+              <button
+                class="phs-card-menu-btn"
+                title="更多操作"
+                @click.stop="toggleCardMenu(p.name, $event)"
+              >
+                ⋯
+              </button>
+              <div
+                v-if="openMenuFor === p.name"
+                class="phs-card-menu"
+                @click.stop
+              >
+                <button class="phs-card-menu-item" @click="onRefreshCatalog(p); closeCardMenu()">
+                  ↻ 重新拉取模型
+                </button>
+                <button class="phs-card-menu-item" @click="openCredentialModal(p, true); closeCardMenu()">
+                  🔑 编辑凭证
+                </button>
+                <button class="phs-card-menu-item" @click="openManualAdd(p); closeCardMenu()">
+                  + 手动添加模型
+                </button>
+                <div class="phs-card-menu-sep" />
+                <button class="phs-card-menu-item phs-card-menu-item--danger" @click="clearCredential(p); closeCardMenu()">
+                  🗑 删除凭证
+                </button>
+              </div>
             </div>
-            <button
-              class="phs-card-menu-btn"
-              title="更多操作"
-              @click.stop="toggleCardMenu(p.name, $event)"
-            >
-              ⋯
-            </button>
-            <div
-              v-if="openMenuFor === p.name"
-              class="phs-card-menu"
-              @click.stop
-            >
-              <button class="phs-card-menu-item" @click="onRefreshCatalog(p); closeCardMenu()">
-                ↻ 重新拉取模型
-              </button>
-              <button class="phs-card-menu-item" @click="openCredentialModal(p, true); closeCardMenu()">
-                🔑 编辑凭证
-              </button>
-              <button class="phs-card-menu-item" @click="openManualAdd(p); closeCardMenu()">
-                + 手动添加模型
-              </button>
-              <div class="phs-card-menu-sep" />
-              <button class="phs-card-menu-item phs-card-menu-item--danger" @click="clearCredential(p); closeCardMenu()">
-                🗑 删除凭证
-              </button>
-            </div>
-          </div>
+          </template>
           <div class="phs-compact-caps">
             <span
               v-for="t in distinctModelTypes(p)"
@@ -803,17 +813,17 @@ function capabilityTags(
                 </header>
 
                 <div class="phs-popover-actions">
-                  <button
+                  <Button
                     v-if="p.supportsRemoteModelListing"
-                    class="phs-btn phs-btn-ghost"
-                    :disabled="refreshingCatalog.has(p.name)"
+                    type="text"
+                    :loading="refreshingCatalog.has(p.name)"
                     @click="onRefreshCatalog(p)"
                   >
-                    {{ refreshingCatalog.has(p.name) ? '拉取中…' : '↻ 重新拉取' }}
-                  </button>
-                  <button class="phs-btn phs-btn-ghost" @click="openManualAdd(p)">
+                    ↻ 重新拉取
+                  </Button>
+                  <Button type="text" @click="openManualAdd(p)">
                     + 手动添加
-                  </button>
+                  </Button>
                 </div>
 
                 <div class="phs-filter-bar">
@@ -960,18 +970,19 @@ function capabilityTags(
                 </div>
 
                 <footer class="phs-popover-foot">
-                  <button
-                    class="phs-btn phs-btn-ghost"
+                  <Button
+                    type="text"
                     @click="openCredentialModal(p, true)"
                   >
                     编辑凭证
-                  </button>
-                  <button
-                    class="phs-btn phs-btn-ghost phs-btn-danger"
+                  </Button>
+                  <Button
+                    type="text"
+                    danger
                     @click="clearCredential(p)"
                   >
                     删除凭证
-                  </button>
+                  </Button>
                 </footer>
               </div>
             </template>
@@ -987,7 +998,7 @@ function capabilityTags(
               <span class="phs-count-label">个模型 →</span>
             </button>
           </Popover>
-        </div>
+        </Card>
       </div>
     </div>
 
@@ -995,21 +1006,20 @@ function capabilityTags(
     <div v-if="pending.length > 0" class="phs-section">
       <div class="phs-section-title">待配置</div>
       <div class="phs-configured-grid">
-        <div
+        <Card variant="management"
           v-for="p in pending"
           :key="p.name"
           class="phs-compact-card phs-compact-card--pending"
+          :title="p.label"
         >
-          <div class="phs-compact-head">
+          <template #icon>
             <ProviderIcon
               :name="p.name"
               :size="32"
               v-bind="providerIconProps(p)"
             />
-            <div class="phs-compact-title" :title="p.label">
-              {{ p.label }}
-            </div>
-          </div>
+          </template>
+
           <div class="phs-compact-caps">
             <span
               v-for="t in p.supportedModelTypes"
@@ -1020,13 +1030,14 @@ function capabilityTags(
               {{ modelTypeLabel(t) }}
             </span>
           </div>
+
           <button
             class="phs-compact-pending"
             @click.stop="p.supportsRemoteModelListing ? onRefreshCatalog(p) : openManualAdd(p)"
           >
             {{ p.supportsRemoteModelListing ? '↻ 点击拉取模型' : '+ 手动添加模型' }}
           </button>
-        </div>
+        </Card>
       </div>
     </div>
 
@@ -1034,25 +1045,34 @@ function capabilityTags(
     <div v-if="installable.length > 0" class="phs-section">
       <div class="phs-section-title">安装模型供应商</div>
       <div class="phs-installable-grid">
-        <div
+        <Card variant="management"
           v-for="p in installable"
           :key="p.name"
           class="phs-installable-card"
+          :title="p.label"
+          :description="p.name"
         >
-          <div class="phs-installable-head">
+          <template #icon>
             <ProviderIcon
               :name="p.name"
               :size="32"
               v-bind="providerIconProps(p)"
             />
-            <div class="phs-installable-name">{{ p.label }}</div>
-          </div>
-          <div class="phs-installable-desc">
-            {{ p.name }}
-            <span v-if="p.supportsRemoteModelListing" class="phs-installable-badge">
-              自动拉取
-            </span>
-          </div>
+          </template>
+
+          <template v-if="p.supportsRemoteModelListing" #badge>
+            <span class="phs-installable-badge">自动拉取</span>
+          </template>
+
+          <template #actions>
+            <Button
+              size="small"
+              @click="openCredentialModal(p)"
+            >
+              添加 API 密钥
+            </Button>
+          </template>
+
           <div class="phs-installable-caps">
             <span
               v-for="t in p.supportedModelTypes"
@@ -1063,15 +1083,7 @@ function capabilityTags(
               {{ modelTypeLabel(t) }}
             </span>
           </div>
-          <div class="phs-installable-footer">
-            <button
-              class="phs-btn phs-btn-ghost"
-              @click="openCredentialModal(p)"
-            >
-              添加 API 密钥
-            </button>
-          </div>
-        </div>
+        </Card>
       </div>
     </div>
 
@@ -1141,14 +1153,14 @@ function capabilityTags(
         </div>
         <template #footer>
         <div class="phs-mini-footer">
-          <button class="phs-btn" @click="manualAddOpen = false">取消</button>
-          <button
-            class="phs-btn phs-btn-primary"
-            :disabled="manualAddSaving"
+          <Button @click="manualAddOpen = false">取消</Button>
+          <Button
+            type="primary"
+            :loading="manualAddSaving"
             @click="submitManualAdd"
           >
-            {{ manualAddSaving ? '保存中…' : '添加' }}
-          </button>
+            添加
+          </Button>
         </div>
         </template>
     </Modal>
@@ -1170,67 +1182,7 @@ function capabilityTags(
     padding: 12px 16px;
   }
 }
-/* Card-style header — icon badge + title block on the left, search on the
-   right. Same bg/border/radius language as the provider cards below. */
-.phs-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 16px 20px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-:global(.dark) .phs-toolbar {
-  background: #1f1f1f;
-  border-color: #2d2d2d;
-}
-.phs-toolbar-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.phs-toolbar-logo {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
-}
-:global(.dark) .phs-toolbar-logo {
-  background: linear-gradient(135deg, #818cf8, #6366f1);
-}
-.phs-toolbar-text {
-  min-width: 0;
-}
-.phs-toolbar-title {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  line-height: 1.3;
-  color: #111827;
-}
-:global(.dark) .phs-toolbar-title {
-  color: #f3f4f6;
-}
-.phs-toolbar-subtitle {
-  margin-top: 3px;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-}
-:global(.dark) .phs-toolbar-subtitle {
-  color: #9ca3af;
-}
+/* 搜索框样式 */
 .phs-search-wrap {
   position: relative;
   display: flex;
@@ -1291,39 +1243,38 @@ function capabilityTags(
   gap: 12px;
 }
 .phs-compact-card {
-  padding: 16px 18px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
   gap: 12px;
   min-height: 110px;
   position: relative;
-  transition:
-    box-shadow 0.15s ease,
-    transform 0.15s ease,
-    border-color 0.15s ease;
 }
-.phs-compact-card:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  border-color: #a5b4fc;
-  transform: translateY(-1px);
+/* Card: actions slot holds the "⋯" menu in the top-right corner,
+   lifted out of flow so the title row can use the full width. */
+.phs-compact-card:deep(.as-management-card__actions) {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  z-index: 5;
+  width: 30px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex: none;
 }
-:global(.dark) .phs-compact-card {
-  background: #1f1f1f;
-  border-color: #2d2d2d;
+.phs-compact-card:deep(.as-management-card__actions) .phs-card-menu-anchor {
+  position: relative;
+  width: 30px;
+  height: 28px;
 }
-:global(.dark) .phs-compact-card:hover {
-  border-color: #6366f1;
+/* Menu is now anchored to the actions-slot wrapper (top-right corner of the
+   card), so reset its absolute offsets to hang from the anchor's bottom-right. */
+.phs-compact-card .phs-card-menu {
+  top: calc(100% + 2px);
+  right: 0;
 }
 .phs-compact-card--pending {
   border-style: dashed;
-  background: #fafafa;
-}
-:global(.dark) .phs-compact-card--pending {
-  background: #191919;
 }
 .phs-compact-head {
   display: flex;
@@ -1593,17 +1544,21 @@ function capabilityTags(
   gap: 10px;
 }
 .phs-installable-card {
-  padding: 12px 14px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
   gap: 8px;
 }
-:global(.dark) .phs-installable-card {
-  background: #1f1f1f;
-  border-color: #2d2d2d;
+/* Card footer: action button pushed to the right, anchored at the
+   bottom of the card. */
+.phs-installable-card:deep(.as-management-card__footer) {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.phs-installable-card:deep(.as-management-card__actions) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex: none;
 }
 .phs-installable-head {
   display: flex;

@@ -98,7 +98,7 @@ const removeAssignment = (index: number) => {
   text-align: center;
   font-size: 12px;
   color: #9ca3af;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #e5e7eb;
   border-radius: 6px;
 }
@@ -114,7 +114,7 @@ const removeAssignment = (index: number) => {
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border-radius: 6px;
 }
 

@@ -115,12 +115,6 @@ function onEditCredentials(m: ModelEntity) {
 
 <template>
   <div class="agent-start-provider-app">
-<!--    <div class="agent-start-provider-app__header">
-      <div class="agent-start-provider-app__title">模型供应商</div>
-      <div class="agent-start-provider-app__desc">
-        填入 API Key 一次导入该供应商全部可用模型 —— 凭证 AES-GCM 加密存储。
-      </div>
-    </div>-->
     <Spin :spinning="loading">
       <ProviderHubShell :models="models" @change="refresh" />
 
@@ -150,25 +144,7 @@ function onEditCredentials(m: ModelEntity) {
 
 <style scoped>
 .agent-start-provider-app {
-  padding: 16px;
-}
-.agent-start-provider-app__header {
-  margin-bottom: 16px;
-}
-.agent-start-provider-app__title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #111827;
-}
-.agent-start-provider-app__desc {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #6b7280;
-}
-:global(.dark) .agent-start-provider-app__title {
-  color: #f3f4f6;
-}
-:global(.dark) .agent-start-provider-app__desc {
-  color: #9ca3af;
+  /* 间距由内部 ProviderHubShell (.phs-root) 统一管理，外层不再叠加 padding */
+  padding: 0;
 }
 </style>

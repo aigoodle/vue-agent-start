@@ -162,7 +162,7 @@ const variableFormSubmit = (data: any) => {
   text-align: center;
   font-size: 12px;
   color: #9ca3af;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #e5e7eb;
   border-radius: 6px;
 }
@@ -178,18 +178,18 @@ const variableFormSubmit = (data: any) => {
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px solid #f0f0f0;
   border-radius: 6px;
   transition: background 0.15s;
 }
 
 .start-var-item:hover {
-  background: #f3f4f6;
+  background: var(--wf-config-surface-hover, #f9fafb);
 }
 
 .start-var-item-readonly {
-  background: #ffffff;
+  background: var(--wf-config-surface, #ffffff);
 }
 
 .start-var-left {

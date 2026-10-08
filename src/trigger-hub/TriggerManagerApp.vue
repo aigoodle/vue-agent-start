@@ -8,7 +8,7 @@ import {
 } from '../client';
 import {useAgentStartClient} from '../client/vue';
 import {mergeAgentStartHeaders, useAgentStartConfig} from '../config';
-import {Drawer, Modal, Table, message, type TableColumnType} from '../ui';
+import {Button, Drawer, Modal, Table, message, type TableColumnType} from '../ui';
 
 const global = useAgentStartConfig();
 const client = useAgentStartClient() ?? createAgentStartClient({
@@ -222,25 +222,36 @@ onMounted(load);
 
 <template>
   <div class="th">
-    <section class="th-hero">
-      <div><h2>触发器管理</h2>
-        <p>统一管理工作流发布生成的消息监听、定时任务，以及手工创建的 Webhook 和业务事件。</p></div>
-      <div class="th-hero-actions">
+    <!-- 页面头部 -->
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
+          <span style="font-size: 18px">⚡</span>
+        </div>
+        <div class="as-page-header-text">
+          <div class="as-page-title">触发器管理</div>
+          <div class="as-page-subtitle">
+            消息监听 · 定时任务 · Webhook · 业务事件
+          </div>
+        </div>
+      </div>
+
+      <div class="as-page-header-controls">
         <div class="th-search"><span>⌕</span><input v-model="query" placeholder="搜索名称、类型或目标"
                                                     @keyup.enter="search">
-          <button @click="search">查询</button>
+          <Button size="small" @click="search">查询</Button>
         </div>
-        <button class="th-refresh" :disabled="loading" @click="load">↻ 刷新</button>
-        <button class="th-primary" @click="openCreate">＋ 创建触发器</button>
+        <Button :loading="loading" @click="load">↻ 刷新</Button>
+        <Button type="primary" @click="openCreate">＋ 创建触发器</Button>
       </div>
-    </section>
+    </div>
     <div v-if="error" class="th-alert"><b>操作失败</b><span>{{ error }}</span>
       <button @click="error=''">×</button>
     </div>
     <nav class="th-categories" aria-label="触发器分类">
-      <button :class="{active: category === 'ALL'}" @click="changeCategory('ALL')">全部触发器</button>
-      <button :class="{active: category === 'APPLICATION'}" @click="changeCategory('APPLICATION')">应用触发器</button>
-      <button :class="{active: category === 'USER'}" @click="changeCategory('USER')">用户触发器</button>
+      <Button size="small" :type="category === 'ALL' ? 'primary' : 'text'" @click="changeCategory('ALL')">全部触发器</Button>
+      <Button size="small" :type="category === 'APPLICATION' ? 'primary' : 'text'" @click="changeCategory('APPLICATION')">应用触发器</Button>
+      <Button size="small" :type="category === 'USER' ? 'primary' : 'text'" @click="changeCategory('USER')">用户触发器</Button>
     </nav>
     <Table :columns="columns" :data-source="rows" :loading="loading" row-key="id" :scroll="{x: 1170}">
       <template #emptyText>暂无触发器</template>
@@ -289,14 +300,14 @@ onMounted(load);
         JSON<textarea v-model="configText" rows="8" placeholder='{"path":"order-created"}'></textarea></label><label
           class="th-check"><input v-model="form.enabled" type="checkbox"> 创建后立即启用</label>
         <footer>
-          <button type="button" @click="editorOpen=false">取消</button>
-          <button class="th-primary" :disabled="saving" type="submit">{{ saving ? '保存中…' : '创建' }}</button>
+          <Button @click="editorOpen=false">取消</Button>
+          <Button type="primary" :loading="saving" html-type="submit">创建</Button>
         </footer>
       </form>
     </Modal>
     <Drawer v-model:open="historyOpen" width="min(760px, 92vw)">
       <template #title><div><h3>{{ current?.name }} · 执行历史</h3><p>失败任务可以使用原始参数重新执行。</p></div></template>
-      <template #extra><button class="th-refresh" @click="loadHistory">↻ 刷新</button></template>
+      <template #extra><Button size="small" :loading="historyLoading" @click="loadHistory">↻ 刷新</Button></template>
         <div v-if="historyLoading" class="th-empty">加载中…</div>
         <div v-else-if="!invocations.length" class="th-empty">尚无调用记录</div>
         <div v-else class="th-history">
@@ -331,7 +342,7 @@ onMounted(load);
   --muted: #a3a3a3
 }
 
-.th button, .th input, .th select, .th textarea {
+.th button:not(.as-btn), .th input, .th select, .th textarea {
   font: inherit
 }
 
@@ -395,19 +406,6 @@ onMounted(load);
   background: var(--soft)
 }
 
-.th-categories button {
-  padding: 7px 13px;
-  border: 0;
-  border-radius: 7px;
-  color: var(--muted);
-  background: transparent
-}
-
-.th-categories button.active {
-  color: #fff;
-  background: var(--primary);
-  font-weight: 650
-}
 
 .th-stats {
   display: grid;

@@ -188,7 +188,7 @@ const OUTPUT_DEFAULTS = [
 
 .agent-output-item {
   padding: 6px 10px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px solid #f0f0f0;
   border-radius: 6px;
 }

@@ -284,12 +284,12 @@ defineExpose({
       :on-search="(v: string) => (keyword = v)"
       :open-create="openCreate"
     >
-      <div class="kh-app-head">
-        <div class="kh-app-head-main">
-          <div class="kh-app-logo" aria-hidden="true">
+      <div class="as-page-header">
+        <div class="as-page-header-main">
+          <div class="as-page-logo" aria-hidden="true">
             <svg
-              width="22"
-              height="22"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -303,12 +303,12 @@ defineExpose({
               />
             </svg>
           </div>
-          <div class="kh-app-head-text">
-            <div class="kh-app-title">{{ displayTitle }}</div>
-            <div class="kh-app-desc">{{ displayDescription }}</div>
+          <div class="as-page-header-text">
+            <div class="as-page-title">{{ displayTitle }}</div>
+            <div class="as-page-subtitle">{{ displayDescription }}</div>
           </div>
         </div>
-        <div class="kh-app-toolbar">
+        <div class="as-page-header-controls">
           <div class="kh-app-search">
             <svg
               class="kh-app-search-icon"
@@ -451,70 +451,17 @@ defineExpose({
 .kh-app {
   display: flex;
   flex-direction: column;
-  gap: var(--kh-space-5);
   /* Comfortable page margins — content never hugs the viewport edges. */
   padding: var(--kh-space-5) var(--kh-space-6) var(--kh-space-6);
 }
-/* Page header — icon badge + title block on the left, search + actions on the
-   right. Styled as a bordered card (same bg/border/radius tokens as the
-   dataset cards) so it reads as its own surface above the grid. */
-.kh-app-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--kh-space-4);
-  flex-wrap: wrap;
-  padding: var(--kh-space-4) var(--kh-space-5);
-  background: var(--kh-card-bg);
-  border: 1px solid var(--kh-card-border);
-  border-radius: var(--kh-card-radius);
-  box-shadow: var(--kh-shadow-sm);
-}
-.kh-app-head-main {
-  display: flex;
-  align-items: center;
-  gap: var(--kh-space-3);
-  min-width: 0;
-}
-.kh-app-logo {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--kh-radius-lg);
-  background: linear-gradient(
-    135deg,
-    var(--kh-color-primary),
-    var(--kh-color-primary-strong)
-  );
-  color: var(--kh-color-primary-contrast);
-  box-shadow: 0 4px 12px var(--kh-color-primary-outline);
-}
-.kh-app-head-text {
-  min-width: 0;
-}
-.kh-app-title {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  line-height: 1.3;
-  color: var(--kh-color-text-primary);
-}
-.kh-app-desc {
-  margin-top: 3px;
-  font-size: var(--kh-fs-lg);
-  color: var(--kh-color-text-tertiary);
-  line-height: 1.5;
-}
+/* Note: Page header now uses unified .as-page-header styles from ui/style.css */
 /* First-time-use nudge — "先注册 Embedding 模型" empty-state card. */
 .kh-app-nudge {
   display: flex;
   align-items: flex-start;
   gap: var(--kh-space-3);
   padding: var(--kh-space-3) var(--kh-space-4);
-  background: #fff;
+  background: var(--kh-color-surface);
   border: 1px solid var(--kh-color-border);
   border-radius: 8px;
 }
@@ -539,8 +486,8 @@ defineExpose({
 .kh-app-nudge-btn {
   margin-top: 8px;
   padding: 4px 12px;
-  background: #4f46e5;
-  color: #fff;
+  background: var(--kh-color-primary-strong);
+  color: var(--kh-color-primary-contrast);
   border: none;
   border-radius: 6px;
   font-size: 13px;
@@ -548,7 +495,7 @@ defineExpose({
   transition: background 0.15s ease;
 }
 .kh-app-nudge-btn:hover {
-  background: #4338ca;
+  background: var(--kh-color-primary);
 }
 .kh-app-toolbar {
   display: flex;

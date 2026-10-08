@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue';
 import {BugOutlined, DeleteOutlined, EditOutlined, PlusOutlined} from '@ant-design/icons-vue';
-import {Alert, Button, Drawer, Empty, Form, FormItem, Input, Modal, Select, Spin, Switch, Tag, Textarea, message} from '../ui';
+import {Alert, Button, Drawer, Empty, Form, FormItem, Input, Card, Modal, Select, Spin, Switch, Tag, Textarea, message} from '../ui';
 import {createAgentStartClient, type ToolCatalogItem} from '../client';
 import {useAgentStartClient} from '../client/vue';
 import {mergeAgentStartHeaders, useAgentStartConfig} from '../config';
@@ -259,53 +259,73 @@ onMounted(load);
 
 <template>
   <div class="mcp as-management">
-    <header class="mcp-page-header as-management-toolbar">
-      <div class="mcp-page-tip">配置连接并发现服务提供的工具；启用后可直接用于 Agent 与工作流。</div>
-      <Button type="primary" @click="open()">
-        <PlusOutlined/>
-        新增 MCP 服务
-      </Button>
-    </header>
+    <!-- 页面头部 -->
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
+          <span style="font-size: 18px; font-weight: bold">M</span>
+        </div>
+        <div class="as-page-header-text">
+          <div class="as-page-title">MCP 服务</div>
+          <div class="as-page-subtitle">
+            Model Context Protocol · 工具发现与调用
+          </div>
+        </div>
+      </div>
+
+      <div class="as-page-header-controls">
+        <Button type="primary" @click="open()">
+          <PlusOutlined/>
+          新增 MCP 服务
+        </Button>
+      </div>
+    </div>
     <Alert v-if="error" class="mcp-alert" type="error" show-icon closable :message="error" @close="error = ''"/>
     <Spin :spinning="loading">
       <div v-if="!loading && !servers.length" class="as-management-empty">
         <Empty description="尚未配置 MCP 服务"/>
       </div>
       <div v-else class="mcp-list as-management-grid">
-        <article v-for="server in servers" :key="server.id" class="as-management-card">
-          <div class="mcp-card-head">
+        <Card variant="management"
+          v-for="server in servers"
+          :key="server.id"
+          :title="server.name"
+          :subtitle="server.transport"
+        >
+          <template #icon>
             <span class="mcp-server-icon">M</span>
-            <div class="mcp-summary">
-              <h3 :title="server.name">{{ server.name }}</h3>
-              <span>{{ server.transport }}</span>
+          </template>
+          <template #description>
+            <code class="mcp-address"
+                  :title="server.transport !== 'STDIO' ? server.url : [server.command, ...(server.args || [])].join(' ')">{{
+                server.transport !== 'STDIO' ? server.url : [server.command, ...(server.args || [])].join(' ')
+              }}</code>
+            <div class="mcp-status">
+              <b :class="`status-${(server.status || 'unknown').toLowerCase()}`">{{ server.status || 'UNKNOWN' }}</b>
+              <small>{{ server.toolCount ?? '待发现' }}{{ server.toolCount == null ? '' : ' 个工具' }}</small>
             </div>
-          </div>
-          <code class="mcp-address"
-                :title="server.transport !== 'STDIO' ? server.url : [server.command, ...(server.args || [])].join(' ')">{{
-              server.transport !== 'STDIO' ? server.url : [server.command, ...(server.args || [])].join(' ')
-            }}</code>
-          <div class="mcp-status"><b :class="`status-${(server.status || 'unknown').toLowerCase()}`">{{
-              server.status || 'UNKNOWN'
-            }}</b><small>{{ server.toolCount ?? '待发现' }}{{ server.toolCount == null ? '' : ' 个工具' }}</small></div>
-          <div class="mcp-card-message">
-            <p v-if="server.lastError" class="mcp-bad">{{ server.lastError }}</p>
-            <p v-else>{{ server.enabled ? '服务已启用，可查看并调用其工具。' : '服务当前已停用。' }}</p>
-          </div>
-          <div class="mcp-actions">
-            <Button type="primary" size="small" @click="openDetail(server)">
-              <BugOutlined/>
-              查看与调试
-            </Button>
-            <Button size="small" @click="open(server)">
-              <EditOutlined/>
-              编辑
-            </Button>
-            <Button size="small" danger @click="remove(server)">
-              <DeleteOutlined/>
-              删除
-            </Button>
-          </div>
-        </article>
+            <div class="mcp-card-message">
+              <p v-if="server.lastError" class="mcp-bad">{{ server.lastError }}</p>
+              <p v-else>{{ server.enabled ? '服务已启用，可查看并调用其工具。' : '服务当前已停用。' }}</p>
+            </div>
+          </template>
+          <template #actions>
+            <div class="mcp-actions">
+              <Button type="primary" size="small" @click="openDetail(server)">
+                <BugOutlined/>
+                查看与调试
+              </Button>
+              <Button size="small" @click="open(server)">
+                <EditOutlined/>
+                编辑
+              </Button>
+              <Button size="small" danger @click="remove(server)">
+                <DeleteOutlined/>
+                删除
+              </Button>
+            </div>
+          </template>
+        </Card>
       </div>
     </Spin>
 
@@ -470,11 +490,6 @@ h2, h3, p {
   @apply min-h-[215px] overflow-hidden p-3.5;
 }
 
-.mcp-list article:hover {
-  @apply -translate-y-px shadow-[0_8px_24px_rgb(16_24_40/5%)];
-  border-color: #93b4ff;
-}
-
 .mcp-card-head {
   @apply min-w-0 justify-start;
 }
@@ -547,12 +562,20 @@ h2, h3, p {
 }
 
 .mcp-actions {
-  @apply -mx-3.5 -mb-3.5 mt-1.5 justify-start gap-[5px] border-t border-[#e4e7ec] px-3.5 py-[7px];
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mcp-list :deep(.as-management-card__actions) {
+  width: 100%;
 }
 
 .mcp-actions .as-btn {
   min-width: 0;
-  padding-inline: 7px;
+  padding-inline: 9px;
 }
 
 .mcp-actions :deep(.as-btn) {

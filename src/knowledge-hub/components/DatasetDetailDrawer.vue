@@ -663,6 +663,26 @@ const sidebarData = computed(() => ({
     :body-style="{ padding: '0', overflow: 'hidden' }"
     @update:open="emit('update:open', $event)"
   >
+      <template #title>
+        <div class="kh-drawer-topbar-title">
+          <template v-if="openDocId && currentDoc">
+            <button class="kh-drawer-back" @click="backToDocs">← 返回</button>
+            <span class="kh-drawer-doc-name">📄 {{ currentDoc.name }}</span>
+          </template>
+          <template v-else>
+            <span class="kh-drawer-title-name">{{ dataset?.name ?? '知识库详情' }}</span>
+            <span class="kh-drawer-title-tab">
+              · {{ {
+                documents: '文档', recall: '召回测试', 'knowledge-graph': '知识图谱',
+                operations: 'RAG 运行', settings: '设置',
+              }[tab] }}
+            </span>
+          </template>
+        </div>
+      </template>
+      <template #extra>
+        <button class="kh-drawer-close" aria-label="关闭" @click="close">×</button>
+      </template>
       <div class="kh-drawer-shell">
         <DatasetSidebar
           :dataset="sidebarData"
@@ -672,31 +692,6 @@ const sidebarData = computed(() => ({
         />
 
         <div class="kh-drawer-main">
-          <!-- Top bar with close button -->
-          <div class="kh-drawer-topbar">
-            <div class="kh-drawer-topbar-title">
-              <template v-if="openDocId && currentDoc">
-                <button class="kh-drawer-back" @click="backToDocs">← 返回</button>
-                <span class="kh-drawer-doc-name">📄 {{ currentDoc.name }}</span>
-              </template>
-              <template v-else>
-                <span class="kh-drawer-title-name">
-                  {{ dataset?.name ?? '' }}
-                </span>
-                <span class="kh-drawer-title-tab">
-                  · {{ {
-                    documents: '文档',
-                    recall: '召回测试',
-                    'knowledge-graph': '知识图谱',
-                    operations: 'RAG 运行',
-                    settings: '设置',
-                  }[tab] }}
-                </span>
-              </template>
-            </div>
-            <button class="kh-drawer-close" @click="close">×</button>
-          </div>
-
           <!-- Content -->
           <div class="kh-drawer-content">
             <!-- Chunks view overlays everything else while a document is open -->
@@ -869,7 +864,7 @@ const sidebarData = computed(() => ({
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #475569;
+  color: inherit;
 }
 .kh-drawer-back {
   padding: 4px 10px;

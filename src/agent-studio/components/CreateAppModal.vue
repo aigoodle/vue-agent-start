@@ -30,7 +30,7 @@
  */
 import { computed, ref, watch } from 'vue';
 
-import { Modal } from '../../ui';
+import { Button, Modal } from '../../ui';
 import { APP_TYPES } from '../composables/useAgentStudio';
 import type { AppType, AppTypeDescriptor } from '../types';
 
@@ -152,7 +152,6 @@ function onKeydown(e: KeyboardEvent) {
     class="as-modal-panel"
     centered
     width="min(1080px, 96vw)"
-    :footer="false"
     @cancel="close"
     @keydown="onKeydown"
   >
@@ -282,22 +281,6 @@ function onKeydown(e: KeyboardEvent) {
               />
             </div>
 
-            <!-- Footer -->
-            <div class="as-actions">
-              <button type="button" class="as-btn as-btn-secondary" @click="close">
-                取消
-              </button>
-              <button
-                type="button"
-                class="as-btn as-btn-primary"
-                :disabled="!name.trim()"
-                @click="submit"
-              >
-                <span>创建</span>
-                <kbd class="as-kbd">⌘</kbd>
-                <kbd class="as-kbd">↵</kbd>
-              </button>
-            </div>
           </div>
 
           <!-- RIGHT: preview pane -->
@@ -311,6 +294,17 @@ function onKeydown(e: KeyboardEvent) {
             <div class="as-preview-hint">{{ currentDesc?.hint }}</div>
           </div>
         </div>
+        <template #footer>
+          <Button @click="close">取消</Button>
+          <Button
+            type="primary"
+            :disabled="!name.trim()"
+            @click="submit"
+          >
+            <kbd class="as-kbd">↵</kbd>
+            <span>创建</span>
+          </Button>
+        </template>
   </Modal>
 </template>
 
@@ -614,50 +608,6 @@ function onKeydown(e: KeyboardEvent) {
   outline: 2px solid #6366f1;
 }
 
-/* Footer actions */
-.as-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: auto;
-  padding-top: 8px;
-}
-.as-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    transform 0.05s ease;
-}
-.as-btn-secondary {
-  background: #f1f5f9;
-  color: #475569;
-}
-.as-btn-secondary:hover {
-  background: #e2e8f0;
-}
-.as-btn-primary {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
-}
-.as-btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
-}
-.as-btn-primary:disabled {
-  background: #cbd5e1;
-  box-shadow: none;
-  cursor: not-allowed;
-  transform: none;
-}
 .as-kbd {
   display: inline-flex;
   align-items: center;
@@ -727,5 +677,55 @@ function onKeydown(e: KeyboardEvent) {
   background: rgba(255, 255, 255, 0.6);
   border: 1px dashed #e2e8f0;
   border-radius: 8px;
+}
+
+:global(.dark .as-modal-panel .as-left) {
+  border-color: var(--as-border-secondary);
+}
+:global(.dark .as-modal-panel .as-right) {
+  background: linear-gradient(180deg, var(--as-bg) 0%, var(--as-bg-layout) 100%);
+}
+:global(.dark .as-modal-panel .as-section-label),
+:global(.dark .as-modal-panel .as-label),
+:global(.dark .as-modal-panel .as-tile-title),
+:global(.dark .as-modal-panel .as-preview-heading) {
+  color: var(--as-text);
+}
+:global(.dark .as-modal-panel .as-tile),
+:global(.dark .as-modal-panel .as-input),
+:global(.dark .as-modal-panel .as-textarea) {
+  color: var(--as-text);
+  background: var(--as-bg);
+  border-color: var(--as-border);
+}
+:global(.dark .as-modal-panel .as-tile-desc),
+:global(.dark .as-modal-panel .as-expand-btn),
+:global(.dark .as-modal-panel .as-preview-desc),
+:global(.dark .as-modal-panel .as-preview-hint) {
+  color: var(--as-text-secondary);
+}
+:global(.dark .as-modal-panel .as-divider) {
+  background: linear-gradient(90deg, transparent, var(--as-border), transparent);
+}
+:global(.dark .as-modal-panel .as-icon-picker) {
+  background: var(--as-bg-layout);
+  border-color: var(--as-border);
+}
+:global(.dark .as-modal-panel .as-emoji-btn:hover),
+:global(.dark .as-modal-panel .as-emoji-active) {
+  background: var(--as-bg);
+}
+:global(.dark .as-modal-panel .as-preview-canvas) {
+  background:
+    repeating-linear-gradient(135deg, transparent, transparent 4px, rgb(255 255 255 / 3%) 4px, rgb(255 255 255 / 3%) 5px),
+    var(--as-bg-layout);
+  border-color: var(--as-border);
+}
+:global(.dark .as-modal-panel .as-preview-canvas svg) {
+  box-shadow: 0 6px 20px rgb(0 0 0 / 35%);
+}
+:global(.dark .as-modal-panel .as-preview-hint) {
+  background: color-mix(in srgb, var(--as-bg) 76%, transparent);
+  border-color: var(--as-border);
 }
 </style>

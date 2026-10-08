@@ -7,12 +7,15 @@
 @reference "tailwindcss/theme.css";
 
 :root {
-  --color-as-primary: #1677ff;
-  --color-as-primary-hover: #4096ff;
-  --color-as-primary-active: #0958d9;
-  --color-as-success: #52c41a;
-  --color-as-warning: #faad14;
-  --color-as-danger: #ff4d4f;
+  /* Theme colors - compatible with Ant Design 5.x CSS variables.
+   * When Ant Design's theme is active, these will follow its primary color.
+   * Otherwise, fallback to default blue palette. */
+  --color-as-primary: var(--ant-color-primary, #1677ff);
+  --color-as-primary-hover: var(--ant-color-primary-hover, #4096ff);
+  --color-as-primary-active: var(--ant-color-primary-active, #0958d9);
+  --color-as-success: var(--ant-color-success, #52c41a);
+  --color-as-warning: var(--ant-color-warning, #faad14);
+  --color-as-danger: var(--ant-color-error, #ff4d4f);
   --radius-as: 6px;
   --shadow-as: 0 6px 16px 0 rgb(0 0 0 / 8%), 0 3px 6px -4px rgb(0 0 0 / 12%);
   --as-primary: var(--color-as-primary);
@@ -21,14 +24,22 @@
   --as-success: var(--color-as-success);
   --as-warning: var(--color-as-warning);
   --as-danger: var(--color-as-danger);
-  --as-text: rgb(0 0 0 / 88%);
-  --as-text-secondary: rgb(0 0 0 / 65%);
-  --as-text-placeholder: rgb(0 0 0 / 25%);
-  --as-text-disabled: rgb(0 0 0 / 25%);
-  --as-border: #d9d9d9;
-  --as-border-secondary: #f0f0f0;
-  --as-bg: #fff;
-  --as-bg-layout: #f5f5f5;
+  /* Text & background colors - compatible with Ant Design 5.x */
+  --as-text: var(--ant-color-text, rgb(0 0 0 / 88%));
+  --as-text-secondary: var(--ant-color-text-secondary, rgb(0 0 0 / 65%));
+  --as-text-placeholder: var(--ant-color-text-quaternary, rgb(0 0 0 / 25%));
+  --as-text-disabled: var(--ant-color-text-disabled, rgb(0 0 0 / 25%));
+  --as-border: var(--ant-color-border, #d9d9d9);
+  --as-border-secondary: var(--ant-color-border-secondary, #f0f0f0);
+  --as-bg: var(--ant-color-bg-container, #ffffff);
+  --as-bg-layout: var(--ant-color-bg-layout, #f5f5f5);
+  /* Ant Design Card uses colorBgContainer: #fff in the light algorithm. */
+  --as-card-bg: var(--ant-color-bg-container, #ffffff);
+  --as-card-border: var(--as-border-secondary);
+  --as-card-divider: var(--as-border-secondary);
+  --as-card-radius: 12px;
+  --as-card-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+  --as-card-shadow-hover: 0 8px 24px rgb(16 24 40 / 7%);
   --as-radius: var(--radius-as);
   --as-shadow: var(--shadow-as);
   --as-fill-disabled: rgb(0 0 0 / 4%);
@@ -39,11 +50,28 @@
   --as-line-height: 1.5714285714;
   --as-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   color: var(--as-text);
+
+  /* Page header colors - light mode */
+  --as-page-header-bg: #ffffff;
+  --as-page-header-border: #e5e7eb;
+  --as-page-header-title: #111827;
+  --as-page-header-subtitle: #6b7280;
+  --as-page-header-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  /* Card icon backgrounds - light mode (pastel colors) */
+  --as-card-icon-bg-1: #FFF4ED;
+  --as-card-icon-bg-2: #EEF4FF;
+  --as-card-icon-bg-3: #EFFDF4;
+  --as-card-icon-bg-4: #FEF3F2;
+  --as-card-icon-bg-5: #FFF8E6;
+  --as-card-icon-bg-6: #FDF2FA;
+  --as-card-icon-bg-7: #F0F9FF;
+  --as-card-icon-bg-8: #F0FDF9;
 }
 
 @layer agent-start-components {
   .as-btn {
-    @apply box-border inline-flex cursor-pointer items-center justify-center gap-1.5 border px-[15px] py-1 font-[inherit] shadow-[0_2px_0_rgb(0_0_0/2%)] transition-all duration-200;
+    @apply box-border inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap border border-solid px-[15px] py-1 font-[inherit] shadow-[0_2px_0_rgb(0_0_0/2%)] transition-all duration-200;
     height: var(--as-control-height); color: var(--as-text); background: var(--as-bg);
     border-color: var(--as-border); border-radius: var(--as-radius); font-size: var(--as-font-size); line-height: var(--as-line-height);
   }
@@ -131,10 +159,13 @@
   .as-check:has(.as-check__input:disabled) { cursor: not-allowed; color: var(--as-text-disabled); }
   .as-check__input:disabled + .as-check__box { border-color: var(--as-border); background: var(--as-fill-disabled); }
 
-  .as-card { @apply rounded-lg border; color: var(--as-text); background: var(--as-bg); border-color: var(--as-border-secondary); }
+  .as-card { @apply rounded-lg border; color: var(--as-text); background: var(--as-card-bg, var(--as-bg)); border-color: var(--as-card-border, var(--as-border-secondary)); }
   .as-card--borderless { @apply border-0; }
   .as-card--hoverable { @apply transition-[box-shadow,border-color] duration-200; }
   .as-card--hoverable:hover { @apply border-transparent shadow-[var(--as-shadow)]; }
+  .as-card--interactive { @apply cursor-pointer; }
+  .as-card--interactive:focus-visible { outline: 2px solid color-mix(in srgb, var(--as-primary) 60%, transparent); outline-offset: 2px; }
+  .as-card--disabled { @apply cursor-not-allowed opacity-60; }
   .as-card__head { @apply flex min-h-14 items-center justify-between border-b px-6; border-color: var(--as-border-secondary); }
   .as-card__title { @apply font-semibold; }
   .as-card__body { @apply p-6; }
@@ -151,9 +182,36 @@
   .as-modal-root--centered { @apply items-center py-8; }
   .as-modal__mask { @apply absolute inset-0 bg-black/45; }
   .as-modal { @apply relative flex max-h-[calc(100vh-124px)] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-xl shadow-[var(--as-shadow)]; background: var(--as-bg); outline: none; }
-  .as-modal__head { @apply flex items-center justify-between border-b px-6 py-4; border-color: var(--as-border-secondary); }
+  .as-modal__head { @apply relative flex items-center justify-between border-b px-6 py-4; border-color: var(--as-border-secondary); }
   .as-modal__title { @apply text-base font-semibold; }
-  .as-modal__close { @apply cursor-pointer border-0 bg-transparent text-[22px]; color: var(--as-text-secondary); }
+  .as-modal__close {
+    @apply absolute right-6 grid size-8 cursor-pointer place-items-center rounded-md border bg-transparent p-0 text-[22px] transition-[color,text-shadow,opacity] duration-150;
+    top: 0;
+    bottom: 0;
+    margin-block: auto;
+    color: var(--as-text-secondary);
+    border-color: transparent;
+    line-height: 1;
+    transform: none;
+  }
+  .as-modal__close:hover {
+    color: var(--as-primary);
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    text-shadow: 0 0 10px color-mix(in srgb, var(--as-primary) 58%, transparent);
+    transform: none;
+  }
+  .as-modal__close:focus-visible {
+    color: var(--as-primary);
+    border-color: var(--as-primary);
+    outline: 2px solid color-mix(in srgb, var(--as-primary) 28%, transparent);
+    outline-offset: 2px;
+  }
+  .as-modal__close:active {
+    opacity: .72;
+    transform: none;
+  }
   .as-modal__body { @apply min-h-0 overflow-auto p-6; }
   .as-modal__footer { @apply flex justify-end gap-2 border-t px-4 py-2.5; border-color: var(--as-border-secondary); }
   .as-modal-fade-enter-active, .as-modal-fade-leave-active { @apply transition-opacity duration-200; }
@@ -281,4 +339,70 @@
   .as-card__head, .as-card__body { @apply px-4; }
   .as-form-item { @apply block; }
   .as-form-item__label { @apply block pb-2 pt-0 text-start; }
+}
+
+/* ==========================================================================
+   Unified Page Header Styles
+   ========================================================================== */
+/* Card-style header — icon badge + title on the left, search/filter controls
+   on the right. Uses CSS variables for dynamic light/dark mode support. */
+.as-page-header {
+  @apply flex items-center justify-between gap-2.5 flex-nowrap mb-2.5 px-3.5 py-2 border rounded-[10px];
+  background: var(--as-page-header-bg);
+  border-color: var(--as-page-header-border);
+  box-shadow: var(--as-page-header-shadow);
+}
+
+.as-page-header-main {
+  @apply flex items-start gap-2.5 min-w-0 pt-0.5;
+}
+
+.as-page-logo {
+  @apply w-[30px] h-[30px] flex-shrink-0 flex items-center justify-center rounded-lg text-white shadow-[0_2px_6px_rgba(99,102,241,0.2)];
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+}
+.dark .as-page-logo {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+}
+
+.as-page-header-text {
+  @apply min-w-0 flex flex-col gap-px;
+}
+
+.as-page-title {
+  @apply text-base font-semibold tracking-wide leading-[1.25] whitespace-nowrap;
+  color: var(--as-page-header-title);
+}
+
+.as-page-subtitle {
+  @apply text-xs font-normal leading-[1.3] whitespace-nowrap tracking-normal;
+  color: var(--as-page-header-subtitle);
+}
+
+.as-page-header-controls {
+  @apply flex items-center flex-nowrap gap-1.5 flex-shrink-0 min-w-0;
+}
+
+/* Dark mode overrides */
+.dark,
+[data-theme='dark'] {
+  /* Product dark theme keeps the original blue-gray Card surface. */
+  --as-card-bg: #081e36;
+
+  /* Page header colors - dark mode */
+  --as-page-header-bg: #1f2937;
+  --as-page-header-border: #374151;
+  --as-page-header-title: #f3f4f6;
+  --as-page-header-subtitle: #9ca3af;
+  --as-page-header-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  /* Card icon backgrounds - dark mode (muted dark colors) */
+  --as-card-icon-bg-1: rgba(255, 244, 237, 0.15);
+  --as-card-icon-bg-2: rgba(238, 244, 255, 0.15);
+  --as-card-icon-bg-3: rgba(239, 253, 244, 0.15);
+  --as-card-icon-bg-4: rgba(254, 243, 242, 0.15);
+  --as-card-icon-bg-5: rgba(255, 248, 230, 0.15);
+  --as-card-icon-bg-6: rgba(253, 242, 250, 0.15);
+  --as-card-icon-bg-7: rgba(240, 249, 255, 0.15);
+  --as-card-icon-bg-8: rgba(240, 253, 249, 0.15);
 }

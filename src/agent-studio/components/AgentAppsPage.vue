@@ -35,6 +35,7 @@ import {
   Form,
   FormItem,
   Input,
+  Card,
   Menu,
   MenuItem,
   message,
@@ -488,7 +489,11 @@ const loading = ref(false);
 const llmLoaded = ref(false);
 
 const keyword = ref('');
-const filterStrategy = ref<'ALL' | AgentStrategy>('ALL');
+/**
+ * 按"应用类型"(mode)过滤 —— 对应 Dify 的 chat / agent / workflow / completion 家族。
+ * 'ALL' 表示不过滤。
+ */
+const filterMode = ref<'ALL' | AppMode>('ALL');
 /** Draft vs published filter — Dify's "只看已发布 / 只看草稿" toggle. */
 const filterPublished = ref<'all' | 'draft' | 'published'>('all');
 
@@ -515,16 +520,13 @@ const form = reactive({
 
 // Dify's app-card mode icons — colored square with an emoji
 const ICONS = ['🤖', '💬', '🧠', '🎯', '🛠', '📊', '💡', '⚡', '🔎', '📎'];
+// Background colors for icon picker
 const BGS = [
-  '#FEF3F2',
-  '#EEF4FF',
-  '#EFFDF4',
-  '#FFF4ED',
-  '#F0F9FF',
-  '#FEF6EE',
-  '#FDF2FA',
-  '#F0FDF9',
+  '#FFF4ED', '#EEF4FF', '#EFFDF4', '#FEF3F2',
+  '#FFF8E6', '#FDF2FA', '#F0F9FF', '#F0FDF9',
 ];
+// Background colors now use CSS variables for automatic dark mode support
+const BG_COUNT = 8;
 function hashCode(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) {
@@ -536,9 +538,9 @@ function iconOf(a: AgentEntity) {
   return a.icon || ICONS[hashCode(a.id || a.name) % ICONS.length];
 }
 function bgOf(a: AgentEntity) {
-  return (
-    a.iconBackground || BGS[hashCode((a.id || a.name) + '.bg') % BGS.length]
-  );
+  if (a.iconBackground) return a.iconBackground;
+  const idx = (hashCode((a.id || a.name) + '.bg') % BG_COUNT) + 1;
+  return `var(--as-card-icon-bg-${idx})`;
 }
 function modeLabel(m?: string): string {
   if (m === 'chat') return 'Chat';
@@ -590,7 +592,7 @@ function modelLabel(a: AgentEntity): string {
 const filtered = computed(() => {
   const q = keyword.value.trim().toLowerCase();
   return agents.value.filter((a) => {
-    if (filterStrategy.value !== 'ALL' && a.strategy !== filterStrategy.value) {
+    if (filterMode.value !== 'ALL' && a.mode !== filterMode.value) {
       return false;
     }
     if (filterPublished.value === 'published' && a.published !== true)
@@ -1137,12 +1139,12 @@ onBeforeUnmount(closeTransientUi);
 <template>
   <div class="agent-apps-page">
     <!-- 卡片式工具栏：左侧图标徽章 + 标题 + 副标题，右侧搜索 / 过滤控件 -->
-    <div class="agent-apps-toolbar">
-      <div class="agent-apps-header">
-        <div class="agent-apps-logo" aria-hidden="true">
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
           <svg
-            width="22"
-            height="22"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -1156,57 +1158,60 @@ onBeforeUnmount(closeTransientUi);
             <rect x="14" y="14" width="7" height="7" rx="1.5" />
           </svg>
         </div>
-        <div class="agent-apps-header-text">
-          <div class="agent-apps-title">应用</div>
-          <div class="agent-apps-subtitle">
-            应用列表：对话 · 智能体 · 工作流 · 文本生成
+        <div class="as-page-header-text">
+          <div class="as-page-title">应用</div>
+          <div class="as-page-subtitle">
+            对话 · 智能体 · 工作流 · 文本生成
           </div>
         </div>
       </div>
 
-      <div class="agent-apps-controls">
-        <Input
-          v-model:value="keyword"
-          placeholder="搜索智能体..."
-          allow-clear
-          style="width: 220px"
-        >
-          <template #prefix>
-            <SearchOutlined style="color: #9ca3af" />
-          </template>
-        </Input>
+      <div class="as-page-header-controls">
+        <div class="agent-apps-search">
+          <Input
+            v-model:value="keyword"
+            placeholder="搜索..."
+            allow-clear
+          >
+            <template #prefix>
+              <SearchOutlined style="color: #9ca3af" />
+            </template>
+          </Input>
+        </div>
         <Select
-          v-model:value="filterStrategy"
+          v-model:value="filterMode"
           :options="[
-            { label: '全部策略', value: 'ALL' },
-            { label: 'ReAct', value: 'REACT' },
-            { label: 'Function Calling', value: 'FUNCTION_CALLING' },
-            { label: 'Plan & Execute', value: 'PLAN_EXECUTE' },
+            { label: '全部类型', value: 'ALL' },
+            { label: '对话', value: 'chat' },
+            { label: '智能体', value: 'agent' },
+            { label: '工作流', value: 'workflow' },
+            { label: 'Chatflow', value: 'chatflow' },
+            { label: '文本生成', value: 'completion' },
           ]"
-          style="width: 180px"
+          style="width: 120px; flex: 0 0 auto"
         />
-        <div class="dify-pub-tabs">
+        <div class="aa-pub-tabs">
           <button
-            class="dify-pub-tab"
-            :class="{ 'dify-pub-tab--on': filterPublished === 'all' }"
+            class="aa-pub-tab"
+            :class="{ 'aa-pub-tab--on': filterPublished === 'all' }"
             @click="filterPublished = 'all'"
           >
-            全部 <span class="dify-pub-count">{{ agents.length }}</span>
+            全部 <span class="aa-pub-count">{{ agents.length }}</span>
           </button>
           <button
-            class="dify-pub-tab"
-            :class="{ 'dify-pub-tab--on': filterPublished === 'published' }"
+            class="aa-pub-tab"
+            :class="{ 'aa-pub-tab--on': filterPublished === 'published' }"
             @click="filterPublished = 'published'"
           >
             已发布
-            <span class="dify-pub-count">{{ publishedCount }}</span>
+            <span class="aa-pub-count">{{ publishedCount }}</span>
           </button>
           <button
-            class="dify-pub-tab"
-            :class="{ 'dify-pub-tab--on': filterPublished === 'draft' }"
+            class="aa-pub-tab"
+            :class="{ 'aa-pub-tab--on': filterPublished === 'draft' }"
             @click="filterPublished = 'draft'"
           >
-            草稿 <span class="dify-pub-count">{{ draftCount }}</span>
+            草稿 <span class="aa-pub-count">{{ draftCount }}</span>
           </button>
         </div>
         <span class="agent-apps-count">
@@ -1215,119 +1220,120 @@ onBeforeUnmount(closeTransientUi);
       </div>
     </div>
 
-    <div v-if="loading && agents.length === 0" class="dify-grid">
-      <div v-for="n in 6" :key="n" class="dify-card">
+    <div v-if="loading && agents.length === 0" class="aa-grid">
+      <div v-for="n in 6" :key="n" class="aa-card">
         <Skeleton :active="true" :paragraph="{ rows: 3 }" />
       </div>
     </div>
 
     <Spin :spinning="loading && agents.length > 0">
-      <div v-if="!loading || agents.length > 0" class="dify-grid">
+      <div v-if="!loading || agents.length > 0" class="aa-grid">
         <!-- "新建" 占位卡 —— 点开走 Dify 风格的 CreateAppModal 选类型。
              Never disabled: apps can be created without a model configured. -->
-        <div class="dify-card dify-card-new" @click="openTypePicker">
-          <div class="dify-new-inner">
-            <div class="dify-new-plus">+</div>
-            <div class="dify-new-text">新建应用</div>
-            <div class="dify-new-sub">
-              对话 / Agent / 工作流 / Chatflow / 文本生成
-            </div>
+        <Card
+          variant="management"
+          class="as-create-card"
+          interactive
+          @click="openTypePicker"
+        >
+          <div class="as-create-card__inner">
+            <div class="as-create-card__plus">+</div>
+            <div class="as-create-card__title">新建应用</div>
+            <div class="as-create-card__subtitle">对话 / Agent / 工作流 / Chatflow / 文本生成</div>
           </div>
-        </div>
+        </Card>
 
         <!-- 智能体卡 -->
-        <div
+        <Card variant="management"
           v-for="a in filtered"
           :key="a.id"
-          class="dify-card"
+          class="aa-card"
+          :title="a.name"
+          :description="a.description || a.instructions || '暂无描述'"
           @click="openDesigner(a)"
         >
-          <div class="dify-header">
-            <div class="dify-icon" :style="{ background: bgOf(a) }">
+          <template #icon>
+            <div class="aa-icon" :style="{ background: bgOf(a) }">
               {{ iconOf(a) }}
             </div>
-            <div class="dify-title-wrap">
-              <div class="dify-title" :title="a.name">
-                {{ a.name }}
-                <Tag
-                  :color="a.published === true ? 'green' : 'orange'"
-                  size="small"
-                  style="margin-left: 4px; font-size: 10px"
-                >
-                  {{ a.published === true ? '已发布' : '草稿' }}
-                </Tag>
-              </div>
-              <div class="dify-meta">
-                <Tag :color="modeColor(a.mode)" style="margin-right: 4px">
-                  {{ modeLabel(a.mode) }}
-                </Tag>
-                <Tag
-                  :color="strategyColor(a.strategy)"
-                  style="margin-right: 4px"
-                >
-                  {{ strategyLabel(a.strategy) }}
-                </Tag>
-                <span>· {{ fromNow(a.updatedAt) || '刚刚' }}</span>
-              </div>
-            </div>
-          </div>
+          </template>
 
-          <div class="dify-desc" :title="a.description || a.instructions || ''">
-            {{ a.description || a.instructions || '暂无描述' }}
-          </div>
+          <template #title>
+            <span class="aa-title" :title="a.name">{{ a.name }}</span>
+            <Tag
+              :color="a.published === true ? 'green' : 'orange'"
+              size="small"
+              style="margin-left: 4px; font-size: 10px"
+            >
+              {{ a.published === true ? '已发布' : '草稿' }}
+            </Tag>
+          </template>
 
-          <div class="dify-spacer" />
+          <template #subtitle>
+            <Tag :color="modeColor(a.mode)" style="margin-right: 4px">
+              {{ modeLabel(a.mode) }}
+            </Tag>
+            <Tag
+              :color="strategyColor(a.strategy)"
+              style="margin-right: 4px"
+            >
+              {{ strategyLabel(a.strategy) }}
+            </Tag>
+            <span>· {{ fromNow(a.updatedAt) || '刚刚' }}</span>
+          </template>
 
-          <div class="dify-footer">
-            <span class="dify-footer-item" :title="modelLabel(a)">
+          <template #meta>
+            <span class="aa-footer-item" :title="modelLabel(a)">
               🧠 {{ modelLabel(a) }}
             </span>
             <span
               v-if="a.maxIterations"
-              class="dify-footer-item"
+              class="aa-footer-item"
               :title="`最多 ${a.maxIterations} 轮`"
             >
               🔁 {{ a.maxIterations }}
             </span>
-          </div>
+          </template>
 
-          <div class="dify-more" @click.stop>
-            <Dropdown :trigger="['click']" placement="bottomRight">
-              <Button type="text" size="small" class="dify-more-btn">
-                ⋯
-              </Button>
-              <template #overlay>
-                <Menu class="dify-card-menu">
-                  <MenuItem key="design" class="dify-card-menu-item" @click="openDesigner(a)">
-                    <span class="dify-card-menu-icon" aria-hidden="true">✦</span>
-                    <span>设计应用</span>
-                  </MenuItem>
-                  <MenuItem key="chat" class="dify-card-menu-item" @click="openChat(a)">
-                    <span class="dify-card-menu-icon" aria-hidden="true">▷</span>
-                    <span>独立对话</span>
-                  </MenuItem>
-                  <MenuItem key="edit" class="dify-card-menu-item" @click="openEdit(a)">
-                    <span class="dify-card-menu-icon" aria-hidden="true">✎</span>
-                    <span>编辑基本信息</span>
-                  </MenuItem>
-                  <MenuItem key="permissions" class="dify-card-menu-item" @click="openPermissions(a)">
-                    <span class="dify-card-menu-icon" aria-hidden="true">◇</span>
-                    <span>数据权限</span>
-                  </MenuItem>
-                  <MenuItem key="share" class="dify-card-menu-item" @click="openShare(a)">
-                    <span class="dify-card-menu-icon" aria-hidden="true">↗</span>
-                    <span>分享嵌入</span>
-                  </MenuItem>
-                  <div class="dify-card-menu-divider" />
-                  <MenuItem key="delete" danger class="dify-card-menu-item dify-card-menu-item--danger" @click="remove(a)">
-                    <span class="dify-card-menu-icon" aria-hidden="true">×</span>
-                    <span>删除</span>
-                  </MenuItem>
-                </Menu>
-              </template>
-            </Dropdown>
-          </div>
-        </div>
+          <template #actions>
+            <div class="aa-more" @click.stop>
+              <Dropdown :trigger="['click']" placement="bottomRight">
+                <Button type="text" size="small" class="aa-more-btn">
+                  ⋯
+                </Button>
+                <template #overlay>
+                  <Menu class="aa-card-menu">
+                    <MenuItem key="design" class="aa-card-menu-item" @click="openDesigner(a)">
+                      <span class="aa-card-menu-icon" aria-hidden="true">✦</span>
+                      <span>设计应用</span>
+                    </MenuItem>
+                    <MenuItem key="chat" class="aa-card-menu-item" @click="openChat(a)">
+                      <span class="aa-card-menu-icon" aria-hidden="true">▷</span>
+                      <span>独立对话</span>
+                    </MenuItem>
+                    <MenuItem key="edit" class="aa-card-menu-item" @click="openEdit(a)">
+                      <span class="aa-card-menu-icon" aria-hidden="true">✎</span>
+                      <span>编辑基本信息</span>
+                    </MenuItem>
+                    <MenuItem key="permissions" class="aa-card-menu-item" @click="openPermissions(a)">
+                      <span class="aa-card-menu-icon" aria-hidden="true">◇</span>
+                      <span>数据权限</span>
+                    </MenuItem>
+                    <MenuItem key="share" class="aa-card-menu-item" @click="openShare(a)">
+                      <span class="aa-card-menu-icon" aria-hidden="true">↗</span>
+                      <span>分享嵌入</span>
+                    </MenuItem>
+                    <div class="aa-card-menu-divider" />
+                    <MenuItem key="delete" danger class="aa-card-menu-item aa-card-menu-item--danger" @click="remove(a)">
+                      <span class="aa-card-menu-icon" aria-hidden="true">×</span>
+                      <span>删除</span>
+                    </MenuItem>
+                  </Menu>
+                </template>
+              </Dropdown>
+            </div>
+          </template>
+        </Card>
       </div>
 
       <Empty
@@ -1357,8 +1363,8 @@ onBeforeUnmount(closeTransientUi);
               v-for="ic in ICONS"
               :key="ic"
               type="button"
-              class="dify-emoji-btn"
-              :class="{ 'dify-emoji-btn--on': form.icon === ic }"
+              class="aa-emoji-btn"
+              :class="{ 'aa-emoji-btn--on': form.icon === ic }"
               :style="{ background: form.iconBackground || '#F3F4F6' }"
               @click="form.icon = ic"
             >
@@ -1372,8 +1378,8 @@ onBeforeUnmount(closeTransientUi);
               v-for="bg in BGS"
               :key="bg"
               type="button"
-              class="dify-bg-btn"
-              :class="{ 'dify-bg-btn--on': form.iconBackground === bg }"
+              class="aa-bg-btn"
+              :class="{ 'aa-bg-btn--on': form.iconBackground === bg }"
               :style="{ background: bg }"
               @click="form.iconBackground = bg"
             />
@@ -1489,63 +1495,15 @@ onBeforeUnmount(closeTransientUi);
 <style scoped>
 .agent-apps-page {
   box-sizing: border-box;
-  padding: 20px 24px;
+  padding: 14px 18px;
 }
 @media (max-width: 640px) {
   .agent-apps-page {
-    padding: 12px 16px;
+    padding: 10px 12px;
   }
 }
-/* Card-style header — icon badge + title on the left, search/filter controls
-   on the right. Same bg/border/radius language as the app cards below so it
-   reads as its own surface. Wraps on narrow viewports. */
-.agent-apps-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-  padding: 16px 20px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-:global(.dark) .agent-apps-toolbar {
-  background: #1f1f1f;
-  border-color: #2d2d2d;
-}
-.agent-apps-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-.agent-apps-logo {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
-}
-:global(.dark) .agent-apps-logo {
-  background: linear-gradient(135deg, #818cf8, #6366f1);
-}
-.agent-apps-header-text {
-  min-width: 0;
-}
-.agent-apps-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+/* Note: Page header now uses unified .as-page-header styles from ui/style.css */
+
 .agent-apps-count {
   margin-left: 4px;
   font-size: 12px;
@@ -1555,122 +1513,96 @@ onBeforeUnmount(closeTransientUi);
 :global(.dark) .agent-apps-count {
   color: #9ca3af;
 }
-.agent-apps-title {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  line-height: 1.3;
-  color: #111827;
+/* 搜索框固定宽度(不再 flex 充满),让整行控件紧凑右对齐 */
+.agent-apps-search {
+  flex: 0 0 auto;
+  width: 160px;
 }
-.agent-apps-subtitle {
-  margin-top: 3px;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
+.agent-apps-search :deep(.as-input-wrap) {
+  width: 100%;
 }
-:global(.dark) .agent-apps-title {
-  color: #f3f4f6;
+/* 隐藏搜索框的焦点高亮(边框 + box-shadow),让它在工具栏里更像"裸文本字段" */
+.agent-apps-search :deep(.as-input-wrap:hover) {
+  border-color: var(--as-border, #e5e7eb);
 }
-:global(.dark) .agent-apps-subtitle {
-  color: #9ca3af;
+.agent-apps-search :deep(.as-input-wrap:focus-within) {
+  border-color: var(--as-border, #e5e7eb);
+  box-shadow: none;
 }
 
-.dify-grid {
+.aa-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
 }
-.dify-card {
+.aa-card {
   position: relative;
-  height: 200px;
-  padding: 14px 16px 12px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  /* right padding reserves space for the corner "⋯" menu overlay
+     so the title / subtitle truncate before running under it. */
+  padding-right: 36px;
   cursor: pointer;
-  transition:
-    box-shadow 0.15s ease,
-    transform 0.15s ease,
-    background 0.15s ease;
-  display: flex;
-  flex-direction: column;
   /* The fallback Dropdown renders inside the card. It must be allowed to
      escape the card boundary or its popup will be clipped. */
   overflow: visible;
 }
-:global(.dark) .dify-card {
-  background: #1f1f1f;
-  border-color: #2d2d2d;
+/* Card's footer (#meta + #actions) must sit at the bottom of the
+   fixed-height card, with the meta portion taking the role of the old
+   .aa-footer and the actions portion rendering as a corner overlay. */
+.aa-card:deep(.as-management-card__footer) {
+  font-size: 11px;
+  overflow: hidden;
+  white-space: nowrap;
 }
-.dify-card:hover {
+/* #actions slot hosts the "⋯" corner menu. The wrapper is taken out of flow
+   (absolute against the card) so the footer keeps its full-width top
+   border, and sized so the Dropdown's popup has a non-empty anchor. */
+.aa-card:deep(.as-management-card__actions) {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  width: 30px;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex: none;
+}
+.aa-card:hover {
   z-index: 20;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  transform: translateY(-1px);
 }
-.dify-card-new {
-  border: 1.5px dashed #c7d2fe;
-  background: linear-gradient(135deg, #f5f9ff 0%, #f0f5ff 100%);
-}
-.dify-card-new:hover {
-  border-color: #6366f1;
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
-}
-.dify-card-disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.dify-new-inner {
-  margin: auto 0;
-  text-align: center;
-  color: #6366f1;
-}
-.dify-new-plus {
-  font-size: 42px;
-  line-height: 1;
-  font-weight: 200;
-}
-.dify-new-text {
-  margin-top: 6px;
-  font-size: 15px;
-  font-weight: 500;
-}
-.dify-new-sub {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #94a3b8;
-}
-.dify-header {
+.aa-header {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: flex-start;
 }
-.dify-icon {
-  width: 40px;
-  height: 40px;
+.aa-icon {
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  font-size: 22px;
+  border-radius: 7px;
+  font-size: 19px;
 }
-.dify-title-wrap {
+.aa-title-wrap {
   min-width: 0;
   flex: 1;
 }
-.dify-title {
-  font-size: 15px;
+.aa-title {
+  font-size: 14px;
   font-weight: 600;
   color: #111827;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-:global(.dark) .dify-title {
+:global(.dark) .aa-title {
   color: #f3f4f6;
 }
-.dify-meta {
-  margin-top: 4px;
+.aa-meta {
+  margin-top: 2px;
   font-size: 12px;
   color: #6b7280;
   display: flex;
@@ -1679,13 +1611,13 @@ onBeforeUnmount(closeTransientUi);
   min-width: 0;
   white-space: nowrap;
 }
-.dify-meta :deep(.as-tag) {
+.aa-meta :deep(.as-tag) {
   flex-shrink: 0;
   white-space: nowrap;
 }
-.dify-desc {
-  margin-top: 10px;
-  font-size: 13px;
+.aa-desc {
+  margin-top: 6px;
+  font-size: 12px;
   color: #6b7280;
   line-height: 1.5;
   display: -webkit-box;
@@ -1693,27 +1625,27 @@ onBeforeUnmount(closeTransientUi);
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-:global(.dark) .dify-desc {
+:global(.dark) .aa-desc {
   color: #9ca3af;
 }
-.dify-spacer {
+.aa-spacer {
   flex: 1;
 }
-.dify-footer {
+.aa-footer {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 12px;
+  gap: 10px;
+  font-size: 11px;
   color: #6b7280;
   border-top: 1px solid #f3f4f6;
-  padding-top: 8px;
+  padding-top: 6px;
   overflow: hidden;
   white-space: nowrap;
 }
-:global(.dark) .dify-footer {
+:global(.dark) .aa-footer {
   border-top-color: #2d2d2d;
 }
-.dify-footer-item {
+.aa-footer-item {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1721,14 +1653,14 @@ onBeforeUnmount(closeTransientUi);
   text-overflow: ellipsis;
   max-width: 200px;
 }
-.dify-more {
+.aa-more {
   position: absolute;
   top: 8px;
   right: 8px;
   opacity: 1;
   z-index: 3;
 }
-.dify-more-btn {
+.aa-more-btn {
   width: 30px;
   min-width: 30px;
   font-size: 20px;
@@ -1739,12 +1671,12 @@ onBeforeUnmount(closeTransientUi);
   color: #64748b;
   border-radius: 8px;
 }
-.dify-more-btn:hover,
-.dify-more-btn:focus-visible {
+.aa-more-btn:hover,
+.aa-more-btn:focus-visible {
   color: #334155;
   background: #f1f5f9;
 }
-.dify-more :deep(.as-popover__panel) {
+.aa-more :deep(.as-popover__panel) {
   left: auto;
   right: 0;
   top: calc(100% + 6px);
@@ -1759,11 +1691,11 @@ onBeforeUnmount(closeTransientUi);
   backdrop-filter: blur(12px);
   transform-origin: top right;
 }
-.dify-more :deep(.dify-card-menu) {
+.aa-more :deep(.aa-card-menu) {
   min-width: 0;
   padding: 0;
 }
-.dify-more :deep(.dify-card-menu-item) {
+.aa-more :deep(.aa-card-menu-item) {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1775,13 +1707,13 @@ onBeforeUnmount(closeTransientUi);
   border-radius: 8px;
   transition: color 0.12s ease, background 0.12s ease;
 }
-.dify-more :deep(.dify-card-menu-item:hover),
-.dify-more :deep(.dify-card-menu-item:focus-visible) {
+.aa-more :deep(.aa-card-menu-item:hover),
+.aa-more :deep(.aa-card-menu-item:focus-visible) {
   color: #3730a3;
   background: #eef2ff;
   outline: none;
 }
-.dify-more :deep(.dify-card-menu-icon) {
+.aa-more :deep(.aa-card-menu-icon) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1791,46 +1723,46 @@ onBeforeUnmount(closeTransientUi);
   color: #64748b;
   font-size: 15px;
 }
-.dify-more :deep(.dify-card-menu-divider) {
+.aa-more :deep(.aa-card-menu-divider) {
   height: 1px;
   margin: 5px 4px;
   background: #e2e8f0;
 }
-.dify-more :deep(.dify-card-menu-item--danger) {
+.aa-more :deep(.aa-card-menu-item--danger) {
   color: #dc2626;
 }
-.dify-more :deep(.dify-card-menu-item--danger .dify-card-menu-icon) {
+.aa-more :deep(.aa-card-menu-item--danger .aa-card-menu-icon) {
   color: #dc2626;
 }
-.dify-more :deep(.dify-card-menu-item--danger:hover),
-.dify-more :deep(.dify-card-menu-item--danger:focus-visible) {
+.aa-more :deep(.aa-card-menu-item--danger:hover),
+.aa-more :deep(.aa-card-menu-item--danger:focus-visible) {
   color: #b91c1c;
   background: #fef2f2;
 }
-:global(.dark) .dify-more-btn:hover,
-:global(.dark) .dify-more-btn:focus-visible {
+:global(.dark) .aa-more-btn:hover,
+:global(.dark) .aa-more-btn:focus-visible {
   color: #e2e8f0;
   background: #334155;
 }
-:global(.dark) .dify-more :deep(.as-popover__panel) {
+:global(.dark) .aa-more :deep(.as-popover__panel) {
   background: rgba(30, 41, 59, 0.98);
   border-color: #475569;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
 }
-:global(.dark) .dify-more :deep(.dify-card-menu-item) {
+:global(.dark) .aa-more :deep(.aa-card-menu-item) {
   color: #e2e8f0;
 }
-:global(.dark) .dify-more :deep(.dify-card-menu-item:hover),
-:global(.dark) .dify-more :deep(.dify-card-menu-item:focus-visible) {
+:global(.dark) .aa-more :deep(.aa-card-menu-item:hover),
+:global(.dark) .aa-more :deep(.aa-card-menu-item:focus-visible) {
   color: #c7d2fe;
   background: rgba(99, 102, 241, 0.18);
 }
-:global(.dark) .dify-more :deep(.dify-card-menu-divider) {
+:global(.dark) .aa-more :deep(.aa-card-menu-divider) {
   background: #475569;
 }
 
 /* Emoji picker for the agent icon */
-.dify-emoji-btn {
+.aa-emoji-btn {
   width: 32px;
   height: 32px;
   font-size: 18px;
@@ -1844,24 +1776,26 @@ onBeforeUnmount(closeTransientUi);
     border-color 0.15s,
     transform 0.1s;
 }
-.dify-emoji-btn:hover {
+.aa-emoji-btn:hover {
   border-color: #a5b4fc;
   transform: scale(1.05);
 }
-.dify-emoji-btn--on {
+.aa-emoji-btn--on {
   border-color: #6366f1;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
 }
 
 /* Published filter tabs */
-.dify-pub-tabs {
+.aa-pub-tabs {
   display: inline-flex;
-  gap: 2px;
+  gap: 1px;
   padding: 2px;
   background: #f3f4f6;
   border-radius: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
-.dify-pub-tab {
+.aa-pub-tab {
   background: transparent;
   border: none;
   border-radius: 4px;
@@ -1869,19 +1803,22 @@ onBeforeUnmount(closeTransientUi);
   font-size: 12px;
   color: #6b7280;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
+  line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.dify-pub-tab:hover {
+.aa-pub-tab:hover {
   color: #111827;
 }
-.dify-pub-tab--on {
+.aa-pub-tab--on {
   background: #fff;
   color: #111827;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.dify-pub-count {
+.aa-pub-count {
   padding: 0 4px;
   font-size: 10px;
   border-radius: 999px;
@@ -1889,13 +1826,13 @@ onBeforeUnmount(closeTransientUi);
   min-width: 16px;
   text-align: center;
 }
-.dify-pub-tab--on .dify-pub-count {
+.aa-pub-tab--on .aa-pub-count {
   background: #eef2ff;
   color: #4338ca;
 }
 
 /* Background color picker */
-.dify-bg-btn {
+.aa-bg-btn {
   width: 28px;
   height: 28px;
   border: 2px solid transparent;
@@ -1903,10 +1840,10 @@ onBeforeUnmount(closeTransientUi);
   cursor: pointer;
   transition: border-color 0.15s;
 }
-.dify-bg-btn:hover {
+.aa-bg-btn:hover {
   border-color: #9ca3af;
 }
-.dify-bg-btn--on {
+.aa-bg-btn--on {
   border-color: #6366f1;
 }
 </style>

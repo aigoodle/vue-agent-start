@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 
 import type { AgentStartClient } from '../../client';
-import { Modal } from '../../ui';
+import { Button, Modal } from '../../ui';
 import type {
   ChannelConnection,
   ChannelConversation,
@@ -438,7 +438,7 @@ const formatTime = (value?: string) => (value ? new Date(value).toLocaleString()
               />
               自动刷新
             </label>
-            <button class="cmd-btn" @click="refreshAll">刷新</button>
+            <Button @click="refreshAll">刷新</Button>
           </div>
           <button class="cmd-close" @click="emit('update:open', false)">✕</button>
         </header>
@@ -595,10 +595,15 @@ const formatTime = (value?: string) => (value ? new Date(value).toLocaleString()
               <div v-if="replyError" class="cmd-form-error">{{ replyError }}</div>
             </main>
             <template #footer><div class="cmd-dialog-footer">
-              <button class="cmd-btn" :disabled="replySaving" @click="closeReply">取消</button>
-              <button class="cmd-btn is-primary" :disabled="replySaving || (!replyContent.trim() && !replyAttachmentUrl.trim())" @click="submitReply">
-                {{ replySaving ? '提交中…' : '加入发送队列' }}
-              </button>
+              <Button :disabled="replySaving" @click="closeReply">取消</Button>
+              <Button
+                type="primary"
+                :loading="replySaving"
+                :disabled="!replyContent.trim() && !replyAttachmentUrl.trim()"
+                @click="submitReply"
+              >
+                加入发送队列
+              </Button>
             </div></template>
       </Modal>
 
@@ -625,17 +630,21 @@ const formatTime = (value?: string) => (value ? new Date(value).toLocaleString()
               <div v-if="handoffError" class="cmd-form-error">{{ handoffError }}</div>
             </main>
             <template #footer><div class="cmd-dialog-footer">
-              <button class="cmd-btn" :disabled="handoffSaving" @click="closeHandoff">取消</button>
-              <button class="cmd-btn is-primary" :disabled="handoffSaving" @click="submitHandoff">
-                {{ handoffSaving ? '提交中…' : '确认转人工' }}
-              </button>
+              <Button :disabled="handoffSaving" @click="closeHandoff">取消</Button>
+              <Button
+                type="primary"
+                :loading="handoffSaving"
+                @click="submitHandoff"
+              >
+                确认转人工
+              </Button>
             </div></template>
       </Modal>
 
       <Modal v-model:open="noteOpen" class="cmd-dialog" centered :width="560" :mask-closable="!noteSaving" :keyboard="!noteSaving" :closable="!noteSaving">
             <template #title><div><h3>添加内部备注</h3><p>仅企业内部可见，不会发送给外部用户</p></div></template>
             <main><label class="cmd-form-field">备注内容<textarea v-model="noteContent" rows="5" maxlength="2000" placeholder="记录处理过程、判断或交接信息"></textarea></label></main>
-            <template #footer><div class="cmd-dialog-footer"><button class="cmd-btn" :disabled="noteSaving" @click="noteOpen = false">取消</button><button class="cmd-btn is-primary" :disabled="noteSaving || !noteContent.trim()" @click="submitNote">保存内部备注</button></div></template>
+            <template #footer><div class="cmd-dialog-footer"><Button :disabled="noteSaving" @click="noteOpen = false">取消</Button><Button type="primary" :loading="noteSaving" :disabled="!noteContent.trim()" @click="submitNote">保存内部备注</Button></div></template>
       </Modal>
     </div>
   </Transition>

@@ -251,12 +251,12 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
 }
 .kh-doctab-intro {
   font-size: 12px;
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
   margin-bottom: 12px;
   line-height: 1.5;
 }
 .kh-doctab-more {
-  color: #4338ca;
+  color: var(--kh-color-primary);
   text-decoration: none;
 }
 
@@ -279,16 +279,16 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
 }
 .kh-doctab-select {
   padding: 6px 24px 6px 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--kh-input-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--kh-input-bg);
   font-size: 12px;
-  color: #475569;
+  color: var(--kh-color-text-secondary);
   cursor: pointer;
   outline: none;
 }
 .kh-doctab-select:focus {
-  border-color: #6366f1;
+  border-color: var(--kh-color-primary);
 }
 .kh-doctab-search {
   position: relative;
@@ -299,24 +299,25 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   top: 50%;
   transform: translateY(-50%);
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 .kh-doctab-search-input {
   padding: 6px 10px 6px 26px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--kh-input-border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--kh-input-bg);
+  color: var(--kh-color-text-primary);
   font-size: 12px;
   outline: none;
   min-width: 200px;
 }
 .kh-doctab-search-input:focus {
-  border-color: #6366f1;
+  border-color: var(--kh-color-primary);
 }
 
 .kh-btn {
   padding: 6px 12px;
-  border: none;
+  border: 1px solid var(--kh-color-border);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
@@ -325,26 +326,27 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
 .kh-btn-primary {
   background: linear-gradient(135deg, #6366f1, #4f46e5);
   color: #fff;
+  border-color: var(--kh-color-primary);
   box-shadow: 0 2px 4px rgba(79, 70, 229, 0.25);
 }
 .kh-btn-primary:hover {
   transform: translateY(-1px);
 }
 .kh-btn-secondary {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--kh-color-surface);
+  color: var(--kh-color-text-secondary);
 }
 .kh-btn-secondary:hover {
-  background: #e2e8f0;
+  background: var(--kh-color-surface-hover);
 }
 
 /* Table */
 .kh-doctab-table {
   flex: 1;
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--kh-color-border);
   border-radius: 8px;
   overflow: auto;
-  background: #fff;
+  background: var(--kh-color-surface);
 }
 .kh-doctab-thead,
 .kh-doctab-row {
@@ -356,22 +358,22 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
 }
 .kh-doctab-thead {
   height: 40px;
-  background: #f8fafc;
-  border-bottom: 1px solid #f1f5f9;
+  background: var(--kh-color-surface-sunken);
+  border-bottom: 1px solid var(--kh-color-border);
   font-size: 11px;
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
   font-weight: 500;
 }
 .kh-doctab-row {
   height: 44px;
-  border-bottom: 1px solid #f8fafc;
+  border-bottom: 1px solid var(--kh-color-divider);
   font-size: 12px;
-  color: #334155;
+  color: var(--kh-color-text-secondary);
   cursor: pointer;
   transition: background 0.15s;
 }
 .kh-doctab-row:hover {
-  background: #f8fafc;
+  background: var(--kh-color-surface-hover);
 }
 .kh-col {
   overflow: hidden;
@@ -379,7 +381,7 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   white-space: nowrap;
 }
 .kh-col-num {
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
 }
 .kh-col-name {
   display: flex;
@@ -387,7 +389,7 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   gap: 6px;
 }
 .kh-doc-icon {
-  color: #4338ca;
+  color: var(--kh-color-primary);
 }
 .kh-doc-name {
   overflow: hidden;
@@ -396,12 +398,12 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
 }
 .kh-mode-chip {
   padding: 2px 8px;
-  background: #eef2ff;
-  color: #4338ca;
+  background: var(--kh-color-primary-soft);
+  color: var(--kh-color-primary);
   border-radius: 4px;
   font-size: 11px;
 }
-.kh-parser-chip { display: block; margin-top: 3px; color: #64748b; font-size: 10px; }
+.kh-parser-chip { display: block; margin-top: 3px; color: var(--kh-color-text-tertiary); font-size: 10px; }
 .kh-col-status {
   display: flex;
   align-items: center;
@@ -462,12 +464,12 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   border-radius: 4px;
   background: transparent;
   font-size: 16px;
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
   cursor: pointer;
   line-height: 1;
 }
 .kh-more-btn:hover {
-  background: #f1f5f9;
+  background: var(--kh-color-surface-hover);
 }
 .kh-more-menu {
   position: absolute;
@@ -476,8 +478,8 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   z-index: 20;
   min-width: 140px;
   padding: 4px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--kh-color-surface-raised);
+  border: 1px solid var(--kh-color-border);
   border-radius: 6px;
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.1);
 }
@@ -485,11 +487,11 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   padding: 6px 10px;
   border-radius: 4px;
   font-size: 12px;
-  color: #475569;
+  color: var(--kh-color-text-secondary);
   cursor: pointer;
 }
 .kh-more-item:hover {
-  background: #f8fafc;
+  background: var(--kh-color-surface-hover);
 }
 .kh-more-danger {
   color: #dc2626;
@@ -498,7 +500,7 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
 .kh-doctab-empty {
   padding: 40px 20px;
   text-align: center;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
   font-size: 12px;
 }
 
@@ -515,18 +517,18 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
 }
 .kh-pager-btn {
   padding: 2px 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--kh-color-border);
   border-radius: 4px;
-  background: #fff;
+  background: var(--kh-color-surface);
   cursor: pointer;
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
 }
 .kh-pager-btn:hover {
-  background: #f1f5f9;
+  background: var(--kh-color-surface-hover);
 }
 .kh-pager-page {
   min-width: 40px;
@@ -535,7 +537,7 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
 .kh-pager-center {
   text-align: center;
   font-size: 12px;
-  color: #64748b;
+  color: var(--kh-color-text-tertiary);
 }
 .kh-pager-sizes {
   display: flex;
@@ -547,13 +549,13 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
   border: none;
   background: transparent;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--kh-color-text-muted);
   cursor: pointer;
   border-radius: 4px;
 }
 .kh-pager-size:hover {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--kh-color-surface-hover);
+  color: var(--kh-color-text-secondary);
 }
 .kh-pager-size-active {
   background: #4f46e5;

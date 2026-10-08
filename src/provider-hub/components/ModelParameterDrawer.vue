@@ -17,6 +17,7 @@
  */
 import { computed, reactive, ref, watch } from 'vue';
 
+import { Button } from '../../ui';
 import { useProviderHub } from '../composables/useProviderHub';
 import type {
   ModelEntity,
@@ -358,45 +359,42 @@ function stepFor(r: ModelParameterRule): number {
 
       <footer class="mpd-foot">
         <div class="mpd-foot-left">
-          <button
-            class="mpd-btn mpd-btn--ghost"
-            :disabled="testing || !model"
+          <Button
+            type="text"
+            :loading="testing"
+            :disabled="!model"
             @click="onTest"
           >
-            {{ testing ? '测试中…' : '🔍 测试连接' }}
-          </button>
-          <button
+            🔍 测试连接
+          </Button>
+          <Button
             v-if="model && !model.isDefault"
-            class="mpd-btn mpd-btn--ghost"
+            type="text"
             @click="onSetDefault"
           >
             设为默认
-          </button>
-          <button
-            class="mpd-btn mpd-btn--ghost mpd-btn--danger"
+          </Button>
+          <Button
+            type="text"
+            danger
             :disabled="!model"
             @click="onDelete"
           >
             删除模型
-          </button>
+          </Button>
         </div>
         <div class="mpd-foot-right">
-          <button class="mpd-btn" @click="emit('update:open', false)">
+          <Button @click="emit('update:open', false)">
             取消
-          </button>
-          <button
-            class="mpd-btn mpd-btn--primary"
-            :disabled="saving || touched.size === 0"
+          </Button>
+          <Button
+            type="primary"
+            :loading="saving"
+            :disabled="touched.size === 0"
             @click="save"
           >
-            {{
-              saving
-                ? '保存中…'
-                : touched.size === 0
-                  ? '未修改'
-                  : `保存 ${touched.size} 项`
-            }}
-          </button>
+            {{ touched.size === 0 ? '未修改' : `保存 ${touched.size} 项` }}
+          </Button>
         </div>
       </footer>
     </aside>

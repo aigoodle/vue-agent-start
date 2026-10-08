@@ -13,6 +13,7 @@
  */
 import { computed, ref } from 'vue';
 
+import { Modal } from '../../ui/components/Modal';
 import type { ChunkPreview } from '../types/api';
 import type {
   ParentMode,
@@ -331,121 +332,122 @@ function humanSize(bytes: number): string {
 </script>
 
 <template>
-  <Teleport to="body" :disabled="!open">
-    <div v-if="open" class="kh-wizard-mask" @click.self="close">
-      <div class="kh-wizard-shell">
-        <!-- top bar (modal-style: no back button, close × on the right) -->
-        <div class="kh-topbar">
-          <div class="kh-topbar-title">创建知识库</div>
-          <div class="kh-stepper">
-            <div
-              v-for="(s, i) in steps"
+  <Modal
+    :open="open"
+    title="创建知识库"
+    :width="1200"
+    :footer="false"
+    @update:open="close"
+  >
+    <div class="kh-wizard-content">
+      <!-- 步骤指示器移到内容区域顶部 -->
+      <div class="kh-stepper">
+        <div
+          v-for="(s, i) in steps"
+          :key="s.id"
+          class="kh-step"
+          :class="{ 'kh-step-active': step === s.id, 'kh-step-done': step > s.id }"
+        >
+          <span class="kh-step-num">
+            <span v-if="step === s.id" class="kh-step-num-badge">
+              STEP {{ s.id }}
+            </span>
+            <span v-else>{{ s.id }}</span>
+          </span>
+          <span class="kh-step-label">{{ s.label }}</span>
+          <span v-if="i < steps.length - 1" class="kh-step-dash" />
+        </div>
+      </div>
+
+      <!-- STEP 1: 选择数据源 -->
+      <div v-if="step === 1" class="kh-body kh-body-center">
+        <div class="kh-content-narrow">
+          <div class="kh-section-label">选择数据源</div>
+          <div class="kh-source-row">
+            <button
+              v-for="s in SOURCES"
               :key="s.id"
-              class="kh-step"
-              :class="{ 'kh-step-active': step === s.id, 'kh-step-done': step > s.id }"
+              type="button"
+              class="kh-source"
+              :class="{
+                'kh-source-active': source === s.id,
+                'kh-source-disabled': !s.enabled,
+              }"
+              :disabled="!s.enabled"
+              @click="s.enabled && (source = s.id)"
             >
-              <span class="kh-step-num">
-                <span v-if="step === s.id" class="kh-step-num-badge">
-                  STEP {{ s.id }}
-                </span>
-                <span v-else>{{ s.id }}</span>
-              </span>
-              <span class="kh-step-label">{{ s.label }}</span>
-              <span v-if="i < steps.length - 1" class="kh-step-dash" />
-            </div>
-          </div>
-          <button class="kh-close" aria-label="close" @click="close">×</button>
-        </div>
-
-        <!-- STEP 1: 选择数据源 -->
-        <div v-if="step === 1" class="kh-body kh-body-center">
-          <div class="kh-content-narrow">
-            <div class="kh-section-label">选择数据源</div>
-            <div class="kh-source-row">
-              <button
-                v-for="s in SOURCES"
-                :key="s.id"
-                type="button"
-                class="kh-source"
-                :class="{
-                  'kh-source-active': source === s.id,
-                  'kh-source-disabled': !s.enabled,
-                }"
-                :disabled="!s.enabled"
-                @click="s.enabled && (source = s.id)"
-              >
-                <div
-                  class="kh-source-icon"
-                  :style="{ background: s.iconBg }"
-                >
-                  {{ s.icon }}
-                </div>
-                <div class="kh-source-label">{{ s.label }}</div>
-              </button>
-            </div>
-
-            <div class="kh-section-label" style="margin-top: 22px">上传文本文件</div>
-            <div
-              class="kh-dropzone"
-              :class="{ 'kh-dropzone-over': dragOver }"
-              @dragenter.prevent="dragOver = true"
-              @dragover.prevent="dragOver = true"
-              @dragleave.prevent="dragOver = false"
-              @drop="onDrop"
-              @click="fileInputRef?.click()"
-            >
-              <div class="kh-dz-row">
-                <span class="kh-dz-icon">☁</span>
-                <span class="kh-dz-text">
-                  拖拽文件或文件夹至此，或者
-                  <span class="kh-dz-link">选择文件</span>
-                </span>
-              </div>
-              <div class="kh-dz-hint">
-                已支持
-                <template v-for="(a, i) in ALLOWED" :key="a">
-                  <span>{{ a }}</span>
-                  <span v-if="i < ALLOWED.length - 1">、</span>
-                </template>
-                。每批最多 5 个文件，每个文件不超过 15 MB。
-              </div>
-              <input
-                ref="fileInputRef"
-                type="file"
-                multiple
-                class="kh-hidden-input"
-                @change="onFileInput"
-              />
-            </div>
-
-            <div v-if="files.length > 0" class="kh-file-list">
               <div
-                v-for="(f, i) in files"
-                :key="i"
-                class="kh-file-row"
+                class="kh-source-icon"
+                :style="{ background: s.iconBg }"
               >
-                <span class="kh-file-icon">📄</span>
-                <span class="kh-file-name">{{ f.name }}</span>
-                <span class="kh-file-size">{{ humanSize(f.size) }}</span>
-                <button class="kh-file-x" @click="removeFile(i)">×</button>
+                {{ s.icon }}
               </div>
-            </div>
+              <div class="kh-source-label">{{ s.label }}</div>
+            </button>
+          </div>
 
-            <div class="kh-step1-actions">
-              <button
-                class="kh-btn kh-btn-primary"
-                :disabled="!step1Ready"
-                @click="goToStep2"
-              >
-                下一步 →
-              </button>
+          <div class="kh-section-label" style="margin-top: 22px">上传文本文件</div>
+          <div
+            class="kh-dropzone"
+            :class="{ 'kh-dropzone-over': dragOver }"
+            @dragenter.prevent="dragOver = true"
+            @dragover.prevent="dragOver = true"
+            @dragleave.prevent="dragOver = false"
+            @drop="onDrop"
+            @click="fileInputRef?.click()"
+          >
+            <div class="kh-dz-row">
+              <span class="kh-dz-icon">☁</span>
+              <span class="kh-dz-text">
+                拖拽文件或文件夹至此，或者
+                <span class="kh-dz-link">选择文件</span>
+              </span>
             </div>
+            <div class="kh-dz-hint">
+              已支持
+              <template v-for="(a, i) in ALLOWED" :key="a">
+                <span>{{ a }}</span>
+                <span v-if="i < ALLOWED.length - 1">、</span>
+              </template>
+              。每批最多 5 个文件，每个文件不超过 15 MB。
+            </div>
+            <input
+              ref="fileInputRef"
+              type="file"
+              multiple
+              class="kh-hidden-input"
+              @change="onFileInput"
+            />
+          </div>
 
-            <div class="kh-empty-link" @click="emit('skip-to-empty')">
-              📂 创建一个空知识库
+          <div v-if="files.length > 0" class="kh-file-list">
+            <div
+              v-for="(f, i) in files"
+              :key="i"
+              class="kh-file-row"
+            >
+              <span class="kh-file-icon">📄</span>
+              <span class="kh-file-name">{{ f.name }}</span>
+              <span class="kh-file-size">{{ humanSize(f.size) }}</span>
+              <button class="kh-file-x" @click="removeFile(i)">×</button>
             </div>
           </div>
+
+          <div class="kh-step1-actions">
+            <button
+              class="kh-btn kh-btn-primary"
+              :disabled="!step1Ready"
+              @click="goToStep2"
+            >
+              下一步 →
+            </button>
+          </div>
+
+          <div class="kh-empty-link" @click="emit('skip-to-empty')">
+            📂 创建一个空知识库
+          </div>
         </div>
+      </div>
 
         <!-- STEP 2: 分段与清洗 + 索引 + 检索 -->
         <div v-if="step === 2" class="kh-body kh-body-split">
@@ -863,83 +865,28 @@ function humanSize(bytes: number): string {
             </div>
           </div>
         </div>
-      </div>
     </div>
-  </Teleport>
+  </Modal>
 </template>
 
 <style scoped>
-/* Modal-style overlay: centered card with fade-in. Consumers close with the
-   × in the top-right or by clicking the backdrop. */
-.kh-wizard-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 1040;
-  background: rgba(15, 23, 42, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-.kh-wizard-shell {
-  width: 100%;
-  max-width: 1200px;
-  height: min(920px, calc(100vh - 48px));
-  background: #fff;
-  border-radius: 14px;
+/* Wizard content wrapper */
+.kh-wizard-content {
   display: flex;
   flex-direction: column;
-  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
-  overflow: hidden;
-  animation: kh-wizard-in 0.2s ease-out;
-}
-@keyframes kh-wizard-in {
-  from {
-    transform: scale(0.98);
-    opacity: 0.8;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
+  height: 100%;
+  min-height: 0;
 }
 
-/* Top bar */
-.kh-topbar {
-  display: grid;
-  grid-template-columns: 200px 1fr 60px;
-  align-items: center;
-  padding: 14px 24px;
-  border-bottom: 1px solid #f1f5f9;
-  background: #fff;
-}
-.kh-topbar-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-}
-.kh-close {
-  justify-self: end;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: #94a3b8;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-}
-.kh-close:hover {
-  background: #f1f5f9;
-  color: #475569;
-}
+/* Stepper moved to content area */
 .kh-stepper {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
 }
 .kh-step {
   display: inline-flex;
@@ -980,7 +927,7 @@ function humanSize(bytes: number): string {
 .kh-body {
   flex: 1;
   overflow-y: auto;
-  padding: 40px 40px 80px;
+  padding: 24px 40px 40px;
 }
 .kh-body-center {
   display: flex;

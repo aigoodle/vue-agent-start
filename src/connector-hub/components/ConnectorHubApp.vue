@@ -8,6 +8,7 @@ import {
   type AgentStartHeaders,
   useAgentStartConfig,
 } from '../../config';
+import { Card } from '../../ui';
 import type {
   ConnectorAction,
   ConnectorConnection,
@@ -179,21 +180,26 @@ onMounted(load);
 
 <template>
   <div class="ch-root">
-    <!-- 页面头部工具栏 -->
-    <header class="ch-toolbar">
-      <div class="ch-toolbar-head">
-        <div class="ch-toolbar-logo">🔌</div>
-        <div class="ch-toolbar-text">
-          <h2 class="ch-toolbar-title">Connector 中心</h2>
-          <p class="ch-toolbar-subtitle">
-            管理供 Agent 与工作流调用的业务连接器、凭据和执行记录
-          </p>
+    <!-- 页面头部 -->
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
+          <span style="font-size: 18px">🔌</span>
+        </div>
+        <div class="as-page-header-text">
+          <div class="as-page-title">Connector 中心</div>
+          <div class="as-page-subtitle">
+            业务连接器 · 凭据管理 · 执行记录
+          </div>
         </div>
       </div>
-      <button class="ch-btn ch-btn-primary" @click="refresh">
-        刷新并同步
-      </button>
-    </header>
+
+      <div class="as-page-header-controls">
+        <button class="ch-btn ch-btn-primary" @click="refresh">
+          刷新并同步
+        </button>
+      </div>
+    </div>
 
     <!-- 页签 -->
     <nav class="ch-tabs">
@@ -234,27 +240,29 @@ onMounted(load);
         没有匹配的连接器
       </div>
       <div v-else class="ch-grid">
-        <article
+        <Card variant="management"
           v-for="c in filtered"
           :key="`${c.key.provider}:${c.key.connectorId}`"
           class="ch-card"
+          :interactive="false"
+          :title="c.name"
+          :subtitle="`${c.key.provider} · ${c.version}`"
+          :description="c.description"
         >
-          <div class="ch-card-head">
+          <template #icon>
             <span class="ch-icon">{{ c.icon || '🔌' }}</span>
-            <div class="ch-card-title">
-              <b>{{ c.name }}</b>
-              <small>{{ c.key.provider }} · {{ c.version }}</small>
-            </div>
+          </template>
+
+          <template #badge>
             <span
               class="ch-pill"
               :class="installationOf(c)?.enabled ? 'is-on' : 'is-off'"
             >
               {{ installationOf(c)?.enabled ? '已启用' : '已禁用' }}
             </span>
-          </div>
+          </template>
 
-          <p class="ch-desc">{{ c.description }}</p>
-
+          <template #default>
             <div class="ch-badges">
               <span v-if="c.metadata?.kind === 'PLUGIN'">{{ c.metadata.runtime === 'JAVA' ? 'Java 插件' : '独立服务插件' }}</span>
               <span>{{ c.category || '其他' }}</span>
@@ -273,10 +281,11 @@ onMounted(load);
               <small :class="['ch-risk', riskClass(a.riskLevel)]">
                 {{ a.riskLevel || 'WRITE' }}
               </small>
-            </button>
-          </div>
+              </button>
+            </div>
+          </template>
 
-          <footer class="ch-card-footer">
+          <template #actions>
             <button class="ch-btn" @click="details(c)">查看详情</button>
             <button class="ch-btn" @click="openConnection(c)">
               + 新建连接
@@ -284,8 +293,8 @@ onMounted(load);
             <button class="ch-btn" @click="toggle(c)">
               {{ installationOf(c)?.enabled ? '禁用' : '启用' }}
             </button>
-          </footer>
-        </article>
+          </template>
+        </Card>
       </div>
     </template>
 
@@ -550,80 +559,11 @@ onMounted(load);
   gap: 14px;
 }
 .ch-card {
-  display: flex;
-  flex-direction: column;
   gap: 12px;
-  padding: 16px 18px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  transition:
-    box-shadow 0.15s ease,
-    transform 0.15s ease,
-    border-color 0.15s ease;
-}
-.ch-card:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  border-color: #a5b4fc;
-  transform: translateY(-1px);
-}
-:global(.dark) .ch-card {
-  background: #1f1f1f;
-  border-color: #2d2d2d;
-}
-:global(.dark) .ch-card:hover {
-  border-color: #6366f1;
-}
-
-.ch-card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  min-height: 0;
 }
 .ch-icon {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 22px;
-  background: #eef2ff;
-  border-radius: 10px;
-}
-:global(.dark) .ch-icon {
-  background: rgba(99, 102, 241, 0.15);
-}
-.ch-card-title {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-.ch-card-title b {
-  font-size: 14px;
-  color: #111827;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ch-card-title small {
-  font-size: 12px;
-  color: #9ca3af;
-}
-:global(.dark) .ch-card-title b {
-  color: #f3f4f6;
-}
-
-.ch-desc {
-  margin: 0;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.5;
-  min-height: 40px;
-}
-:global(.dark) .ch-desc {
-  color: #9ca3af;
 }
 
 .ch-badges {
@@ -701,16 +641,13 @@ onMounted(load);
   color: #f87171;
 }
 
-.ch-card-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid #f3f4f6;
+.ch-card:deep(.as-management-card__content) {
+  display: grid;
+  gap: 12px;
 }
-:global(.dark) .ch-card-footer {
-  border-top-color: #2d2d2d;
+.ch-card:deep(.as-management-card__actions) {
+  width: 100%;
+  justify-content: flex-end;
 }
 
 /* -------- 按钮 -------- */

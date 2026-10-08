@@ -10,14 +10,22 @@
 
 /* -------- 配置面板结构 -------- */
 .wf-config-panel {
+  --wf-config-bg: #ffffff;
+  --wf-config-body-bg: #f6f7f9;
+  --wf-config-surface: #ffffff;
+  --wf-config-surface-hover: #f3f4f6;
+  --wf-config-border: #e5e7eb;
+  --wf-config-text: #1f2937;
+  --wf-config-text-secondary: #4b5563;
+  --wf-config-text-muted: #9ca3af;
   position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #ffffff;
+  background: var(--wf-config-bg);
   overflow: hidden;
   font-size: 13px;
-  color: #1f2937;
+  color: var(--wf-config-text);
 }
 
 .wf-config-header {
@@ -25,8 +33,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--wf-config-bg);
+  border-bottom: 1px solid var(--wf-config-border);
 }
 
 .wf-config-header-icon {
@@ -53,31 +61,31 @@
   padding: 2px 4px !important;
   font-size: 14px !important;
   font-weight: 600 !important;
-  color: #1f2937;
+  color: var(--wf-config-text);
   background: transparent !important;
   border-radius: 4px !important;
 }
 
 .wf-config-header-title-input:hover {
-  background: #f3f4f6 !important;
+  background: var(--wf-config-surface-hover) !important;
 }
 
 .wf-config-header-actions {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #6b7280;
+  color: var(--wf-config-text-secondary);
 }
 
 .wf-config-desc {
   padding: 8px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--wf-config-bg);
+  border-bottom: 1px solid var(--wf-config-border);
 }
 
 .wf-config-desc :deep(.ant-input) {
   font-size: 12px !important;
-  color: #6b7280 !important;
+  color: var(--wf-config-text-secondary) !important;
 }
 
 .wf-config-body {
@@ -85,7 +93,7 @@
   min-height: 0;
   padding: 8px 10px 12px;
   overflow-y: auto;
-  background: #f6f7f9;
+  background: var(--wf-config-body-bg);
 }
 
 /* 配置面板体内的滚动条 */
@@ -96,19 +104,19 @@
   background: transparent;
 }
 .wf-config-body::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--wf-config-border);
   border-radius: 3px;
 }
 .wf-config-body::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--wf-config-text-muted);
 }
 
 /* -------- 表单节段（各 nodeCard 内部划分） -------- */
 .wf-config-section {
   padding: 12px 14px;
   margin-bottom: 10px;
-  background: #ffffff;
-  border: 1px solid #eef0f3;
+  background: var(--wf-config-surface);
+  border: 1px solid var(--wf-config-border);
   border-radius: 8px;
 }
 
@@ -132,7 +140,7 @@
   margin-bottom: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--wf-config-text);
   letter-spacing: 0.2px;
 }
 
@@ -149,7 +157,7 @@
 .wf-config-label {
   font-size: 11px;
   font-weight: 500;
-  color: #4b5563;
+  color: var(--wf-config-text-secondary);
   line-height: 1.4;
 }
 
@@ -157,7 +165,7 @@
   margin-top: 3px;
   font-size: 11px;
   line-height: 1.5;
-  color: #9ca3af;
+  color: var(--wf-config-text-muted);
 }
 
 .wf-config-hint code {
@@ -375,6 +383,75 @@
   margin: 0 2px;
   background: #e5e7eb;
 }
+
+/* Dark workflow configuration panel. Both host theme conventions are supported. */
+.dark .wf-config-panel,
+[data-theme='dark'] .wf-config-panel {
+  --wf-config-bg: #081e36;
+  --wf-config-body-bg: #061629;
+  --wf-config-surface: #0b2947;
+  --wf-config-surface-hover: #103555;
+  --wf-config-border: #29445f;
+  --wf-config-text: #e7eef7;
+  --wf-config-text-secondary: #a9bad0;
+  --wf-config-text-muted: #7890aa;
+}
+
+.dark .wf-config-panel :is(input, textarea, select),
+.dark .wf-config-panel :deep(.ant-input),
+.dark .wf-config-panel :deep(.ant-input-number),
+.dark .wf-config-panel :deep(.ant-input-affix-wrapper),
+.dark .wf-config-panel :deep(.ant-select-selector),
+.dark .wf-config-panel :deep(.ant-picker),
+[data-theme='dark'] .wf-config-panel :is(input, textarea, select),
+[data-theme='dark'] .wf-config-panel :deep(.ant-input),
+[data-theme='dark'] .wf-config-panel :deep(.ant-input-number),
+[data-theme='dark'] .wf-config-panel :deep(.ant-input-affix-wrapper),
+[data-theme='dark'] .wf-config-panel :deep(.ant-select-selector),
+[data-theme='dark'] .wf-config-panel :deep(.ant-picker) {
+  color: var(--wf-config-text) !important;
+  background: var(--wf-config-bg) !important;
+  border-color: var(--wf-config-border) !important;
+}
+
+.dark .wf-config-panel :deep(.ant-select-selection-placeholder),
+.dark .wf-config-panel :deep(.ant-input::placeholder),
+[data-theme='dark'] .wf-config-panel :deep(.ant-select-selection-placeholder),
+[data-theme='dark'] .wf-config-panel :deep(.ant-input::placeholder) {
+  color: var(--wf-config-text-muted) !important;
+}
+
+.dark .wf-config-hint code,
+[data-theme='dark'] .wf-config-hint code {
+  color: #aeb7ff;
+  background: #162d54;
+}
+
+.dark .wf-config-header-btn:hover,
+[data-theme='dark'] .wf-config-header-btn:hover {
+  color: var(--wf-config-text);
+  background: var(--wf-config-surface-hover);
+}
+
+.dark .wf-config-header-divider,
+.dark .wf-config-menu-divider,
+[data-theme='dark'] .wf-config-header-divider,
+[data-theme='dark'] .wf-config-menu-divider {
+  background: var(--wf-config-border);
+}
+
+.dark .wf-config-panel .bg-white,
+[data-theme='dark'] .wf-config-panel .bg-white { background: var(--wf-config-surface); }
+.dark .wf-config-panel .bg-gray-50,
+.dark .wf-config-panel .bg-gray-100,
+[data-theme='dark'] .wf-config-panel .bg-gray-50,
+[data-theme='dark'] .wf-config-panel .bg-gray-100 { background: var(--wf-config-surface-hover); }
+.dark .wf-config-panel :is(.text-gray-400, .text-gray-500, .text-gray-600),
+[data-theme='dark'] .wf-config-panel :is(.text-gray-400, .text-gray-500, .text-gray-600) { color: var(--wf-config-text-secondary); }
+.dark .wf-config-panel .text-gray-800,
+[data-theme='dark'] .wf-config-panel .text-gray-800 { color: var(--wf-config-text); }
+.dark .wf-config-panel :is(.border, .border-t, .border-b),
+[data-theme='dark'] .wf-config-panel :is(.border, .border-t, .border-b) { border-color: var(--wf-config-border); }
 
 /* =========================================================
  * 兼容层：Tailwind 类 lookalike（临时）

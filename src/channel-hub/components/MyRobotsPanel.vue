@@ -7,7 +7,7 @@
  */
 import { onMounted, ref } from 'vue';
 
-import { message } from '../../ui';
+import { Button, Card, message } from '../../ui';
 
 import { createAgentStartClient, type AgentStartClient } from '../../client';
 import { useAgentStartClient } from '../../client/vue';
@@ -113,10 +113,10 @@ onMounted(load);
         </div>
       </div>
       <div class="mr-toolbar-actions">
-        <button class="mr-btn" :disabled="loading" @click="load">刷新</button>
-        <button class="mr-btn mr-btn-primary" @click="openCreate">
+        <Button :disabled="loading" @click="load">刷新</Button>
+        <Button type="primary" @click="openCreate">
           定义机器人
-        </button>
+        </Button>
       </div>
     </header>
 
@@ -128,40 +128,39 @@ onMounted(load);
     </div>
 
     <div v-else class="mr-grid">
-      <article v-for="robot in robots" :key="robot.id" class="mr-card">
-        <div class="mr-card-head">
+      <Card variant="management"
+        v-for="robot in robots"
+        :key="robot.id"
+        class="mr-card"
+        :title="robot.name"
+        :subtitle="`${robot.channelId} · 员工账号`"
+        :description="robot.description || '暂无描述'"
+      >
+        <template #icon>
           <span
             class="mr-icon"
             :style="{ background: robot.iconBackground || '#FFEAD5' }"
           >
             {{ robot.icon || '🤖' }}
           </span>
-          <div class="mr-card-title">
-            <b>{{ robot.name }}</b>
-            <small>{{ robot.channelId }} · 员工账号</small>
-          </div>
-        </div>
+        </template>
 
-        <p class="mr-desc">{{ robot.description || '暂无描述' }}</p>
-        <p v-if="robot.welcomeMessage" class="mr-welcome">
-          💬 {{ robot.welcomeMessage }}
-        </p>
+        <template v-if="robot.welcomeMessage" #default>
+          <p class="mr-welcome">💬 {{ robot.welcomeMessage }}</p>
+        </template>
 
-        <footer class="mr-card-footer">
-          <span class="mr-meta">
-            <span v-if="robot.createdByName">{{ robot.createdByName }}</span>
-            <span v-if="robot.updatedAt">
-              · {{ formatTime(robot.updatedAt) }}
-            </span>
-          </span>
-          <span class="mr-ops">
-            <button class="mr-btn" @click="openEdit(robot)">编辑</button>
-            <button class="mr-btn mr-btn-danger" @click="remove(robot)">
-              删除
-            </button>
-          </span>
-        </footer>
-      </article>
+        <template #meta>
+          <span v-if="robot.createdByName">{{ robot.createdByName }}</span>
+          <span v-if="robot.updatedAt">· {{ formatTime(robot.updatedAt) }}</span>
+        </template>
+
+        <template #actions>
+          <Button @click="openEdit(robot)">编辑</Button>
+          <Button danger @click="remove(robot)">
+            删除
+          </Button>
+        </template>
+      </Card>
     </div>
 
     <RobotFormModal
@@ -279,27 +278,22 @@ onMounted(load);
   gap: 14px;
 }
 .mr-card {
-  display: flex;
-  flex-direction: column;
   gap: 10px;
-  padding: 16px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition:
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
 }
-.mr-card:hover {
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
-  transform: translateY(-1px);
+/* Card footer: meta on the left, action buttons on the right.
+   Replicates the old .mr-card-footer layout (with the same border + spacing). */
+.mr-card:deep(.as-management-card__footer) {
+  gap: 8px;
 }
-:global(.dark) .mr-card {
-  background: #1f1f1f;
-  border-color: #2d2d2d;
+.mr-card:deep(.as-management-card__actions) {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  flex: none;
 }
-
 .mr-card-head {
   display: flex;
   align-items: center;

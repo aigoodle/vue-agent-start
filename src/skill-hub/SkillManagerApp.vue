@@ -4,7 +4,7 @@ import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons-vu
 import { createAgentStartClient, type SkillEntity, type SkillStatus } from '../client';
 import { useAgentStartClient } from '../client/vue';
 import { mergeAgentStartHeaders, useAgentStartConfig } from '../config';
-import { Button, Empty, Form, FormItem, Input, Modal, Select, Spin, Tag, Textarea, message } from '../ui';
+import { Button, Empty, Form, FormItem, Input, Card, Modal, Select, Spin, Tag, Textarea, message } from '../ui';
 
 const config = useAgentStartConfig();
 const client = useAgentStartClient() ?? createAgentStartClient({ baseUrl: config.apiBase ?? '/api', headers: () => mergeAgentStartHeaders(config.headers) });
@@ -25,17 +25,60 @@ onMounted(load);
 </script>
 <template>
   <section class="skill-manager as-management">
+    <!-- 页面头部 -->
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
+          <span style="font-size: 18px; font-weight: bold">S</span>
+        </div>
+        <div class="as-page-header-text">
+          <div class="as-page-title">Skill 管理</div>
+          <div class="as-page-subtitle">
+            可复用技能 · 场景编排 · 工具关联
+          </div>
+        </div>
+      </div>
+
+      <div class="as-page-header-controls">
+        <Input v-model:value="query" class="as-management-search" allow-clear placeholder="搜索 Skill 名称或编码" />
+        <Button type="primary" @click="openCreate"><PlusOutlined />新建 Skill</Button>
+      </div>
+    </div>
+
     <header class="as-management-toolbar">
       <div class="as-management-segments"><button v-for="item in ([['ALL','全部'],['DRAFT','草稿'],['PUBLISHED','已发布'],['DISABLED','已停用']] as const)" :key="item[0]" :class="{active:statusFilter===item[0]}" @click="statusFilter=item[0]">{{ item[1] }}</button></div>
-      <div class="as-management-toolbar__actions"><Input v-model:value="query" class="as-management-search" allow-clear placeholder="搜索 Skill 名称或编码" /><Button type="primary" @click="openCreate"><PlusOutlined />新建 Skill</Button></div>
     </header>
     <Spin :spinning="busy">
       <div v-if="!busy&&!visibleRows.length" class="as-management-empty"><Empty description="暂无符合条件的 Skill" /></div>
-      <div v-else class="skill-grid as-management-grid"><article v-for="row in visibleRows" :key="row.id" class="as-management-card skill-card" tabindex="0" @click="edit(row)" @keydown.enter="edit(row)">
-        <div class="as-management-card__head"><span class="as-management-card__icon">S</span><div class="as-management-card__title"><h3>{{ row.name }}</h3><code>{{ row.code }}</code></div><Tag :color="row.status==='PUBLISHED'?'green':row.status==='DISABLED'?'red':'orange'">{{ row.status }}</Tag></div>
-        <p class="as-management-card__description">{{ row.description || '暂无 Skill 简介' }}</p>
-        <footer class="as-management-card__footer"><div class="skill-meta"><span>v{{ row.version }}</span><span>{{ parseTools(row.toolNamesJson).length }} 个关联工具</span></div><div class="skill-card-actions"><Button size="small" @click.stop="edit(row)"><EditOutlined />编辑</Button><Button size="small" danger @click.stop="remove(row)"><DeleteOutlined />删除</Button></div></footer>
-      </article></div>
+      <div v-else class="skill-grid as-management-grid">
+        <Card variant="management"
+          v-for="row in visibleRows"
+          :key="row.id"
+          class="skill-card"
+          :title="row.name"
+          :subtitle="row.code"
+          :description="row.description || '暂无 Skill 简介'"
+          @click="edit(row)"
+          @keydown.enter="edit(row)"
+        >
+          <template #icon>S</template>
+          <template #badge>
+            <Tag :color="row.status==='PUBLISHED'?'green':row.status==='DISABLED'?'red':'orange'">{{ row.status }}</Tag>
+          </template>
+          <template #meta>
+            <div class="skill-meta">
+              <span>v{{ row.version }}</span>
+              <span>{{ parseTools(row.toolNamesJson).length }} 个关联工具</span>
+            </div>
+          </template>
+          <template #actions>
+            <div class="skill-card-actions">
+              <Button size="small" @click.stop="edit(row)"><EditOutlined />编辑</Button>
+              <Button size="small" danger @click.stop="remove(row)"><DeleteOutlined />删除</Button>
+            </div>
+          </template>
+        </Card>
+      </div>
     </Spin>
 
     <Modal v-model:open="editing" :width="720" :footer="false" :mask-closable="!saving" :keyboard="!saving" :closable="!saving">

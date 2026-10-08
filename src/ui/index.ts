@@ -12,11 +12,11 @@ import {
 } from 'vue';
 
 import { Button } from './components/Button';
+import Card from './components/Card.vue';
 import { Drawer } from './components/Drawer';
 import { Form, FormItem } from './components/Form';
 import { Input, InputNumber, Select, SelectOption, Textarea } from './components/FormControls';
 import { Modal } from './components/Modal';
-import { ManagementCard } from './components/ManagementCard';
 import { Table, TableColumn } from './components/Table';
 export type { TableColumn as TableColumnType } from './components/Table';
 
@@ -51,16 +51,6 @@ const Checkbox = defineComponent({
     h('input', { ...attrs, class: 'as-check__input', type: 'checkbox', checked: props.checked, disabled: props.disabled,
       onChange: (event: Event) => { const value = (event.target as HTMLInputElement).checked; emit('update:checked', value); emit('change', event); } }),
     h('span', { class: 'as-check__box' }), h('span', slots.default?.()),
-  ]),
-});
-
-const Card = defineComponent({
-  name: 'AsCard', inheritAttrs: false,
-  props: { title: String, bordered: { type: Boolean, default: true }, hoverable: Boolean },
-  setup: (props, { attrs, slots }) => () => h('section', { ...attrs, class: ['as-card', { 'as-card--borderless': !props.bordered, 'as-card--hoverable': props.hoverable }, attrs.class] }, [
-    (props.title || slots.title || slots.extra) ? h('header', { class: 'as-card__head' }, [h('div', { class: 'as-card__title' }, slots.title?.() ?? props.title), h('div', { class: 'as-card__extra' }, slots.extra?.())]) : null,
-    h('div', { class: 'as-card__body' }, slots.default?.()),
-    slots.actions ? h('footer', { class: 'as-card__actions' }, slots.actions()) : null,
   ]),
 });
 
@@ -284,7 +274,7 @@ Object.assign(Modal, {
 });
 
 export {
-  Alert, Button, Card, ManagementCard, Checkbox, Col, Empty, Form, FormItem, Input, InputNumber,
+  Alert, Button, Card, Checkbox, Col, Empty, Form, FormItem, Input, InputNumber,
   Modal, Popover, Popconfirm, Dropdown, Menu, MenuItem, Drawer, Tabs, TabPane,
   RadioButton, RadioGroup, Row, Segmented, Select, SelectOption,
   Skeleton, Slider, Space, Spin, Switch, Table, TableColumn, Tag, Textarea, Tooltip,

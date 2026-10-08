@@ -95,7 +95,7 @@ const TYPES = ['string', 'number', 'boolean', 'array', 'object'];
   text-align: center;
   font-size: 12px;
   color: #9ca3af;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px dashed #e5e7eb;
   border-radius: 6px;
 }
@@ -111,7 +111,7 @@ const TYPES = ['string', 'number', 'boolean', 'array', 'object'];
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  background: #f9fafb;
+  background: var(--wf-config-surface-hover, #f9fafb);
   border: 1px solid #f0f0f0;
   border-radius: 6px;
 }

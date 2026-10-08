@@ -9,7 +9,7 @@ import {
   MessageOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue';
-import { ManagementCard, Tag } from '../../ui';
+import { Button, Card, Tag } from '../../ui';
 
 import type { AgentStartClient } from '../../client';
 import type {
@@ -207,14 +207,24 @@ onUnmounted(() => {
 
 <template>
   <section class="cc-panel">
-    <!-- 头部介绍 -->
-    <header class="cc-intro">
-      <div>
-        <h3>消息渠道</h3>
-        <p>统一接入 QQBot、飞书、钉钉、企业微信、Email 和 Webhook；每个账号只归属于一个员工，不在这里关联应用或工作流。</p>
+    <!-- 页面头部 -->
+    <div class="as-page-header">
+      <div class="as-page-header-main">
+        <div class="as-page-logo" aria-hidden="true">
+          <MessageOutlined style="font-size: 18px" />
+        </div>
+        <div class="as-page-header-text">
+          <div class="as-page-title">消息渠道</div>
+          <div class="as-page-subtitle">
+            QQBot · 飞书 · 钉钉 · 企业微信 · Email · Webhook
+          </div>
+        </div>
       </div>
-      <button class="cc-btn" @click="load(true)">强制刷新目录</button>
-    </header>
+
+      <div class="as-page-header-controls">
+        <Button type="primary" :loading="loading" @click="load(true)">强制刷新目录</Button>
+      </div>
+    </div>
 
     <div v-if="error" class="cc-alert">{{ error }}</div>
 
@@ -228,7 +238,7 @@ onUnmounted(() => {
           <span>{{ section.groups.length }}</span>
         </header>
         <div :class="['cc-cards', { 'is-compact': section.compact }]">
-          <ManagementCard
+          <Card variant="management"
             v-for="group in section.groups"
             :key="group.id"
             :class="['cc-card', { 'is-compact': section.compact }]"
@@ -317,34 +327,37 @@ onUnmounted(() => {
 
             <!-- 底部操作：antd Card #actions 插槽，图标 + 文字小按钮 -->
             <template #actions>
-              <span
+              <Button
                 v-if="adapterReady(primaryOf(group))"
-                class="cc-act"
+                size="small"
                 @click.stop="openAccount(primaryOf(group))"
               >
                 <SettingOutlined />账号接入
-              </span>
-              <span
+              </Button>
+              <Button
                 v-else-if="!primaryOf(group).installed"
-                :class="['cc-act', 'is-primary', { 'is-disabled': !!installing }]"
+                type="primary"
+                size="small"
+                :loading="installing === keyOf(primaryOf(group))"
+                :disabled="!!installing"
                 @click.stop="installChannel(primaryOf(group))"
               >
                 <DownloadOutlined />{{ installing === keyOf(primaryOf(group)) ? '安装中…' : '安装' }}
-              </span>
-              <span v-else class="cc-act" @click.stop="openAccount(primaryOf(group))">
+              </Button>
+              <Button v-else size="small" @click.stop="openAccount(primaryOf(group))">
                 <SettingOutlined />配置接入
-              </span>
+              </Button>
 
-              <span
+              <Button
                 v-if="adapterReady(primaryOf(group))"
-                class="cc-act cc-act-monitor"
+                size="small"
                 @click.stop="openMonitor(primaryOf(group))"
               >
                 <MessageOutlined />消息
-              </span>
+              </Button>
               <a
                 v-else-if="detailUrlOf(primaryOf(group))"
-                class="cc-act"
+                class="as-btn as-btn--default as-btn--small cc-act-link"
                 :href="detailUrlOf(primaryOf(group))"
                 target="_blank"
                 rel="noopener"
@@ -352,13 +365,13 @@ onUnmounted(() => {
               >
                 <EyeOutlined />查看详情
               </a>
-              <span v-else class="cc-act" @click.stop="openAccount(primaryOf(group))">
+              <Button v-else size="small" @click.stop="openAccount(primaryOf(group))">
                 <EyeOutlined />查看详情
-              </span>
+              </Button>
 
               <a
                 v-if="homepageLinkOf(primaryOf(group))"
-                class="cc-act-link"
+                class="as-btn as-btn--default as-btn--small cc-act-link"
                 :href="homepageLinkOf(primaryOf(group))"
                 target="_blank"
                 rel="noopener"
@@ -368,7 +381,7 @@ onUnmounted(() => {
               </a>
               <a
                 v-if="linkOf(primaryOf(group), 'sourceUrl')"
-                class="cc-act-link"
+                class="as-btn as-btn--default as-btn--small cc-act-link"
                 :href="linkOf(primaryOf(group), 'sourceUrl')"
                 target="_blank"
                 rel="noopener"
@@ -377,7 +390,7 @@ onUnmounted(() => {
                 <CodeOutlined />源码
               </a>
             </template>
-          </ManagementCard>
+          </Card>
         </div>
       </section>
     </div>
@@ -529,12 +542,16 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
 }
-/* 卡片骨架、标题、描述、悬浮和焦点态由共享 ManagementCard 提供。 */
+/* 卡片骨架、标题、描述、悬浮和焦点态由共享 Card 提供。 */
 .cc-card { gap: 10px; }
 .cc-card :deep(.as-management-card__icon) {
   width: auto;
   height: auto;
   background: transparent;
+}
+.cc-card :deep(.as-management-card__actions) {
+  width: 100%;
+  justify-content: space-between;
 }
 
 /* 统计行：更紧凑的数字胶囊 */
