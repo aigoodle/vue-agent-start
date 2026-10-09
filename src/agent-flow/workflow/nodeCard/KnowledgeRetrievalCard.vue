@@ -3,6 +3,7 @@
 import DatasetItemCard from '@/components/DatasetItemCard.vue';
 import VariableSelector from '@/components/VariableSelector.vue';
 import OutputItemCard from '@/workflow/OutputItemCard.vue';
+import OutputStructureToggle from '@/workflow/OutputStructureToggle.vue';
 import WfField from '@/workflow/WfField.vue';
 
 defineProps<{ nodeId?: string }>();
@@ -42,8 +43,11 @@ const formState: any = defineModel();
   </div>
 
   <div class="wf-config-section">
-    <WfField title="输出" foldable default-fold>
-      <OutputItemCard v-model="formState" />
+    <WfField class="wf-output-field" title="输出变量" foldable default-fold>
+      <template #operations>
+        <OutputStructureToggle v-model="formState" />
+      </template>
+      <OutputItemCard v-model="formState" :show-title="false" />
     </WfField>
   </div>
 </template>

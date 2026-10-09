@@ -31,7 +31,7 @@ const TYPES = ['string', 'number', 'boolean', 'array', 'object'];
 
 <template>
   <div class="wf-config-section">
-    <WfField title="输出变量" required>
+    <WfField class="wf-output-field" title="输出变量" required>
       <template #tooltip>
         工作流结束时返回的字段，通常从上游节点选取变量。
       </template>

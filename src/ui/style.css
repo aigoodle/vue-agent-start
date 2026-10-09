@@ -109,7 +109,17 @@
   .as-input-wrap--disabled { cursor: not-allowed; background: var(--as-fill-disabled); color: var(--as-text-disabled); }
   .as-input-wrap--disabled:hover { border-color: var(--as-border); }
   .as-input-wrap--disabled:focus-within { border-color: var(--as-border); box-shadow: none; }
-  .as-input-wrap .as-input { @apply h-auto border-0 p-0 shadow-none outline-0; }
+  /* Input uses a wrapper for prefix/suffix/clear-button support. The wrapper
+   * owns the visual border and focus ring; keep the nested native input
+   * chrome-free even when a host dark theme has a stronger `.as-input` rule. */
+  .as-input-wrap > .as-input {
+    @apply h-auto p-0 outline-0;
+    border: 0 !important;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none !important;
+    clip-path: none !important;
+  }
   .as-input, .as-textarea, .as-select {
     @apply box-border block w-full min-w-0 border px-[11px] font-[inherit] transition-all duration-200;
     width: 100%; height: var(--as-control-height); color: var(--as-text); background: var(--as-bg);
@@ -121,8 +131,11 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--as-primary) 10%, transparent);
     outline: none;
   }
-  .as-input-wrap .as-input:hover,
-  .as-input-wrap .as-input:focus { border-color: transparent; box-shadow: none; }
+  .as-input-wrap > .as-input:hover,
+  .as-input-wrap > .as-input:focus {
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
   .as-input::placeholder, .as-textarea::placeholder { color: var(--as-text-placeholder); }
   .as-input:disabled, .as-textarea:disabled, .as-select:disabled {
     cursor: not-allowed; border-color: var(--as-border); background: var(--as-fill-disabled); color: var(--as-text-disabled);

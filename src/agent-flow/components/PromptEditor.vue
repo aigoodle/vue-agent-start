@@ -542,7 +542,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="wf-pe" :class="{ 'wf-pe-fullscreen': isFullscreen }">
+  <Teleport to="body" :disabled="!isFullscreen">
+    <div
+      class="wf-pe"
+      :class="{
+        'wf-pe-fullscreen': isFullscreen,
+        'hud-panel': isFullscreen,
+      }"
+    >
     <div v-if="showToolbar" class="wf-pe-toolbar">
       <div class="wf-pe-title">{{ title }}</div>
       <div class="wf-pe-actions">
@@ -608,7 +615,8 @@ onUnmounted(() => {
       @close="closePanel"
       @select="onPanelSelect"
     />
-  </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -630,6 +638,9 @@ onUnmounted(() => {
   position: fixed;
   inset: 32px;
   z-index: 1500;
+  box-sizing: border-box;
+  max-width: calc(100vw - 64px);
+  max-height: calc(100vh - 64px);
   box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
 }
 

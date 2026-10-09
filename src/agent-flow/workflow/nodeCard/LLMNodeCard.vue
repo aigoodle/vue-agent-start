@@ -6,6 +6,7 @@ import PromptEditor from '@/components/PromptEditor.vue';
 import PromptEditorTagPanel from '@/components/PromptEditorTagPanel.vue';
 import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
 import OutputItemCard from '@/workflow/OutputItemCard.vue';
+import OutputStructureToggle from '@/workflow/OutputStructureToggle.vue';
 import WfField from '@/workflow/WfField.vue';
 import workflow_utils from '@/workflow/utils/workflow_utils';
 
@@ -96,21 +97,23 @@ const RESPONSE_FORMATS = [
     </WfField>
   </div>
 
-  <!-- SYSTEM 提示词 -->
-  <PromptEditor
-    class="wf-config-prompt"
-    title="SYSTEM"
-    :node-id="nodeId"
-    v-model="formState.systemPrompt.text"
-  />
+  <div class="llm-prompt-stack">
+    <!-- SYSTEM 提示词 -->
+    <PromptEditor
+      class="wf-config-prompt"
+      title="SYSTEM"
+      :node-id="nodeId"
+      v-model="formState.systemPrompt.text"
+    />
 
-  <!-- USER 提示词 -->
-  <PromptEditor
-    class="wf-config-prompt"
-    title="USER"
-    :node-id="nodeId"
-    v-model="formState.userPrompt.text"
-  />
+    <!-- USER 提示词 -->
+    <PromptEditor
+      class="wf-config-prompt"
+      title="USER"
+      :node-id="nodeId"
+      v-model="formState.userPrompt.text"
+    />
+  </div>
 
   <div class="wf-config-section">
     <WfField title="对话记忆">
@@ -159,13 +162,26 @@ const RESPONSE_FORMATS = [
   </div>
 
   <div class="wf-config-section">
-    <WfField title="输出">
-      <OutputItemCard v-model="formState" />
+    <WfField class="wf-output-field" title="输出变量">
+      <template #operations>
+        <OutputStructureToggle v-model="formState" />
+      </template>
+      <OutputItemCard v-model="formState" :show-title="false" />
     </WfField>
   </div>
 </template>
 
 <style scoped>
+.llm-prompt-stack {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.llm-prompt-stack .wf-config-prompt {
+  margin-bottom: 0;
+}
+
 .llm-varselect {
   padding: 4px 8px;
   background: var(--wf-config-surface-hover, #f9fafb);

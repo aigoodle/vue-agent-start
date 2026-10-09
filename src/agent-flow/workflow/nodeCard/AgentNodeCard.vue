@@ -8,6 +8,7 @@ import MemoryWindow from '@/components/MemoryWindow.vue';
 import PromptEditor from '@/components/PromptEditor.vue';
 import ToolItemCard from '@/components/ToolItemCard.vue';
 import McpServerChooser from '@/components/McpServerChooser.vue';
+import OutputItemCard from '@/workflow/OutputItemCard.vue';
 import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
 import SkillSelect from '../../../skill-hub/SkillSelect.vue';
 import WfField from '@/workflow/WfField.vue';
@@ -49,10 +50,11 @@ function removeMcpServer(index: number) {
 }
 
 const OUTPUT_DEFAULTS = [
-  { name: 'text', type: 'String', label: '生成内容' },
-  { name: 'files', type: 'Array[File]', label: 'Agent 生成的文件' },
-  { name: 'json', type: 'Array[Object]', label: 'Agent 生成的 JSON' },
+  { name: 'text', type: 'string', label: '生成内容' },
+  { name: 'files', type: 'file', label: 'Agent 生成的文件' },
+  { name: 'json', type: 'array', label: 'Agent 生成的 JSON' },
 ];
+const agentOutputState = { output: OUTPUT_DEFAULTS };
 </script>
 
 <template>
@@ -154,20 +156,12 @@ const OUTPUT_DEFAULTS = [
   </div>
 
   <div class="wf-config-section">
-    <WfField title="输出变量" foldable default-fold>
-      <div class="agent-output-list">
-        <div
-          v-for="it in OUTPUT_DEFAULTS"
-          :key="it.name"
-          class="agent-output-item"
-        >
-          <div class="agent-output-row">
-            <span class="agent-output-name">{{ it.name }}</span>
-            <a-tag>{{ it.type }}</a-tag>
-          </div>
-          <div class="agent-output-desc">{{ it.label }}</div>
-        </div>
-      </div>
+    <WfField class="wf-output-field" title="输出变量" foldable default-fold>
+      <OutputItemCard
+        :model-value="agentOutputState"
+        :show-title="false"
+        readonly
+      />
     </WfField>
   </div>
 </template>
@@ -180,36 +174,4 @@ const OUTPUT_DEFAULTS = [
 }
 .agent-mcp-header{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#9ca3af}.agent-mcp-empty{margin-top:8px;padding:14px;border:1px dashed #e5e7eb;border-radius:6px;text-align:center;font-size:12px;color:#9ca3af}.agent-mcp-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}.agent-mcp-list>div{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border:1px solid #e5e7eb;border-radius:6px}.agent-mcp-list span{display:flex;flex-direction:column}.agent-mcp-list small{font-size:10px;color:#9ca3af}
 
-.agent-output-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.agent-output-item {
-  padding: 6px 10px;
-  background: var(--wf-config-surface-hover, #f9fafb);
-  border: 1px solid #f0f0f0;
-  border-radius: 6px;
-}
-
-.agent-output-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.agent-output-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: #1f2937;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-}
-
-.agent-output-desc {
-  margin-top: 2px;
-  font-size: 11px;
-  color: #6b7280;
-}
 </style>

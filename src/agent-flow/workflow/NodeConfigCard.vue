@@ -225,7 +225,7 @@ watch(() => props.selectNode, panelInit);
 </script>
 
 <template>
-  <div class="wf-config-panel" :style="panelStyle">
+  <div class="wf-config-panel hud-panel" :style="panelStyle">
     <!-- 左边缘拖拽手柄：向左拖动可加宽面板 -->
     <div
       class="wf-config-resize"

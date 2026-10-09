@@ -195,7 +195,7 @@ function isActive(nodeId: string, parentName: string | null, name: string) {
   <div
     v-if="show"
     ref="panelRef"
-    class="wf-tag-panel"
+    class="wf-tag-panel hud-panel"
     :style="panelPos"
     @mousedown.stop
   >

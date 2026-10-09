@@ -4,6 +4,7 @@ import { onMounted, ref, watchEffect } from 'vue';
 import PromptEditor from '@/components/PromptEditor.vue';
 import VariableSelector from '@/components/VariableSelector.vue';
 import OutputItemCard from '@/workflow/OutputItemCard.vue';
+import OutputStructureToggle from '@/workflow/OutputStructureToggle.vue';
 import WfField from '@/workflow/WfField.vue';
 import WorkflowModelPicker from '@/workflow/WorkflowModelPicker.vue';
 const props = defineProps<{
@@ -151,8 +152,11 @@ function syncTargetWorkflow(workflowId?: string) {
       <div v-else-if="!workflowLoading && workflowApps.length === 0" class="wf-help">当前租户下没有其他已发布的工作流应用。</div>
       <div v-else class="wf-help">新增时，提取出的 data 对象会作为开始节点输入传给该工作流；删除时不执行目标工作流。</div>
     </WfField>
-    <WfField title="输出" foldable :default-fold="false">
-      <OutputItemCard v-model="formState" />
+    <WfField class="wf-output-field" title="输出变量" foldable :default-fold="false">
+      <template #operations>
+        <OutputStructureToggle v-model="formState" />
+      </template>
+      <OutputItemCard v-model="formState" :show-title="false" />
     </WfField>
   </div>
 </template>

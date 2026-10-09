@@ -7,6 +7,7 @@ import {
   PlusOutlined,
 } from '@ant-design/icons-vue';
 import { Modal } from '../../ui';
+import OutputStructureToggle from './OutputStructureToggle.vue';
 
 const props = defineProps({
   showTitle: {
@@ -225,13 +226,10 @@ const TreeNode: any = defineComponent({
           {{ totalFields }} 字段
         </span>
       </div>
-      <div v-show="formState.structOutput?.data && !readonly" class="output-card-toggle">
-        <span class="output-card-toggle-label">结构化输出</span>
-        <a-switch
-          size="small"
-          v-model:checked="formState.structOutputEnabled"
-        />
-      </div>
+      <OutputStructureToggle
+        v-if="!readonly"
+        v-model="formState"
+      />
     </div>
 
     <div class="output-card-body">
@@ -247,14 +245,15 @@ const TreeNode: any = defineComponent({
                 <span v-if="root.description" class="output-tree-root-desc">
                   {{ root.description }}
                 </span>
-                <a
+                <button
                   v-if="!readonly"
+                  type="button"
                   class="output-tree-root-add"
                   @click="toAddItem(root)"
                 >
                   <PlusOutlined />
                   <span>添加字段</span>
-                </a>
+                </button>
               </div>
 
               <div
@@ -355,9 +354,23 @@ const TreeNode: any = defineComponent({
 
 <style scoped>
 .output-card {
+  --wf-out-panel-bg: #f3f7fd;
+  --wf-out-surface: #ffffff;
+  --wf-out-surface-soft: #eaf2fc;
+  --wf-out-surface-hover: #e2edfb;
+  --wf-out-border: #b9cce5;
+  --wf-out-border-soft: #d2dfef;
+  --wf-out-text: #183153;
+  --wf-out-text-secondary: #58708f;
+  --wf-out-text-muted: #8296ae;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .output-card-head {
@@ -376,7 +389,7 @@ const TreeNode: any = defineComponent({
 .output-card-title {
   font-size: 12px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--wf-out-text);
 }
 
 .output-card-count {
@@ -388,14 +401,6 @@ const TreeNode: any = defineComponent({
   border-radius: 999px;
 }
 
-.output-card-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #6b7280;
-}
-
 /* -------- 结构化输出树 -------- */
 .output-tree {
   display: flex;
@@ -405,8 +410,8 @@ const TreeNode: any = defineComponent({
 
 .output-tree-root {
   padding: 8px 10px;
-  background: #f9fafb;
-  border: 1px solid #eef0f3;
+  background: var(--wf-out-surface);
+  border: 1px solid var(--wf-out-border-soft);
   border-radius: 8px;
 }
 
@@ -415,14 +420,14 @@ const TreeNode: any = defineComponent({
   align-items: center;
   gap: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px dashed #e5e7eb;
+  border-bottom: 1px dashed var(--wf-out-border);
   margin-bottom: 4px;
 }
 
 .output-tree-root-name {
   font-size: 12px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--wf-out-text);
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
@@ -430,7 +435,7 @@ const TreeNode: any = defineComponent({
   flex: 1;
   min-width: 0;
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--wf-out-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -450,9 +455,12 @@ const TreeNode: any = defineComponent({
   margin-left: auto;
   padding: 2px 8px;
   font-size: 11px;
+  font-family: inherit;
   color: hsl(var(--primary));
   background: hsl(var(--primary) / 10%);
+  border: 0;
   border-radius: 4px;
+  cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
 
@@ -466,9 +474,9 @@ const TreeNode: any = defineComponent({
   padding: 10px;
   text-align: center;
   font-size: 11px;
-  color: #9ca3af;
-  background: #ffffff;
-  border: 1px dashed #e5e7eb;
+  color: var(--wf-out-text-muted);
+  background: var(--wf-out-surface);
+  border: 1px dashed var(--wf-out-border);
   border-radius: 6px;
 }
 
@@ -485,20 +493,20 @@ const TreeNode: any = defineComponent({
   gap: 8px;
   padding: 4px 8px;
   font-size: 12px;
-  background: #f9fafb;
-  border: 1px solid #eef0f3;
+  background: var(--wf-out-surface);
+  border: 1px solid var(--wf-out-border-soft);
   border-radius: 6px;
 }
 
 .output-plain-name {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  color: #1f2937;
+  color: var(--wf-out-text);
   font-weight: 500;
 }
 
 .output-plain-label {
   margin-left: auto;
-  color: #6b7280;
+  color: var(--wf-out-text-secondary);
   font-size: 11px;
 }
 
@@ -532,28 +540,28 @@ const TreeNode: any = defineComponent({
 }
 
 .wf-out-row:hover {
-  background: #ffffff;
-  box-shadow: inset 0 0 0 1px #e5e7eb;
+  background: var(--wf-out-surface-hover, #e2edfb);
+  box-shadow: inset 0 0 0 1px var(--wf-out-border, #b9cce5);
 }
 
 .wf-out-row-caret {
   flex: none;
   width: 10px;
   font-size: 10px;
-  color: #9ca3af;
+  color: var(--wf-out-text-muted, #8296ae);
   text-align: center;
 }
 
 .wf-out-row-name {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  color: #1f2937;
+  color: var(--wf-out-text, #183153);
   font-weight: 500;
 }
 
 .wf-out-row-desc {
   flex: 1;
   min-width: 0;
-  color: #9ca3af;
+  color: var(--wf-out-text-muted, #8296ae);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -581,7 +589,7 @@ const TreeNode: any = defineComponent({
   width: 22px;
   height: 22px;
   padding: 0;
-  color: #6b7280;
+  color: var(--wf-out-text-secondary, #58708f);
   border-radius: 4px;
   font-size: 13px;
   line-height: 1;
@@ -674,4 +682,5 @@ const TreeNode: any = defineComponent({
   background: #f1f5f9;
   border-color: #cbd5e1;
 }
+
 </style>

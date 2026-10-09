@@ -1153,7 +1153,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
                 <span class="dr-publish-caret" aria-hidden="true">▾</span>
               </button>
 
-              <div v-if="publishMenuOpen" class="dr-publish-menu">
+              <div v-if="publishMenuOpen" class="dr-publish-menu hud-panel">
                 <div class="dr-publish-head">
                   <div class="dr-publish-head-title">最新发布</div>
                   <div class="dr-publish-head-row">
@@ -1695,6 +1695,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
                 <section class="dr-preview-col">
                   <ChatIframePanel
                     v-if="chatConfig?.src"
+                    class="hud-panel"
                     :src="chatConfig.src"
                     :params="chatConfig.params"
                     :context="chatConfig.context"
@@ -1833,6 +1834,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
             <WorkflowDebugPanel
               v-if="isWorkflowMode"
               :key="debugSessionSuffix"
+              class="hud-panel"
               :graph="workflowDebugGraph"
               :variables="flowDebugVariables"
               :execute-workflow="api.runWorkflowGraph"
@@ -1859,6 +1861,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
                 />
                 <ChatIframePanel
                   :key="debugSessionSuffix"
+                  class="hud-panel"
                   :src="chatConfig?.src || ''"
                   :params="chatConfig?.params"
                   :context="chatConfig?.context"
@@ -1872,6 +1875,7 @@ function variableTypeLabel(type: AgentVariable['type']): string {
               <ChatIframePanel
                 v-else
                 :key="debugSessionSuffix"
+                class="hud-panel"
                 :src="chatConfig?.src || ''"
                 :params="chatConfig?.params"
                 :context="chatConfig?.context"
@@ -1906,6 +1910,19 @@ function variableTypeLabel(type: AgentVariable['type']): string {
 }
 :global(.dr-app-drawer) {
   max-width: 100vw;
+}
+/* The publish menu lives in the drawer header while the body is its following
+ * sibling.  Give the header its own, higher stacking level so the body cannot
+ * paint over header popovers; the menu's z-index alone cannot escape a lower
+ * parent stacking context. */
+:global(.dr-app-drawer .as-drawer__header) {
+  position: relative;
+  z-index: 2;
+  overflow: visible;
+}
+:global(.dr-app-drawer .as-drawer__body) {
+  position: relative;
+  z-index: 1;
 }
 @keyframes dr-fade-in {
   from {

@@ -561,7 +561,7 @@ defineExpose({
   >
     <template #content>
       <div
-        class="ph-mp"
+        class="ph-mp hud-panel"
         :style="{
           width: matchTriggerWidth
             ? '100%'
@@ -597,7 +597,7 @@ defineExpose({
           >
             <template #content>
               <div
-                class="ph-mp-dropdown"
+                class="ph-mp-dropdown hud-panel"
                 :style="{
                   width: '100%',
                 }"
@@ -814,14 +814,6 @@ defineExpose({
           </div>
         </div>
 
-        <!-- 底部：多模型调试入口 -->
-        <div
-          class="ph-mp-footer"
-          @click="emit('multiModelDebug')"
-        >
-          <span>多个模型进行调试</span>
-          <RightOutlined />
-        </div>
       </div>
     </template>
 
@@ -879,6 +871,13 @@ defineExpose({
   padding: 0;
   border-radius: 12px;
   overflow: hidden;
+}
+
+/* Model pickers used inside the full-screen app-design drawer are teleported
+ * to body.  The drawer root sits at z-index 1100, so the default popover layer
+ * (1050) would open behind it and make the trigger appear unresponsive. */
+.ph-model-picker-popover {
+  z-index: 1200 !important;
 }
 
 .ph-model-picker-popover.as-popover__panel {
@@ -1297,22 +1296,6 @@ defineExpose({
   font-size: 12px !important;
 }
 
-/* 底部 */
-.ph-mp-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 18px;
-  border-top: 1px solid #f0f0f0;
-  color: #4338ca;
-  font-weight: 500;
-  font-size: 13px;
-  cursor: pointer;
-  background: #fafbff;
-}
-.ph-mp-footer:hover {
-  background: #eef2ff;
-}
 </style>
 
 <style scoped>
