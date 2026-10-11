@@ -21,6 +21,8 @@ app.use(AgentStartUi);
 
 主题通过 `--as-*` CSS 变量覆盖。构建入口不包含 Tailwind Preflight，因此不会重置宿主项目的原生标签，也不会修改 Element Plus、Naive UI 或其他组件库主题。
 
+组件库同时内置明亮/暗黑、普通/科技感两组外观开关，Drawer、Modal 和通用 `.hud-panel` 的 HUD 外框及导轨也包含在发布样式中，不依赖 demo 项目。完整参数、运行时切换及 CSS 变量说明见 [APPEARANCE.md](./APPEARANCE.md)。
+
 ## 推荐：全局配置
 
 在创建 Vue 应用时安装 `AgentStartPlugin`。`apiBase` 和 `headers` 会被所有顶层组件继承：
@@ -41,6 +43,11 @@ const accessStore = useAccessStore();
 
 app.use(AgentStartPlugin, {
   apiBase: '/api',
+  appearance: {
+    theme: 'dark',
+    visual: 'tech',
+    primaryColor: '#00ccff',
+  },
   headers: () => {
     const token = accessStore.accessToken;
     return token

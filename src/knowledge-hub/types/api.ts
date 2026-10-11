@@ -14,7 +14,7 @@ import type {
   ProcessRule,
   RetrievalConfig,
 } from './dataset';
-import type { RecallHit, RecentQuery, RetrieveRequest } from './retrieval';
+import type { RagCapabilities, RagPolicy, RagResult, RecallHit, RecentQuery, RetrieveRequest } from './retrieval';
 import type { IndexVersionWire, IngestionJobWire, RetrievalEvaluationReportWire } from '../../client/knowledge';
 
 // ------- datasets
@@ -80,32 +80,6 @@ export interface ChunkPreview {
   chunks: Array<{ index: number; text: string; tokens: number; metadata?: Record<string, unknown> }>;
 }
 
-export interface KnowledgeGraphNode {
-  id: string;
-  type: string;
-  label: string;
-  datasetId: string;
-  documentId?: string;
-  segmentId?: string;
-  headingPath?: string;
-  source?: string;
-  description?: string;
-  weight?: number;
-  evidenceSegmentIds?: string[];
-}
-export interface KnowledgeGraphEdge {
-  source: string;
-  target: string;
-  relation: string;
-  weight?: number;
-  evidenceSegmentIds?: string[];
-}
-export interface KnowledgeGraph {
-  datasetId: string;
-  nodes: KnowledgeGraphNode[];
-  edges: KnowledgeGraphEdge[];
-}
-
 // ------- segments
 export interface SegmentsApi {
   /**
@@ -148,7 +122,8 @@ export interface RetrievalApi {
     req: RetrieveRequest,
   ): Promise<RecallHit[]>;
   listRecallHistory(datasetId: string, limit?: number): Promise<RecentQuery[]>;
-  getKnowledgeGraph(datasetId: string): Promise<KnowledgeGraph>;
+  retrieveRag?(datasetId: string, req: { query: string; conversationId?: string; policy?: RagPolicy; metadataFilter?: Record<string, unknown> }): Promise<RagResult>;
+  getRagCapabilities?(): Promise<RagCapabilities>;
 }
 
 export interface RagOperationsApi {
@@ -257,7 +232,5 @@ export interface DatasetDetailHub extends SegmentsApi, RetrievalApi, RagOperatio
     rule: ProcessRule,
     limit?: number,
   ): Promise<ChunkPreview>;
-  getKnowledgeGraph(datasetId: string): Promise<KnowledgeGraph>;
-
   onCopyApi?(datasetId: string): void;
 }

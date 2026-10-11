@@ -16,7 +16,7 @@
  * async methods). This keeps the component embeddable in any Vue 3 app.
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { Drawer } from '../../ui';
+import { Drawer, Modal } from '../../ui';
 
 import type {
   Chunk,
@@ -26,7 +26,6 @@ import type {
   DocMetadata,
   DocumentRow,
   EmbeddingModelOption,
-  KnowledgeGraph,
   ProcessRule,
   ParsedDocument,
   RecallHit,
@@ -40,7 +39,6 @@ import DocumentChunksView from './DocumentChunksView.vue';
 import DocumentTable from './DocumentTable.vue';
 import RecallTestingPanelV2 from './RecallTestingPanelV2.vue';
 import RagOperationsPanel from './RagOperationsPanel.vue';
-import KnowledgeGraphPanel from './KnowledgeGraphPanel.vue';
 
 interface Props {
   open: boolean;
@@ -78,9 +76,6 @@ const chunkPageSize = ref(20);
 const hits = ref<RecallHit[]>([]);
 const recallHistory = ref<RecentQuery[]>([]);
 const recallLoading = ref(false);
-const recallGraph = ref<KnowledgeGraph | null>(null);
-const knowledgeGraph = ref<KnowledgeGraph | null>(null);
-const knowledgeGraphLoading = ref(false);
 
 const embeddingModels = ref<EmbeddingModelOption[]>([]);
 const defaultEmbeddingModelId = ref<null | string>(null);
@@ -91,6 +86,7 @@ const defaultEmbeddingModelId = ref<null | string>(null);
 const editingSeg = ref<Chunk | null>(null);
 const editContent = ref('');
 const editorMode = ref<'add' | 'edit' | null>(null);
+const editorSaving = ref(false);
 
 // ---------- lifecycle: reload on open / id change
 watch(
@@ -99,7 +95,6 @@ watch(
     if (!isOpen || !id) {
       dataset.value = null;
       documents.value = [];
-      recallGraph.value = null;
       tab.value = 'documents';
       openDocId.value = null;
       return;
@@ -111,7 +106,6 @@ watch(
       loadEmbeddingModels(),
       loadRerankModels(),
       loadRecallHistory(),
-      loadKnowledgeGraph(),
     ]);
   },
   { immediate: true },
@@ -125,13 +119,13 @@ async function loadDataset() {
     dataset.value = null;
   }
 }
-async function loadDocuments() {
+async function loadDocuments(options: { silent?: boolean } = {}) {
   if (!props.datasetId) return;
-  documentsLoading.value = true;
+  if (!options.silent) documentsLoading.value = true;
   try {
     documents.value = await props.hub.listDocuments(props.datasetId);
   } finally {
-    documentsLoading.value = false;
+    if (!options.silent) documentsLoading.value = false;
   }
   scheduleStatusPoll();
 }
@@ -151,7 +145,7 @@ function scheduleStatusPoll() {
   const anyPending = documents.value.some((d) => d.status === 'PROCESSING');
   if (!anyPending) return;
   statusPollTimer = setTimeout(() => {
-    loadDocuments();
+    void loadDocuments({ silent: true });
   }, 3000);
 }
 onBeforeUnmount(() => {
@@ -194,9 +188,6 @@ async function onNav(next: DatasetTab) {
   // Reset the doc-drilldown when nav switches away from documents.
   if (next !== 'documents') openDocId.value = null;
   tab.value = next;
-  if (next === 'knowledge-graph') {
-    await loadKnowledgeGraph();
-  }
 }
 function onCopyApi() {
   if (props.datasetId && props.hub.onCopyApi) props.hub.onCopyApi(props.datasetId);
@@ -399,37 +390,42 @@ function onAddChunk() {
   editContent.value = '';
 }
 async function saveChunkEdit() {
-  if (!props.datasetId || !openDocId.value) return;
+  if (!props.datasetId || !openDocId.value || editorSaving.value) return;
   const content = editContent.value.trim();
   if (!content) return;
 
-  if (editorMode.value === 'add') {
-    if (!props.hub.appendSegment) return;
-    await props.hub.appendSegment(props.datasetId, openDocId.value, content);
-    // Refresh both the current page and the metadata so total + avg update.
-    metadata.value = await props.hub.loadDocumentMetadata(
-      props.datasetId,
-      openDocId.value,
-    );
-    await loadSegmentPage();
-  } else if (editorMode.value === 'edit' && editingSeg.value) {
-    const updated = await props.hub.updateSegment(
-      props.datasetId,
-      openDocId.value,
-      editingSeg.value.id,
-      content,
-    );
-    const idx = segments.value.findIndex((s) => s.id === editingSeg.value!.id);
-    if (idx !== -1) {
-      segments.value[idx] = {
-        ...segments.value[idx],
-        content: updated.content,
-        charCount: updated.content?.length ?? 0,
-        tokenCount: updated.tokenCount,
-      };
+  editorSaving.value = true;
+  try {
+    if (editorMode.value === 'add') {
+      if (!props.hub.appendSegment) return;
+      await props.hub.appendSegment(props.datasetId, openDocId.value, content);
+      // Refresh both the current page and the metadata so total + avg update.
+      metadata.value = await props.hub.loadDocumentMetadata(
+        props.datasetId,
+        openDocId.value,
+      );
+      await loadSegmentPage();
+    } else if (editorMode.value === 'edit' && editingSeg.value) {
+      const updated = await props.hub.updateSegment(
+        props.datasetId,
+        openDocId.value,
+        editingSeg.value.id,
+        content,
+      );
+      const idx = segments.value.findIndex((s) => s.id === editingSeg.value!.id);
+      if (idx !== -1) {
+        segments.value[idx] = {
+          ...segments.value[idx],
+          content: updated.content,
+          charCount: updated.content?.length ?? 0,
+          tokenCount: updated.tokenCount,
+        };
+      }
     }
+    cancelChunkEdit();
+  } finally {
+    editorSaving.value = false;
   }
-  cancelChunkEdit();
 }
 function cancelChunkEdit() {
   editingSeg.value = null;
@@ -463,83 +459,9 @@ async function onRunRecall(payload: {
       rerankModelId: payload.config?.rerankModelId,
       vectorWeight: payload.config?.vectorWeight,
     } as any);
-    if (!knowledgeGraph.value) {
-      await loadKnowledgeGraph();
-    }
-    recallGraph.value = buildRecallSubgraph(hits.value, knowledgeGraph.value);
     await loadRecallHistory();
   } finally {
     recallLoading.value = false;
-  }
-}
-
-function buildRecallSubgraph(
-  sourceHits: RecallHit[],
-  sourceGraph: KnowledgeGraph | null,
-): KnowledgeGraph | null {
-  if (!sourceGraph) return null;
-  if (sourceHits.length === 0) {
-    return {
-      datasetId: sourceGraph.datasetId,
-      nodes: [],
-      edges: [],
-    };
-  }
-
-  const matched = new Set<string>();
-  for (const hit of sourceHits) {
-    if (hit.documentId) matched.add(`document:${hit.documentId}`);
-    if (hit.segmentId) matched.add(`segment:${hit.segmentId}`);
-  }
-
-  if (matched.size === 0) {
-    return {
-      datasetId: sourceGraph.datasetId,
-      nodes: [],
-      edges: [],
-    };
-  }
-
-  const nodeIds = new Set<string>(matched);
-  let frontier = new Set<string>(matched);
-  for (let depth = 0; depth < 2 && frontier.size > 0; depth += 1) {
-    const next = new Set<string>();
-    for (const edge of sourceGraph.edges) {
-      if (!frontier.has(edge.source) && !frontier.has(edge.target)) continue;
-      if (!nodeIds.has(edge.source)) next.add(edge.source);
-      if (!nodeIds.has(edge.target)) next.add(edge.target);
-      nodeIds.add(edge.source);
-      nodeIds.add(edge.target);
-    }
-    frontier = next;
-  }
-
-  const edges = sourceGraph.edges.filter(
-    (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target),
-  );
-
-  return {
-    datasetId: sourceGraph.datasetId,
-    nodes: sourceGraph.nodes.filter((node) => nodeIds.has(node.id)),
-    edges,
-  };
-}
-
-async function loadKnowledgeGraph() {
-  if (!props.datasetId) return;
-  knowledgeGraphLoading.value = true;
-  try {
-    knowledgeGraph.value = await props.hub.getKnowledgeGraph(props.datasetId);
-    recallGraph.value = buildRecallSubgraph(hits.value, knowledgeGraph.value);
-  } catch {
-    knowledgeGraph.value = {
-      datasetId: props.datasetId,
-      nodes: [],
-      edges: [],
-    };
-    recallGraph.value = buildRecallSubgraph([], knowledgeGraph.value);
-  } finally {
-    knowledgeGraphLoading.value = false;
   }
 }
 
@@ -666,14 +588,23 @@ const sidebarData = computed(() => ({
       <template #title>
         <div class="kh-drawer-topbar-title">
           <template v-if="openDocId && currentDoc">
-            <button class="kh-drawer-back" @click="backToDocs">← 返回</button>
+            <button
+              type="button"
+              class="kh-drawer-back"
+              aria-label="返回文档列表"
+              @click="backToDocs"
+            >
+              <span class="kh-drawer-back-icon" aria-hidden="true">←</span>
+              <span>返回文档列表</span>
+            </button>
+            <span class="kh-drawer-title-divider" aria-hidden="true" />
             <span class="kh-drawer-doc-name">📄 {{ currentDoc.name }}</span>
           </template>
           <template v-else>
             <span class="kh-drawer-title-name">{{ dataset?.name ?? '知识库详情' }}</span>
             <span class="kh-drawer-title-tab">
               · {{ {
-                documents: '文档', recall: '召回测试', 'knowledge-graph': '知识图谱',
+                documents: '文档', recall: '召回测试',
                 operations: 'RAG 运行', settings: '设置',
               }[tab] }}
             </span>
@@ -735,13 +666,7 @@ const sidebarData = computed(() => ({
                 :initial-config="parsedRetrievalConfig"
                 :rerank-models="rerankModels"
                 :indexing-technique="dataset?.indexingTechnique"
-                :graph="recallGraph"
                 @run="onRunRecall"
-              />
-              <KnowledgeGraphPanel
-                v-else-if="tab === 'knowledge-graph'"
-                :graph="knowledgeGraph ?? undefined"
-                :loading="knowledgeGraphLoading"
               />
               <RagOperationsPanel
                 v-else-if="tab === 'operations' && datasetId"
@@ -775,16 +700,23 @@ const sidebarData = computed(() => ({
           @confirm="onAddWizardConfirm"
         />
 
-        <!-- Inline chunk editor (add & edit reuse the same modal) -->
-        <div
-          v-if="editorMode"
-          class="kh-drawer-editor-mask"
-          @click.self="cancelChunkEdit"
+        <!-- Add & edit reuse the project-wide modal. -->
+        <Modal
+          :open="!!editorMode"
+          :title="editorMode === 'add' ? '添加分段' : '编辑分段'"
+          :width="720"
+          ok-text="保存"
+          cancel-text="取消"
+          centered
+          :confirm-loading="editorSaving"
+          :mask-closable="!editorSaving"
+          :keyboard="!editorSaving"
+          :closable="!editorSaving"
+          :ok-button-props="{ disabled: !editContent.trim() || editorSaving }"
+          @ok="saveChunkEdit"
+          @update:open="(open: boolean) => { if (!open && !editorSaving) cancelChunkEdit(); }"
         >
-          <div class="kh-drawer-editor">
-            <div class="kh-drawer-editor-title">
-              {{ editorMode === 'add' ? '添加分段' : '编辑分段' }}
-            </div>
+          <div class="kh-drawer-editor-content">
             <textarea
               v-model="editContent"
               class="kh-drawer-editor-textarea"
@@ -797,20 +729,8 @@ const sidebarData = computed(() => ({
                   : '保存后会重新计算 embedding 并入向量库，可能需要几秒。'
               }}
             </div>
-            <div class="kh-drawer-editor-actions">
-              <button class="kh-btn kh-btn-secondary" @click="cancelChunkEdit">
-                取消
-              </button>
-              <button
-                class="kh-btn kh-btn-primary"
-                :disabled="!editContent.trim()"
-                @click="saveChunkEdit"
-              >
-                保存
-              </button>
-            </div>
           </div>
-        </div>
+        </Modal>
       </div>
       <div v-if="parsedDocument || parsedDocumentLoading" class="kh-parsed-mask" @click.self="parsedDocument = null">
         <section class="kh-parsed-panel">
@@ -867,20 +787,52 @@ const sidebarData = computed(() => ({
   color: inherit;
 }
 .kh-drawer-back {
-  padding: 4px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #fff;
-  color: #64748b;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px 6px 8px;
+  border: 1px solid var(--kh-color-primary);
+  border-radius: var(--kh-radius-md);
+  background: var(--kh-color-primary-soft);
+  color: var(--kh-color-primary);
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
   cursor: pointer;
+  transition:
+    background var(--kh-tx-fast),
+    border-color var(--kh-tx-fast),
+    transform var(--kh-tx-fast),
+    box-shadow var(--kh-tx-fast);
 }
 .kh-drawer-back:hover {
-  background: #f1f5f9;
+  border-color: var(--kh-color-primary-strong);
+  background: var(--kh-color-primary);
+  color: var(--kh-color-primary-contrast);
+  box-shadow: var(--kh-shadow-sm);
+  transform: translateX(-1px);
+}
+.kh-drawer-back:focus-visible {
+  outline: none;
+  box-shadow: var(--kh-focus-ring);
+}
+.kh-drawer-back-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.kh-drawer-title-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--kh-color-border);
 }
 .kh-drawer-doc-name {
-  color: #0f172a;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--kh-color-text-primary);
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .kh-drawer-title-name {
   color: #0f172a;
@@ -933,56 +885,35 @@ const sidebarData = computed(() => ({
   font-size: 12px;
 }
 
-/* Inline chunk editor */
-.kh-drawer-editor-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 1050;
-  background: rgba(15, 23, 42, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.kh-drawer-editor {
-  width: min(720px, 90vw);
-  max-height: 80vh;
-  padding: 20px 22px 18px;
-  border-radius: 12px;
-  background: #fff;
+/* Chunk editor content rendered inside the shared Modal component. */
+.kh-drawer-editor-content {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
-}
-.kh-drawer-editor-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #0f172a;
 }
 .kh-drawer-editor-textarea {
-  flex: 1;
   min-height: 240px;
+  max-height: 60vh;
   padding: 10px 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--kh-input-border);
   border-radius: 8px;
+  background: var(--kh-input-bg);
   outline: none;
   font-family: inherit;
   font-size: 13px;
-  color: #0f172a;
+  color: var(--kh-color-text-primary);
   resize: vertical;
 }
+.kh-drawer-editor-textarea::placeholder {
+  color: var(--kh-color-text-muted);
+}
 .kh-drawer-editor-textarea:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  border-color: var(--kh-color-primary);
+  box-shadow: 0 0 0 3px var(--kh-color-primary-soft);
 }
 .kh-drawer-editor-hint {
   font-size: 11px;
-  color: #94a3b8;
-}
-.kh-drawer-editor-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+  color: var(--kh-color-text-muted);
 }
 .kh-btn {
   padding: 6px 18px;

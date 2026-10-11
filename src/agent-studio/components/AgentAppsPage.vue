@@ -434,6 +434,29 @@ interface AgentLike {
   workflowId?: string;
 }
 
+type HostTheme = 'dark' | 'light';
+
+/**
+ * iframe 的主题必须来自宿主，而不是在组件库里写死。优先兼容常见的
+ * `data-theme="dark|light"` 约定，同时兼容 Ant Design/Tailwind 常用的
+ * `<html class="dark">`。
+ */
+const hostTheme = ref<HostTheme>('light');
+let themeObserver: MutationObserver | null = null;
+
+function readHostTheme(): HostTheme {
+  if (typeof document === 'undefined') return 'light';
+  const root = document.documentElement;
+  if (root.dataset.theme === 'dark' || root.dataset.theme === 'light') {
+    return root.dataset.theme;
+  }
+  return root.classList.contains('dark') ? 'dark' : 'light';
+}
+
+function syncHostTheme() {
+  hostTheme.value = readHostTheme();
+}
+
 function resolveIframeBase(): string {
   const raw = (
     import.meta.env.VITE_CHAT_IFRAME_BASE as string | undefined
@@ -469,10 +492,8 @@ function buildChatIframeConfig(
       appId: agent?.id,
       appMode: agent?.mode,
       appName: agent?.name,
-      // Vben-specific user store lookup removed — hosts that want to plumb
-      // theme/user info through can post-message it themselves after mount.
       user: null,
-      theme: 'light',
+      theme: hostTheme.value,
     },
   };
 }
@@ -1116,6 +1137,13 @@ async function copyText(txt: string) {
 }
 
 onMounted(() => {
+  syncHostTheme();
+  themeObserver = new MutationObserver(syncHostTheme);
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class', 'data-theme'],
+  });
+
   // 两个都是 async fn,但不 await —— 显式 .catch 兜住 unhandledrejection,
   // 避免任何一次网络失败把 <KeepAlive> 缓存里的组件挂坏。
   refresh().catch(() => {});
@@ -1132,8 +1160,16 @@ function closeTransientUi() {
   showTypePicker.value = false;
 }
 
+function disconnectThemeObserver() {
+  themeObserver?.disconnect();
+  themeObserver = null;
+}
+
 onDeactivated(closeTransientUi);
-onBeforeUnmount(closeTransientUi);
+onBeforeUnmount(() => {
+  disconnectThemeObserver();
+  closeTransientUi();
+});
 </script>
 
 <template>

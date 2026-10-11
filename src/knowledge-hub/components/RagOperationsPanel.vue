@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-import type { DatasetDetailHub } from '../types';
+import { defaultRagPolicy, type DatasetDetailHub, type RagCapabilities, type RagResult } from '../types';
+import RagPolicyEditor from './RagPolicyEditor.vue';
 import type { IndexVersionWire, IngestionJobWire, RetrievalEvaluationReportWire } from '../../client/knowledge';
 
 const props = defineProps<{ datasetId: string; hub: DatasetDetailHub }>();
@@ -9,6 +10,10 @@ const poisoned = ref<IngestionJobWire[]>([]);
 const report = ref<RetrievalEvaluationReportWire | null>(null);
 const loading = ref(false);
 const error = ref('');
+const ragQuery = ref('');
+const ragPolicy = ref(defaultRagPolicy());
+const ragCapabilities = ref<RagCapabilities>();
+const ragResult = ref<RagResult>();
 const evaluationJson = ref(JSON.stringify({
   name: 'golden-set', version: 'v1', experimentName: 'current', topK: 5,
   configuration: {},
@@ -19,11 +24,20 @@ async function refresh() {
   loading.value = true; error.value = '';
   try {
     versions.value = props.hub.listIndexVersions ? await props.hub.listIndexVersions(props.datasetId) : [];
+    if (props.hub.getRagCapabilities) ragCapabilities.value = await props.hub.getRagCapabilities();
     try {
       poisoned.value = props.hub.listPoisonedIngestionJobs
         ? await props.hub.listPoisonedIngestionJobs(props.datasetId) : [];
     } catch { poisoned.value = []; }
   } catch (e) { error.value = e instanceof Error ? e.message : String(e); }
+  finally { loading.value = false; }
+}
+
+async function runRag() {
+  if (!props.hub.retrieveRag || !ragQuery.value.trim()) return;
+  loading.value = true; error.value = '';
+  try { ragResult.value = await props.hub.retrieveRag(props.datasetId, { query: ragQuery.value, policy: ragPolicy.value }); }
+  catch (e) { error.value = e instanceof Error ? e.message : String(e); }
   finally { loading.value = false; }
 }
 
@@ -53,6 +67,16 @@ onMounted(refresh);
   <div class="kh-ragops">
     <header><div><h2>RAG 运行与质量</h2><p>索引版本、检索评测和失败摄取任务。</p></div><button @click="refresh">刷新</button></header>
     <p v-if="error" class="kh-ragops-error">{{ error }}</p>
+    <section>
+      <h3>组合式 RAG 调试</h3>
+      <RagPolicyEditor v-model="ragPolicy" :capabilities="ragCapabilities" />
+      <textarea v-model="ragQuery" rows="3" placeholder="输入检索问题" />
+      <button class="kh-primary" :disabled="!hub.retrieveRag || loading" @click="runRag">执行 RAG</button>
+      <div v-if="ragResult" class="kh-results">
+        <small>规划 {{ ragResult.queryPlan.queries.length }} 个查询 · 命中 {{ ragResult.evidence.length }} 条 · {{ Object.values(ragResult.stageLatencyMillis).reduce((a,b)=>a+b,0) }} ms</small>
+        <article v-for="item in ragResult.evidence" :key="item.segmentId" class="kh-row"><div><strong>{{ item.metadata?.documentName || item.documentId }}</strong><small>{{ item.context || item.content }}</small></div><b>{{ item.retrievalScore.toFixed(4) }}</b></article>
+      </div>
+    </section>
     <section>
       <h3>索引版本</h3>
       <p v-if="!loading && versions.length === 0" class="kh-muted">暂无版本化索引，当前使用兼容模式。</p>

@@ -244,7 +244,6 @@ const detailHub = computed<DatasetDetailHub>(() => ({
   appendSegment: props.api.appendSegment,
   retrieve: (id, req) => props.api.retrieve(id, req),
   listRecallHistory: (id, limit) => props.api.listRecallHistory(id, limit),
-  getKnowledgeGraph: (id) => props.api.getKnowledgeGraph(id),
   listEmbeddingModels: () => props.api.listEmbeddingModels(),
   previewChunks: props.api.previewChunks,
   onCopyApi: props.api.onCopyApi,

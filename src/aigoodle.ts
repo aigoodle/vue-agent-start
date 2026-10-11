@@ -10,9 +10,16 @@
 export {
   AgentStartPlugin,
   mergeAgentStartHeaders,
+  setAgentStartAppearance,
   useAgentStartConfig,
 } from './config';
-export type { AgentStartHeaders, AgentStartPluginOptions } from './config';
+export type {
+  AgentStartAppearanceOptions,
+  AgentStartHeaders,
+  AgentStartPluginOptions,
+  AgentStartTheme,
+  AgentStartVisual,
+} from './config';
 
 export { default as ProviderApp } from './provider-hub/components/ProviderApp.vue';
 export { default as KnowledgeApp } from './knowledge-hub/components/KnowledgeApp.vue';

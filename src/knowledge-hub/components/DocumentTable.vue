@@ -137,7 +137,7 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
     </div>
 
     <!-- table -->
-    <div class="kh-doctab-table">
+    <div class="kh-doctab-table" :aria-busy="loading">
       <div class="kh-doctab-thead">
         <div class="kh-col kh-col-check">
           <input type="checkbox" />
@@ -152,8 +152,11 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
         <div class="kh-col kh-col-actions">操作</div>
       </div>
 
-      <div v-if="loading" class="kh-doctab-empty">加载中...</div>
-      <div v-else-if="filtered.length === 0" class="kh-doctab-empty">
+      <div v-if="loading" class="kh-doctab-loading" role="status">
+        <span class="kh-doctab-loading-spinner" aria-hidden="true" />
+        <span>加载中...</span>
+      </div>
+      <div v-if="!loading && filtered.length === 0" class="kh-doctab-empty">
         📄 还没有文档。点击右上角"添加文件"上传。
       </div>
 
@@ -342,11 +345,36 @@ function statusLabel(s: DocumentRow['status'], enabled: boolean): string {
 
 /* Table */
 .kh-doctab-table {
+  position: relative;
   flex: 1;
   border: 1px solid var(--kh-color-border);
   border-radius: 8px;
   overflow: auto;
   background: var(--kh-color-surface);
+}
+.kh-doctab-loading {
+  position: absolute;
+  inset: 40px 0 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--kh-color-surface) 82%, transparent);
+  color: var(--kh-color-text-tertiary);
+  font-size: 12px;
+  backdrop-filter: blur(1px);
+}
+.kh-doctab-loading-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--kh-color-border);
+  border-top-color: var(--kh-color-primary);
+  border-radius: 50%;
+  animation: kh-doctab-spin 0.7s linear infinite;
+}
+@keyframes kh-doctab-spin {
+  to { transform: rotate(360deg); }
 }
 .kh-doctab-thead,
 .kh-doctab-row {

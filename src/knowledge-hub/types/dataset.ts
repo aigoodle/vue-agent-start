@@ -43,7 +43,7 @@ export interface Dataset extends DatasetSummary {
 }
 
 /** Navigation tabs of the dataset detail view. */
-export type DatasetTab = 'documents' | 'recall' | 'knowledge-graph' | 'operations' | 'settings';
+export type DatasetTab = 'documents' | 'recall' | 'operations' | 'settings';
 
 // --------- process rule (chunking) -----------------------------------------
 
@@ -78,9 +78,11 @@ export interface ProcessRule {
 // Note: RetrievalMethod itself lives in ./retrieval to keep the retrieval module
 // self-contained; we import it here just for RetrievalConfig.
 import type { RetrievalMethod } from './retrieval';
+import type { RagPolicy } from './retrieval';
 
 /** Wire shape of the backend `RetrievalConfig`. */
 export interface RetrievalConfig {
+  ragPolicy?: RagPolicy;
   method?: RetrievalMethod;
   topK?: number;
   scoreThreshold?: number;

@@ -512,7 +512,7 @@ function reloadGraph(graph: any) {
     // etc. may render with missing config fields.
     workflow_utils.initNodeDefaultData(graph.nodes);
     nodes.value = graph.nodes;
-    edges.value = graph.edges ?? [];
+    edges.value = dedupeEdges(graph.edges ?? []);
     nodeCounter.value = graph.nodes.length;
     // Persisted graphs from before viewport was tracked won't carry one —
     // fall back to a full {x,y,zoom} shape so vue-flow's setViewport doesn't
@@ -848,9 +848,20 @@ function validateWorkflow(): string[] {
 function getFlowInfo() {
   return {
     nodes: nodes.value,
-    edges: edges.value,
+    edges: dedupeEdges(edges.value),
     viewport: getViewport(),
   };
+}
+
+/** 清理旧版本设计器遗留的完全重复连线；不同分支 handle 仍保留。 */
+function dedupeEdges(input: any[]): any[] {
+  const seen = new Set<string>();
+  return (input ?? []).filter((edge) => {
+    const key = `${edge?.source ?? ''}\0${edge?.target ?? ''}\0${edge?.sourceHandle ?? ''}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /** 顶部工具栏「试运行」：走 BackendAdapter.runWorkflow */

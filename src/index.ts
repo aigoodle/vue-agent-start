@@ -23,9 +23,16 @@ export * from './ui';
 export {
   AgentStartPlugin,
   mergeAgentStartHeaders,
+  setAgentStartAppearance,
   useAgentStartConfig,
 } from './config';
-export type { AgentStartHeaders, AgentStartPluginOptions } from './config';
+export type {
+  AgentStartAppearanceOptions,
+  AgentStartHeaders,
+  AgentStartPluginOptions,
+  AgentStartTheme,
+  AgentStartVisual,
+} from './config';
 
 // -----------------------------------------------------------------------------
 // client — the unified SDK every component talks to the backend through.

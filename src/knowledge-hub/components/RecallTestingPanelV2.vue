@@ -15,9 +15,7 @@ import type {
   IndexingTechnique,
   RetrievalConfig,
 } from '../types/dataset';
-import type { KnowledgeGraph } from '../types/api';
 import RetrievalConfigPopover from './RetrievalConfigPopover.vue';
-import KnowledgeGraphPanel from './KnowledgeGraphPanel.vue';
 
 interface Props {
   hits?: RecallHit[];
@@ -31,7 +29,6 @@ interface Props {
   initialConfig?: RetrievalConfig;
   rerankModels?: Array<{ id: string; label: string }>;
   indexingTechnique?: IndexingTechnique;
-  graph?: KnowledgeGraph | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -40,7 +37,6 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
   initialConfig: () => ({ method: 'VECTOR', topK: 3 }),
   rerankModels: () => [],
-  graph: null,
 });
 
 const emit = defineEmits<{
@@ -67,7 +63,6 @@ const methodIcon = computed(() => {
 
 const charCount = computed(() => query.value.length);
 const canRun = computed(() => query.value.trim().length > 0);
-const viewMode = ref<'list' | 'graph'>('list');
 
 // Popover trigger anchor + open state.
 const methodBtnRef = ref<HTMLElement | null>(null);
@@ -173,38 +168,8 @@ function replay(h: RecentQuery) {
               · {{ hits.length }} 个
             </span>
           </div>
-          <div class="kh-recall-view-switch">
-            <button
-              :class="[
-                'kh-recall-view-btn',
-                viewMode === 'list' ? 'kh-recall-view-btn-active' : '',
-              ]"
-              @click="viewMode = 'list'"
-            >
-              列表
-            </button>
-            <button
-              :class="[
-                'kh-recall-view-btn',
-                viewMode === 'graph' ? 'kh-recall-view-btn-active' : '',
-              ]"
-              @click="viewMode = 'graph'"
-            >
-              图谱
-            </button>
-          </div>
         </div>
-        <template v-if="viewMode === 'graph'">
-          <KnowledgeGraphPanel :graph="props.graph" :loading="loading" />
-          <div
-            v-if="(props.graph?.nodes?.length ?? 0) === 0"
-            class="kh-recall-right-empty"
-          >
-            <div class="kh-recall-empty-target">🧭</div>
-            <div class="kh-recall-empty-hint">检索命中未映射到知识图谱节点</div>
-          </div>
-        </template>
-        <template v-else>
+        <template>
           <div v-if="hits.length === 0" class="kh-recall-right-empty">
             <div class="kh-recall-empty-target">🎯</div>
             <div class="kh-recall-empty-hint">召回测试结果显示在这里</div>
@@ -515,28 +480,6 @@ function replay(h: RecentQuery) {
 .kh-recall-results-count {
   color: var(--kh-color-text-muted);
   font-weight: 400;
-}
-.kh-recall-view-switch {
-  display: inline-flex;
-  border: 1px solid var(--kh-color-border);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.kh-recall-view-btn {
-  border: none;
-  padding: 4px 10px;
-  font-size: 11px;
-  color: var(--kh-color-text-secondary);
-  background: var(--kh-color-surface);
-  cursor: pointer;
-}
-.kh-recall-view-btn + .kh-recall-view-btn {
-  border-left: 1px solid var(--kh-color-border);
-}
-.kh-recall-view-btn-active {
-  color: var(--kh-color-primary);
-  background: var(--kh-color-primary-soft);
-  font-weight: 600;
 }
 .kh-recall-right-empty {
   padding: 32px 12px 40px;

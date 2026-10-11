@@ -378,7 +378,10 @@ defineExpose({
     </div>
 
     <!-- 变量填写卡（气泡样式，浮在 iframe 上） -->
-    <div v-if="showVarPanel && variables.length > 0" class="cip-var-panel">
+    <div
+      v-if="showVarPanel && variables.length > 0"
+      class="cip-var-panel hud-panel"
+    >
       <div class="cip-var-panel-head">
         <span class="cip-var-panel-title">调试参数</span>
         <div class="cip-var-panel-actions">

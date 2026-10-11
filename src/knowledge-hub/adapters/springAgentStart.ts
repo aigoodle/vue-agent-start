@@ -35,7 +35,6 @@ import type {
   ParsedDocument,
   RecallHit,
   RecentQuery,
-  KnowledgeGraph,
 } from '../types';
 import type { DocumentWire, SegmentWire } from '../../client';
 
@@ -260,6 +259,8 @@ export function createSpringAgentStartAdapter(
           metadata: normalizeMetadata(r.metadata),
         })),
       ),
+    retrieveRag: (datasetId, req) => client.knowledge.retrieveRag(datasetId, req),
+    getRagCapabilities: () => client.knowledge.getRagCapabilities(),
     listRecallHistory: (datasetId, limit) =>
       client.knowledge.listRecallHistory(datasetId, limit).then((rows) =>
         rows.map<RecentQuery>((r) => ({
@@ -270,8 +271,6 @@ export function createSpringAgentStartAdapter(
           at: r.createdAt ?? '',
         })),
       ),
-    getKnowledgeGraph: (datasetId) =>
-      client.knowledge.getKnowledgeGraph(datasetId).then((graph) => graph as unknown as KnowledgeGraph),
     listIndexVersions: (datasetId) => client.knowledge.listIndexVersions(datasetId),
     beginIndexVersion: (datasetId, request) => client.knowledge.beginIndexVersion(datasetId, request),
     activateIndexVersion: (datasetId, versionId) => client.knowledge.activateIndexVersion(datasetId, versionId),

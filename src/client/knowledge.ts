@@ -4,7 +4,7 @@
  * knowledge-hub adapter maps them into the hub's view types.
  */
 import type { ChunkPreview } from '../knowledge-hub/types';
-import type { RetrieveRequest } from '../knowledge-hub/types';
+import type { RagCapabilities, RagPolicy, RagResult, RetrieveRequest } from '../knowledge-hub/types';
 import { qs, type HttpCore } from './core';
 
 /** Raw dataset row as the backend returns it. */
@@ -65,32 +65,6 @@ export interface RetrieveHitWire {
   metadata?: Record<string, unknown>;
   [k: string]: unknown;
 }
-export interface KnowledgeGraphNodeWire {
-  id: string;
-  type: string;
-  label: string;
-  datasetId: string;
-  documentId?: string | null;
-  segmentId?: string | null;
-  headingPath?: string | null;
-  source?: string | null;
-  description?: string | null;
-  weight?: number;
-  evidenceSegmentIds?: string[];
-}
-export interface KnowledgeGraphEdgeWire {
-  source: string;
-  target: string;
-  relation: string;
-  weight?: number;
-  evidenceSegmentIds?: string[];
-}
-export interface KnowledgeGraphWire {
-  datasetId: string;
-  nodes: KnowledgeGraphNodeWire[];
-  edges: KnowledgeGraphEdgeWire[];
-}
-
 /** Raw recall-history row. */
 export interface RecallHistoryWire {
   id: string;
@@ -178,8 +152,9 @@ export interface KnowledgeNamespace {
 
   // retrieval
   retrieve(datasetId: string, req: RetrieveRequest): Promise<RetrieveHitWire[]>;
+  retrieveRag(datasetId: string, req: { query: string; conversationId?: string; policy?: RagPolicy; metadataFilter?: Record<string, unknown> }): Promise<RagResult>;
+  getRagCapabilities(): Promise<RagCapabilities>;
   listRecallHistory(datasetId: string, limit?: number): Promise<RecallHistoryWire[]>;
-  getKnowledgeGraph(datasetId: string): Promise<KnowledgeGraphWire>;
   listIndexVersions(datasetId: string): Promise<IndexVersionWire[]>;
   beginIndexVersion(datasetId: string, request: Record<string, unknown>): Promise<IndexVersionWire>;
   activateIndexVersion(datasetId: string, versionId: string): Promise<void>;
@@ -289,12 +264,15 @@ export function createKnowledgeNamespace(core: HttpCore): KnowledgeNamespace {
           }),
         },
       ),
+    retrieveRag: (datasetId, req) =>
+      core.request<RagResult>(`/datasets/${encodeURIComponent(datasetId)}/rag/retrieve`, {
+        method: 'POST', body: JSON.stringify(req),
+      }),
+    getRagCapabilities: () => core.request<RagCapabilities>('/datasets/rag/capabilities'),
     listRecallHistory: (datasetId, limit = 20) =>
       core.request<RecallHistoryWire[]>(
         `/datasets/${encodeURIComponent(datasetId)}/hit-testing/history${qs({ limit })}`,
       ),
-    getKnowledgeGraph: (datasetId) =>
-      core.request<KnowledgeGraphWire>(`/datasets/${encodeURIComponent(datasetId)}/knowledge-graph`),
     listIndexVersions: (datasetId) =>
       core.request<IndexVersionWire[]>(`/datasets/${encodeURIComponent(datasetId)}/rag/index-versions`),
     beginIndexVersion: (datasetId, request) =>
